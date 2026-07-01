@@ -17,15 +17,9 @@ class Settings:
     retries: int = 3
     retry_delay: float = 1.0
 
-    # label
-    label_x: int = 50
-    label_y: int = 50
-    orientation: str = "N"
-    module_size: int = 6
-    quality: int = 200
-    label_width: float = 4.0
-    label_height: float = 6.0
-    dpmm: int = 8
+    # savema template
+    template_name: str = ""
+    datamatrix_field: str = ""
 
     # csv
     csv_column: str = ""
@@ -55,16 +49,10 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         settings.retries = s.getint("retries", settings.retries)
         settings.retry_delay = s.getfloat("retry_delay", settings.retry_delay)
 
-    if cp.has_section("label"):
-        s = cp["label"]
-        settings.label_x = s.getint("x", settings.label_x)
-        settings.label_y = s.getint("y", settings.label_y)
-        settings.orientation = s.get("orientation", settings.orientation)
-        settings.module_size = s.getint("module_size", settings.module_size)
-        settings.quality = s.getint("quality", settings.quality)
-        settings.label_width = s.getfloat("label_width", settings.label_width)
-        settings.label_height = s.getfloat("label_height", settings.label_height)
-        settings.dpmm = s.getint("dpmm", settings.dpmm)
+    if cp.has_section("savema"):
+        s = cp["savema"]
+        settings.template_name = s.get("template_name", settings.template_name)
+        settings.datamatrix_field = s.get("datamatrix_field", settings.datamatrix_field)
 
     if cp.has_section("csv"):
         s = cp["csv"]

@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 
 from config import load_settings
 from csv_processor import read_codes_from_csv
-from zebra_printer import PrinterError, ZebraPrinterClient, build_datamatrix_zpl, encode_gs1_datamatrix_data
+from savema_printer import (
+    PrinterError,
+    SavemaPrinterClient,
+    build_modify_2d,
+    encode_gs1_for_savema,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     print_parser = subparsers.add_parser("print")
     print_parser.add_argument("code")
-    print_parser.add_argument("--x", type=int, default=None)
-    print_parser.add_argument("--y", type=int, default=None)
-    print_parser.add_argument("--orientation", default=None)
-    print_parser.add_argument("--module-size", type=int, default=None)
-    print_parser.add_argument("--quality", type=int, default=None)
+    print_parser.add_argument("--field", default=None, help="Savema: 2D barcode field name")
     print_parser.add_argument("--dry-run", action="store_true", default=None)
 
     batch_parser = subparsers.add_parser("batch")
@@ -98,15 +99,15 @@ def build_parser() -> argparse.ArgumentParser:
     batch_parser.add_argument("--column", default=None)
     batch_parser.add_argument("--delimiter", default=None)
     batch_parser.add_argument("--no-header", action="store_true", default=None)
-    batch_parser.add_argument("--x", type=int, default=None)
-    batch_parser.add_argument("--y", type=int, default=None)
-    batch_parser.add_argument("--orientation", default=None)
-    batch_parser.add_argument("--module-size", type=int, default=None)
-    batch_parser.add_argument("--quality", type=int, default=None)
+    batch_parser.add_argument("--field", default=None, help="Savema: 2D barcode field name")
     batch_parser.add_argument("--dry-run", action="store_true", default=None)
 
     subparsers.add_parser("status")
     subparsers.add_parser("clear")
+
+    info_parser = subparsers.add_parser("info", help="Get printer info (Savema)")
+    templates_parser = subparsers.add_parser("templates", help="List stored templates (Savema)")
+    fields_parser = subparsers.add_parser("fields", help="Get field names from active template (Savema)")
     return parser
 
 
@@ -128,44 +129,29 @@ def main() -> None:
     port = _pick(args.port, cfg.printer_port)
     dry_run = _pick(getattr(args, "dry_run", None), cfg.dry_run)
 
-    client = ZebraPrinterClient(
+    field_name = _pick(getattr(args, "field", None), cfg.datamatrix_field)
+
+    client = SavemaPrinterClient(
         host=host,
         port=port,
         timeout=cfg.timeout,
         retries=cfg.retries,
         retry_delay=cfg.retry_delay,
+        template_name=cfg.template_name,
+        datamatrix_field=field_name or "",
     )
 
     if args.command == "print":
         logger.info("Command: print single label")
-        x = _pick(args.x, cfg.label_x)
-        y = _pick(args.y, cfg.label_y)
-        orientation = _pick(args.orientation, cfg.orientation)
-        module_size = _pick(args.module_size, cfg.module_size)
-        quality = _pick(args.quality, cfg.quality)
-
-        encoded = encode_gs1_datamatrix_data(args.code)
+        encoded = encode_gs1_for_savema(args.code)
         if dry_run:
-            logger.info("Dry-run mode: printing ZPL to console")
-            zpl = build_datamatrix_zpl(
-                encoded_code=encoded,
-                x=x,
-                y=y,
-                orientation=orientation,
-                module_size=module_size,
-                quality=quality,
-            )
-            print(zpl)
+            logger.info("Dry-run mode: printing SPPL command to console")
+            cmd = build_modify_2d(client.datamatrix_field or "gs1_code", encoded)
+            print(cmd)
+            print("~SPPOTP^")
             return
         try:
-            client.print_code(
-                raw_code=args.code,
-                x=x,
-                y=y,
-                orientation=orientation,
-                module_size=module_size,
-                quality=quality,
-            )
+            client.print_code(raw_code=args.code)
             print("Print command sent.")
         except PrinterError as exc:
             logger.error("Print failed: %s", exc)
@@ -174,17 +160,12 @@ def main() -> None:
 
     if args.command == "batch":
         logger.info("Command: batch print from CSV")
-        x = _pick(args.x, cfg.label_x)
-        y = _pick(args.y, cfg.label_y)
-        orientation = _pick(args.orientation, cfg.orientation)
-        module_size = _pick(args.module_size, cfg.module_size)
-        quality = _pick(args.quality, cfg.quality)
 
-        col = _pick(args.column, cfg.csv_column or None)
+        col = _pick(getattr(args, "column", None), cfg.csv_column or None)
         if col is not None and isinstance(col, str) and col.isdigit():
             col = int(col)
-        delimiter = _pick(args.delimiter, cfg.csv_delimiter)
-        no_header = _pick(args.no_header, not cfg.csv_has_header)
+        delimiter = _pick(getattr(args, "delimiter", None), cfg.csv_delimiter)
+        no_header = _pick(getattr(args, "no_header", None), not cfg.csv_has_header)
 
         csv_result = read_codes_from_csv(
             file_path=args.csv_file,
@@ -204,29 +185,16 @@ def main() -> None:
         )
 
         for i, code in enumerate(csv_result.codes, 1):
-            encoded = encode_gs1_datamatrix_data(code)
+            encoded = encode_gs1_for_savema(code)
             if dry_run:
-                zpl = build_datamatrix_zpl(
-                    encoded_code=encoded,
-                    x=x,
-                    y=y,
-                    orientation=orientation,
-                    module_size=module_size,
-                    quality=quality,
-                )
+                cmd = build_modify_2d(client.datamatrix_field or "gs1_code", encoded)
                 print(f"--- Label {i} ---")
-                print(zpl)
+                print(cmd)
+                print("~SPPOTP^")
                 report.dry_run_generated += 1
             else:
                 try:
-                    client.print_code(
-                        raw_code=code,
-                        x=x,
-                        y=y,
-                        orientation=orientation,
-                        module_size=module_size,
-                        quality=quality,
-                    )
+                    client.print_code(raw_code=code)
                     report.sent_ok += 1
                     logger.debug("Label %d/%d sent", i, total)
                 except PrinterError as exc:
@@ -241,14 +209,6 @@ def main() -> None:
         try:
             status = client.get_status()
             print(status.summary())
-            if status.label_length:
-                print(f"  Label length: {status.label_length}")
-            if status.labels_remaining:
-                print(f"  Labels remaining: {status.labels_remaining}")
-            if status.label_waiting:
-                print(f"  Label waiting: yes")
-            if status.buffer_full:
-                print(f"  Buffer full: yes")
             if status.errors:
                 print(f"  Parse warnings: {status.errors}")
         except PrinterError as exc:
@@ -257,9 +217,53 @@ def main() -> None:
         return
 
     if args.command == "clear":
-        logger.info("Command: clear printer queue")
-        client.clear_queue()
-        print("Queue cleared.")
+        logger.info("Command: clear data buffer")
+        client.clear_data_buffer()
+        print("Data buffer cleared.")
+        return
+
+    if args.command == "info":
+        logger.info("Command: get printer info")
+        try:
+            fw = client.get_firmware_version()
+            sn = client.get_serial_number()
+            tpl = client.get_active_template()
+            cnt = client.get_current_print_count()
+            print(f"Firmware:       {fw}")
+            print(f"Serial number:  {sn}")
+            print(f"Active template: {tpl}")
+            print(f"Print count:    {cnt}")
+        except PrinterError as exc:
+            logger.error("Info failed: %s", exc)
+            print(f"Failed: {exc}")
+        return
+
+    if args.command == "templates":
+        logger.info("Command: list stored templates")
+        try:
+            templates = client.get_stored_templates()
+            active = client.get_active_template()
+            for t in templates:
+                marker = " (active)" if t == active else ""
+                print(f"  {t}{marker}")
+            if not templates:
+                print("  No templates stored.")
+        except PrinterError as exc:
+            logger.error("Templates failed: %s", exc)
+            print(f"Failed: {exc}")
+        return
+
+    if args.command == "fields":
+        logger.info("Command: get field names")
+        try:
+            fields = client.get_field_names()
+            for f in fields:
+                print(f"  {f}")
+            if not fields:
+                print("  No fields found.")
+        except PrinterError as exc:
+            logger.error("Fields failed: %s", exc)
+            print(f"Failed: {exc}")
         return
 
     parser.error("Unknown command")
