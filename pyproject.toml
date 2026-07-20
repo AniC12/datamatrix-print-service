@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "datamatrix-print-service"
 version = "0.1.0"
-description = "Minimal Zebra ZT411 ZPL printer prototype"
+description = "DataMatrix print service for Savema TTO printers"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["flask>=3.0"]
 
 [tool.setuptools]
-py-modules = ["zebra_printer", "main"]
+py-modules = ["savema_printer", "csv_processor", "config", "main", "web_ui"]

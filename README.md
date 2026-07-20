@@ -46,12 +46,15 @@ Unlike Zebra printers where the host builds the entire label layout, Savema uses
 - **Structured logging** — configurable log level, module-specific loggers, clear debug output for connection attempts, retries, and print jobs
 - **Retry logic** — configurable retries and delay for TCP communication with the printer
 - **Dry-run mode** — outputs SPPL commands to console instead of sending to printer, for development and review
+- **Web UI** — Flask-based browser interface with printer status panel, single/batch print controls, SPPL command log, and built-in simulator toggle
 
 ## Project Structure
 
 ```
 datamatrix-print-service/
 ├── main.py                CLI entry point (print, batch, status, clear, info, templates, fields)
+├── web_ui.py              Flask web UI for demo and operation
+├── templates/index.html   Web UI frontend (Tailwind CSS)
 ├── savema_printer.py      SavemaPrinterClient, SPPL command builders, GS1 encoder, status parser
 ├── csv_processor.py       CSV reader with row validation
 ├── config.py              Settings dataclass + config.ini loader
@@ -71,9 +74,10 @@ datamatrix-print-service/
 ### Install
 
 ```bash
-# Python 3.11+ required, no external dependencies
+# Python 3.11+ required
 git clone <repo-url>
 cd datamatrix-print-service
+pip install flask
 ```
 
 ### Run the Simulator
@@ -167,6 +171,26 @@ python main.py fields
 #   batch_txt
 #   date_txt
 ```
+
+### Web UI
+
+```bash
+# Start web UI only (connect to real printer via config.ini)
+python web_ui.py
+
+# Start web UI with built-in simulator (no real printer needed)
+python web_ui.py --simulator
+
+# Custom web UI port
+python web_ui.py --port 8080
+```
+
+Open http://127.0.0.1:5000 in your browser. The UI provides:
+- Printer status and connection monitoring
+- Single label printing with dry-run toggle
+- CSV batch upload and processing
+- Live SPPL command log showing all sent/received traffic
+- One-click simulator start/stop
 
 ### Run Tests
 
