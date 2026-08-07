@@ -25,7 +25,7 @@ These are the hard rules that prevent chaos:
 | **Max one active job per product** | Two jobs reserving from the same pool = duplicate codes. | DB constraint + UI guard |
 | **Multi-step operations on a printer are exclusive** | Prepare uploads CSV, Cancel stops printing, Cleanup deletes files. If two overlap on the same printer, they corrupt each other's state. | Per-printer operation lock (service-level SemaphoreSlim) |
 | **Individual commands to a printer are serialized** | SPPL is request-response over TCP. Concurrent sends = garbled responses. | Per-adapter SemaphoreSlim (lower level) |
-| **Job execution lives in service layer, not ViewModel** | User navigates away from Print screen → job must keep running. | Service-owned Task, ViewModel subscribes to events |
+| **Job execution lives in service layer, not ViewModel** | User navigates away from Jobs screen → job must keep running. | Service-owned Task, ViewModel subscribes to events |
 
 ### Database-level enforcement (defense in depth)
 
@@ -542,70 +542,82 @@ SERVICE LAYER (always running)          UI LAYER (view-dependent)
                                        └──────────────────────────┘
 ```
 
-- User creates Job #47 on Print screen → `PrintJobService` starts the executor
-- User navigates to Dashboard → Print screen ViewModel is disposed, **job keeps running**
+- User creates Job #47 via New Job screen → `PrintJobService` starts the executor
+- User navigates to Dashboard → New Job screen ViewModel is disposed, **job keeps running**
 - Dashboard ViewModel subscribes to all active executors → shows progress for each printer card
-- User navigates back to Print screen → ViewModel reconnects to the active job (or shows "create new")
+- User navigates to Jobs screen → ViewModel connects to the active job (selects it in the job list)
 
 ### Dashboard with multiple active jobs
 
+Merged printer/job cards — one card per printer showing last/current job. Only printers with job history are shown. Cards are sorted: running/error/paused/ready first, completed last.
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  DASHBOARD                                                        │
+│  DASHBOARD                                         [+ New Job]   │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  PRINTERS                                                         │
-│  ┌─────────────────────────────┐  ┌─────────────────────────────┐│
-│  │ Savema-Line1                │  │ Savema-Line2                ││
-│  │ 192.168.1.10  ● PRINTING   │  │ 192.168.1.11  ● PRINTING   ││
-│  │ Job #47: Apple 0.5L        │  │ Job #48: Orange 0.33L       ││
-│  │ Progress: 342/500 (68%)    │  │ Progress: 1205/2000 (60%)   ││
-│  │ ████████████░░░░░          │  │ ██████████░░░░░░░           ││
-│  └─────────────────────────────┘  └─────────────────────────────┘│
-│  ┌─────────────────────────────┐                                  │
-│  │ Savema-Line3                │                                  │
-│  │ 192.168.1.12  ● IDLE       │                                  │
-│  │                             │                                  │
-│  └─────────────────────────────┘                                  │
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ Savema-Line1  192.168.1.10                      ● PRINTING   ││
+│  │ Job #47: Apple 0.5L   342/500 (68%)                          ││
+│  │ ████████████████████░░░░░░░░░            [Pause] [Cancel]    ││
+│  └──────────────────────────────────────────────────────────────┘│
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ Savema-Line2  192.168.1.11                      ● PRINTING   ││
+│  │ Job #48: Orange 0.33L   1205/2000 (60%)                      ││
+│  │ ███████████████░░░░░░░░░░               [Pause] [Cancel]    ││
+│  └──────────────────────────────────────────────────────────────┘│
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ Savema-Line3  192.168.1.12                      ● DONE       ││
+│  │ Job #46: Water Still 0.5L   1000/1000 (100%)                  ││
+│  │ Completed Aug 7 14:10                                        ││
+│  └──────────────────────────────────────────────────────────────┘│
 │                                                                    │
 │  ALERTS                                                           │
 │  ┌──────────────────────────────────────────────────────────────┐│
 │  │ 14:32  ⚠️  Savema-Line1: Unexpected counter jump (+7)       ││
-│  │ 14:30  ✅  Savema-Line2: Job #48 started (2000 codes)       ││
-│  │ 14:28  ✅  Savema-Line1: Job #47 started (500 codes)        ││
 │  └──────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Each printer card is a ViewModel bound to one printer + its active job (if any). Updates come from the service layer via events, marshaled to UI thread.
+Each printer card is a ViewModel bound to one printer + its last/current job. Updates come from the service layer via events, marshaled to UI thread. Contextual buttons on cards: [Pause]/[Cancel] for printing, [Start Print]/[Cancel] for ready, [Resume]/[Cancel] for paused.
 
-### Print screen behavior with multiple jobs
+### Jobs screen behavior with multiple jobs
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  PRINT JOB                                                        │
+│  JOBS                                              [+ New Job]   │
 ├──────────────────────────────────────────────────────────────────┤
+│  [Active Jobs]  [Job History]                                     │
+│  ─────────────────────────────────────────────────────────────    │
 │                                                                    │
-│  ┌─── Active Jobs ────────────────────────────────────────────┐  │
-│  │ #47  Apple 0.5L → Line1    342/500  (68%)  [View] [Cancel]│  │
-│  │ #48  Orange 0.33L → Line2  1205/2000 (60%) [View] [Cancel]│  │
-│  └────────────────────────────────────────────────────────────┘  │
+│  Select Job:                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ ● #47  Apple 0.5L → Line1       342/500   ● printing        ││
+│  │   #48  Orange 0.33L → Line2     1205/2000 ● printing        ││
+│  └──────────────────────────────────────────────────────────────┘│
 │                                                                    │
-│  ─── New Job ─────────────────────────────────────────────────   │
-│  Product:   [ Water Still 0.5L    ▼ ]   (5,000 codes available)  │
-│  Printer:   [ Savema-Line3        ▼ ]   (● idle)                 │
-│  Quantity:  [ 1000                  ]                             │
+│  ─── Job #47 ─────────────────────────────────────────────────   │
+│  Product:  Apple 0.5L                                             │
+│  Printer:  Savema-Line1 (192.168.1.10)  ● PRINTING               │
+│  Quantity: 500 codes                                              │
 │                                                                    │
-│              [Prepare]                                             │
+│  Progress: 342 / 500  (68%)                                       │
+│  ████████████████████████████░░░░░░░░░░░░░                        │
+│                                                                    │
+│  [Pause]  [Cancel]                                               │
+│                                                                    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 Key behaviors:
-- **Active jobs panel** at top — always visible, shows all running jobs with mini-progress
-- **New job form** below — only shows printers/products **without** active jobs in dropdowns
-- **[View]** — expands to the full progress view (progress bar, detailed counters, Stop/Cancel)
-- **Printers with active jobs are disabled** in the dropdown (greyed out, "(printing Job #47)")
-- **Products with active jobs are disabled** in the dropdown
+- **Job selector** at top — one job selected at a time, full detail shown below
+- **Contextual action buttons:**
+  - Job is `ready` → [Start Print], [Cancel]
+  - Job is `printing` → [Pause], [Cancel]
+  - Job is `paused` → [Resume], [Cancel]
+- **[+ New Job]** button — opens separate New Job screen (not inline)
+- **Printers with active jobs** are greyed out in New Job screen's printer dropdown
+- **Products with active jobs** are greyed out in New Job screen's product dropdown
 
 ### Thread marshaling
 
@@ -840,9 +852,10 @@ Alerts live in the **main window shell**, not inside any specific page. They're 
 | **§4 Data Model** | Add two partial unique indexes (one active job per printer, one per product) |
 | **§5.1 Interface** | Already correct — adapter is per-printer instance, stateless to multi-job |
 | **§5.3 Counter Tracking** | Clarify this runs per-job, not a single global loop |
-| **§6.2 Dashboard** | Already supports multiple printer cards — add job info per card |
-| **§6.4 Print Screen** | Add active jobs panel + disable busy printers/products in dropdowns |
-| **§6.6 Alerts** | Add printer/job identification to each alert |
+| **§6.2 Dashboard** | Already supports multiple printer cards — add job info per card. ✅ Done |
+| **§6.5 Jobs Screen** | Replaces old Print Screen. Two tabs: Active Jobs (single-job focus with selector) + Job History. ✅ Done |
+| **§6.6 New Job Screen** | Dedicated job creation flow with context preselection. ✅ Done |
+| **§6.7 Alerts** | Add printer/job identification to each alert |
 | **§7.1 Architecture** | Add `PrinterConnectionManager` to layer diagram |
 | **§7.2 Services** | Split `CounterMonitor` → per-job `JobExecutor`. Add `PrinterConnectionManager`. |
 | **§8 Tech Stack** | Note SQLite WAL mode requirement |

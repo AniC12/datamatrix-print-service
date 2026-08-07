@@ -525,50 +525,72 @@ if actual_advance > expected_max_advance * 2:
 │         │                           │
 │ • Dash  │  (changes based on nav)   │
 │ • Prods │                           │
-│ • Print │                           │
-│ • Hist  │                           │
+│ • Prntrs│                           │
+│ • Jobs  │                           │
 │         │                           │
-└─────────┴───────────────────────────┘
+├─────────┴───────────────────────────┤
+│ ALERTS (always visible at bottom)   │
+└─────────────────────────────────────┘
 ```
 
 Navigation:
-- **Dashboard** — overview of printers + pools
+- **Dashboard** — active monitoring and intervention (printer status, active jobs, alerts, recent activity)
 - **Products** — tree management + CSV import
 - **Printers** — printer configuration + storage management
-- **Print** — create and monitor print jobs
-- **History** — audit log viewer
+- **Jobs** — manage active print jobs + view job history
+
+**New Job** is not a nav item — accessed via [+ New Job] buttons on Dashboard, Products, Printers, and Jobs pages. Each context preselects the relevant field (product or printer).
 
 ### 6.2 Dashboard
 
+Merged printer/job cards — one card per printer that has ever had a job, showing the last/current job.
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  DASHBOARD                                                        │
+│  DASHBOARD                                         [+ New Job]   │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  PRINTERS                                                         │
-│  ┌─────────────────────────────┐  ┌─────────────────────────────┐│
-│  │ Savema-Line1                │  │ Savema-Line2                ││
-│  │ 192.168.1.10  ● PRINTING   │  │ 192.168.1.11  ● PRINTING   ││
-│  │ Job #47: Apple 0.5L        │  │ Job #48: Orange 0.33L       ││
-│  │ Progress: 342/500 (68%)    │  │ Progress: 1205/2000 (60%)   ││
-│  │ ████████████░░░░░          │  │ ██████████░░░░░░░           ││
-│  └─────────────────────────────┘  └─────────────────────────────┘│
-│                                                                    │
-│  CODE POOLS (low stock alerts)                                    │
 │  ┌──────────────────────────────────────────────────────────────┐│
-│  │ Product              Available    Printed    Total            ││
-│  │ Apple 0.5L           8,300       1,700      10,000           ││
-│  │ Orange 0.33L         ⚠️ 120       4,880      5,000           ││
-│  │ Water Still 0.5L     5,000       0          5,000            ││
+│  │ Savema-Line1  192.168.1.10                      ● PRINTING   ││
+│  │ Job #47: Apple 0.5L   342/500 (68%)                          ││
+│  │ ████████████████████░░░░░░░░░            [Pause] [Cancel]    ││
+│  └──────────────────────────────────────────────────────────────┘│
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ Savema-Line2  192.168.1.11                      ● READY      ││
+│  │ Job #49: Water Still 0.5L   0/1000                           ││
+│  │ Prepared, waiting to start       [Start Print] [Cancel]      ││
+│  └──────────────────────────────────────────────────────────────┘│
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ Savema-Line3  192.168.1.12                      ● DONE       ││
+│  │ Job #46: Orange 0.33L   2000/2000 (100%)                     ││
+│  │ Completed Aug 7 14:25                                        ││
+│  └──────────────────────────────────────────────────────────────┘│
+│                                                                    │
+│  ALERTS                                                           │
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ 14:32  ⚠️  Line1: Unexpected counter jump (+7)        [×]   ││
 │  └──────────────────────────────────────────────────────────────┘│
 │                                                                    │
 │  RECENT ACTIVITY                                                  │
-│  14:30  Imported 10,000 codes for Apple 0.5L                     │
-│  14:25  Job #46 completed: 500 codes printed on Savema-Line1     │
-│  14:20  Job #46 started: Apple 0.5L → Savema-Line1              │
+│  14:30  Job #47 started: Apple 0.5L → Line1                      │
+│  14:25  Job #46 completed: Orange 0.33L → Line3                  │
+│  14:20  Imported 10,000 codes for Apple 0.5L                     │
 │                                                                    │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+Key behaviors:
+- **One card per printer** (only printers with job history). Shows last/current job and status.
+- **Sort order:** running/error/paused/ready first (newest status update), completed last.
+- **Contextual action buttons on cards:**
+  - Job is `printing` → [Pause], [Cancel]
+  - Job is `ready` → [Start Print], [Cancel]
+  - Job is `paused` → [Resume], [Cancel]
+  - Job is `completed` → no buttons
+- **Clicking a card** navigates to Jobs page with that job selected.
+- **Alerts** — inline mirror of the bottom alert bar (errors and warnings).
+- **Recent Activity** — last ~10 events. Serves as a lightweight audit view.
+- **[+ New Job]** (top-right) — opens New Job screen with nothing preselected.
 
 ### 6.3 Products Screen
 
@@ -588,7 +610,7 @@ Navigation:
 │                    │    Burned:    3                                │
 │                    │    Total:     10,003                          │
 │                    │                                               │
-│                    │  [Import CSV...]                              │
+│                    │  [Import CSV...]  [+ New Job]                 │
 │                    │                                               │
 │                    │  Import History:                              │
 │                    │    2026-08-06  gold_0.5_10000.csv (10,000)   │
@@ -596,57 +618,17 @@ Navigation:
 └────────────────────┴─────────────────────────────────────────────┘
 ```
 
-### 6.4 Print Screen
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  PRINT JOB                                                        │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                    │
-│  ┌─── Active Jobs ────────────────────────────────────────────┐  │
-│  │ #47  Apple 0.5L → Line1    342/500  (68%)  [View] [Cancel]│  │
-│  │ #48  Orange 0.33L → Line2  1205/2000 (60%) [View] [Cancel]│  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                    │
-│  ─── New Job ─────────────────────────────────────────────────   │
-│  Product:   [ Water Still 0.5L    ▼ ]   (5,000 codes available)  │
-│  Printer:   [ Savema-Line3        ▼ ]   (● idle)                 │
-│  Quantity:  [ 1000                  ]                             │
-│                                                                    │
-│              [Prepare]                                             │
-│                                                                    │
-│  ─── Job Detail (expanded via [View]) ────────────────────────   │
-│  Job #47: Apple 0.5L → Savema-Line1                              │
-│                                                                    │
-│  Preparation Status:                                              │
-│  ✓ Template present on printer                                    │
-│  ✓ 500 codes reserved from pool                                   │
-│  ✓ CSV uploaded (SPLCDF OK + SPLGSD confirmed)                    │
-│  ✓ Template loaded (counter reset to 0)                           │
-│                                                                    │
-│  Print Progress:                                                  │
-│  Status: PRINTING                                                 │
-│  Progress: 342 / 500  (68%)                                       │
-│  ████████████████████████████░░░░░░░░░░░░░                        │
-│                                                                    │
-│  [⏹ STOP]  [Cancel Job]                                          │
-│                                                                    │
-└──────────────────────────────────────────────────────────────────┘
-```
-
 Key behaviors:
-- **Active jobs panel** — always visible at top, shows all running jobs with mini-progress
-- **New job form** — only shows printers/products **without** active jobs in dropdowns (busy ones greyed out)
-- **[View]** — expands to the full detail view (preparation checklist + progress + controls)
-- **[Cancel]** — inline cancel with confirmation dialog
+- **[+ New Job]** — opens New Job screen with this product preselected
+- Rest unchanged: tree navigation, template assignment, code pool stats, CSV import with global dedup
 
-### 6.5 Printers Screen
+### 6.4 Printers Screen
 
 Two tabs: **Configuration** (existing IP/port/model setup) and **Storage**.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  PRINTERS                                                        │
+│  PRINTERS                                          [+ New Job]   │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  [ Savema-Line1 ▼ ]  192.168.1.10  ● IDLE                        │
@@ -676,11 +658,13 @@ Two tabs: **Configuration** (existing IP/port/model setup) and **Storage**.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**How "Used" is determined:**
-- Templates: filename matches any product's `template_file` (the `.rox` filename)
-- CSV files: filename matches any product's `printer_csv_name`
+Key behaviors:
+- **[+ New Job]** (top-right) — opens New Job screen with this printer preselected. Disabled if printer is busy or offline.
+- **How "Used" is determined:**
+  - Templates: filename matches any product's `template_file` (the `.rox` filename)
+  - CSV files: filename matches any product's `printer_csv_name`
 
-**Flow:**
+**Storage cleanup flow:**
 1. Click **Refresh** → app queries `SPLGST` (templates) and `SPLGSD` (CSV files)
 2. App cross-references each file against `product_nodes.template_file` and `product_nodes.printer_csv_name`
 3. Files not mapped to any product are pre-selected and marked ⚠️
@@ -690,7 +674,137 @@ Two tabs: **Configuration** (existing IP/port/model setup) and **Storage**.
 
 > **Safety:** Files mapped to a product cannot be selected for deletion (checkbox disabled). The active template (from `SPLGAT`) is also protected — deletion requires stopping the printer first.
 
-### 6.6 Alerts
+### 6.5 Jobs Screen
+
+Two tabs: **Active Jobs** (manage running jobs) and **Job History** (review past jobs).
+
+#### Active Jobs tab
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  JOBS                                              [+ New Job]   │
+├──────────────────────────────────────────────────────────────────┤
+│  [Active Jobs]  [Job History]                                     │
+│  ─────────────────────────────────────────────────────────────    │
+│                                                                    │
+│  Select Job:                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ ● #47  Apple 0.5L → Line1       342/500   ● printing        ││
+│  │   #48  Orange 0.33L → Line2     1205/2000 ● printing        ││
+│  └──────────────────────────────────────────────────────────────┘│
+│                                                                    │
+│  ─── Job #47 ─────────────────────────────────────────────────   │
+│  Product:  Apple 0.5L                                             │
+│  Printer:  Savema-Line1 (192.168.1.10)  ● PRINTING               │
+│  Quantity: 500 codes                                              │
+│                                                                    │
+│  Preparation:                                                     │
+│  ✓ Template present on printer                                    │
+│  ✓ 500 codes reserved from pool                                   │
+│  ✓ CSV uploaded (SPLCDF OK + SPLGSD confirmed)                    │
+│  ✓ Template loaded (counter reset to 0)                           │
+│                                                                    │
+│  Print Progress:                                                  │
+│  Progress: 342 / 500  (68%)                                       │
+│  ████████████████████████████░░░░░░░░░░░░░                        │
+│                                                                    │
+│  [Pause]  [Cancel]                                               │
+│                                                                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Key behaviors:
+- **Job selector** — lists all active jobs (preparing/ready/printing/paused). One selected at a time.
+- **Job detail** — shows product, printer with **live printer status** (● PRINTING / ● PAUSED / ● OFFLINE / ● ERROR), quantity, preparation checklist, progress bar.
+- **Contextual action buttons:**
+  - Job is `ready` → [Start Print], [Cancel]
+  - Job is `printing` → [Pause], [Cancel]
+  - Job is `paused` → [Resume], [Cancel]
+  - Job `completed` or `cancelled` → no buttons, final summary shown
+- When a job completes or is cancelled, it stays displayed until operator selects another job or navigates away.
+- If no active jobs → empty state with [+ New Job] button.
+- **[+ New Job]** (top-right, always visible) — opens New Job screen, nothing preselected.
+
+#### Job History tab
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  JOBS                                              [+ New Job]   │
+├──────────────────────────────────────────────────────────────────┤
+│  [Active Jobs]  [Job History]                                     │
+│  ─────────────────────────────────────────────────────────────    │
+│                                                                    │
+│  Filters:  [All Printers ▼]  [All Products ▼]                    │
+│                                                                    │
+│  ┌──────────────────────────────────────────────────────────────┐│
+│  │ #   Product          Printer   Qty     Status     Date      ││
+│  │ 48  Orange 0.33L     Line2     2000    ✅ done    Aug 7     ││
+│  │ 47  Apple 0.5L       Line1     500     ✅ done    Aug 7     ││
+│  │ 46  Apple 0.5L       Line1     500     ⛔ cancel  Aug 6     ││
+│  │ 45  Water Still 0.5L Line3     1000    ✅ done    Aug 6     ││
+│  └──────────────────────────────────────────────────────────────┘│
+│                                                                    │
+│  ─── Job #48 (expanded) ──────────────────────────────────────   │
+│  Product:  Orange 0.33L                                           │
+│  Printer:  Savema-Line2                                           │
+│  Quantity: 2000 / 2000 printed                                    │
+│  Duration: 14:30 – 15:12 (42 min)                                 │
+│  Result:   Completed successfully                                 │
+│                                                                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Key behaviors:
+- All past jobs (completed, cancelled, error), ordered newest first
+- **Filters:** by printer, by product. Date range and pagination → Phase 2.
+- **View-only** — no action buttons
+- Click row to expand: shows codes printed, duration, outcome
+- Replaces the old standalone History nav item. The `audit_log` table still records all system events internally; this view focuses on job-level history for operators.
+
+### 6.6 New Job Screen
+
+A dedicated screen for creating and preparing a new print job. **Not a nav item** — accessed via [+ New Job] buttons from other pages.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  NEW JOB                                             [← Back]    │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  Product:   [ Apple 0.5L            ▼ ]   (8,300 available)       │
+│  Printer:   [ Savema-Line1          ▼ ]   (● idle)                │
+│  Quantity:  [ 500                     ]                           │
+│                                                                    │
+│              [Prepare]                                             │
+│                                                                    │
+│  ─── Preparation Progress ────────────────────────────────────   │
+│  ✓ Printer state verified — WAITING (idle)                        │
+│  ✓ 500 codes reserved from pool                                   │
+│  ✓ CSV uploaded (SPLCDF OK + SPLGSD confirmed)                    │
+│  ✓ Template loaded (SPLLTF OK, counter reset to 0)                │
+│                                                                    │
+│  ✅ Job #49 is ready to print.                                    │
+│                                                                    │
+│              [Start Print]  [Go to Job]                           │
+│                                                                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Key behaviors:
+- **Context preselection:**
+  - From Products → product field preselected
+  - From Printers → printer field preselected
+  - From Dashboard or Jobs → nothing preselected
+- **Product selector** — dropdown from product tree. Shows available code count.
+- **Printer selector** — shows status per printer. Busy/offline printers greyed out.
+- **[Prepare]** — triggers the full preparation flow (§3.1 Step 4). **Navigation is blocked** while preparation is in progress (prevents orphaned half-prepared jobs).
+- **Inline progress** — each preparation step checks off as it completes.
+- **On success** → shows confirmation with two buttons:
+  - **[Start Print]** — starts printing immediately and navigates to Jobs > Active tab with this job selected
+  - **[Go to Job]** — navigates to Jobs > Active tab without starting (operator can review before printing)
+- **On failure** → error message with [Retry]. Codes returned to pool if reservation happened.
+- **[← Back]** — returns to previous page. Disabled during preparation.
+
+### 6.7 Alerts
 
 | Condition | Alert |
 |-----------|-------|
