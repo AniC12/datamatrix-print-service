@@ -1,0 +1,70 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Navigation Button -->
+    <Style x:Key="NavButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="#CBD5E0" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="16,10" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#4A5568" />
+                            <Setter Property="Foreground" Value="White" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Link Button (dismiss, etc) -->
+    <Style x:Key="LinkButton" TargetType="Button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="#718096" />
+    </Style>
+
+    <!-- Summary Card -->
+    <Style x:Key="SummaryCard" TargetType="Border">
+        <Setter Property="Background" Value="White" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="20,16" />
+        <Setter Property="Margin" Value="0,0,12,0" />
+        <Setter Property="MinWidth" Value="160" />
+    </Style>
+
+    <!-- Card Label -->
+    <Style x:Key="CardLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#718096" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- Card Value -->
+    <Style x:Key="CardValue" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+
+    <!-- Printer Card Border -->
+    <Style x:Key="PrinterCardBorder" TargetType="Border">
+        <Setter Property="Background" Value="White" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Width" Value="220" />
+    </Style>
+
+</ResourceDictionary>

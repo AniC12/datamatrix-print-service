@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "name": "Application",
+      "path": "application"
+    },
+    {
+      "name": "Documentation",
+      "path": "docs"
+    }
+  ],
+  "settings": {
+    "dotnet.defaultSolution": "application/CodePrintManager.sln"
+  }
+}

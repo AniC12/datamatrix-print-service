@@ -1,0 +1,64 @@
+<UserControl x:Class="CodePrintManager.Desktop.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:CodePrintManager.Desktop.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:DashboardViewModel}"
+             Loaded="OnLoaded">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Summary Cards -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+            <Border Style="{StaticResource SummaryCard}">
+                <StackPanel>
+                    <TextBlock Text="Active Jobs" Style="{StaticResource CardLabel}" />
+                    <TextBlock Text="{Binding TotalActiveJobs}" Style="{StaticResource CardValue}" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SummaryCard}">
+                <StackPanel>
+                    <TextBlock Text="Codes Available" Style="{StaticResource CardLabel}" />
+                    <TextBlock Text="{Binding TotalCodesAvailable}" Style="{StaticResource CardValue}" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SummaryCard}">
+                <StackPanel>
+                    <TextBlock Text="Printed Today" Style="{StaticResource CardLabel}" />
+                    <TextBlock Text="{Binding TotalCodesPrintedToday}" Style="{StaticResource CardValue}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Section Header -->
+        <TextBlock Grid.Row="1" Text="Printers" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+
+        <!-- Printer Cards -->
+        <ItemsControl Grid.Row="2" ItemsSource="{Binding PrinterCards}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource PrinterCardBorder}" Margin="0,0,12,12">
+                        <StackPanel Margin="12">
+                            <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                            <TextBlock Text="{Binding IpAddress}" Opacity="0.6" />
+                            <TextBlock Text="{Binding Status}" Margin="0,4,0,0" />
+                            <ProgressBar Value="{Binding CurrentJobProgress}" Maximum="{Binding CurrentJobTotal}"
+                                         Height="8" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>

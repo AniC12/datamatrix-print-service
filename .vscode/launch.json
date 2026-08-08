@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Desktop App",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-desktop",
+      "program": "${workspaceFolder}/application/src/Hosts/CodePrintManager.Desktop/bin/Debug/net8.0-windows/CodePrintManager.Desktop.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/application/src/Hosts/CodePrintManager.Desktop",
+      "stopAtEntry": false,
+      "console": "internalConsole",
+      "env": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  ]
+}

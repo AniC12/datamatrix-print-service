@@ -1,0 +1,14 @@
+{
+  "dotnet.defaultSolution": "CodePrintManager.sln",
+  "omnisharp.enableRoslynAnalyzers": true,
+  "omnisharp.enableEditorConfigSupport": true,
+  "omnisharp.organizeImportsOnFormat": true,
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true
+  },
+  "search.exclude": {
+    "**/bin": true,
+    "**/obj": true
+  }
+}

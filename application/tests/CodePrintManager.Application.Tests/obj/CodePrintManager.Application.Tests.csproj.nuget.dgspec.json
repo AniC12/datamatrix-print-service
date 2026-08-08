@@ -1,0 +1,339 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\tests\\CodePrintManager.Application.Tests\\CodePrintManager.Application.Tests.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Application\\CodePrintManager.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Application\\CodePrintManager.Application.csproj",
+        "projectName": "CodePrintManager.Application",
+        "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Application\\CodePrintManager.Application.csproj",
+        "packagesPath": "C:\\Users\\Vahe\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Application\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Microsoft\\Xamarin\\NuGet\\"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Vahe\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\CodePrintManager.Domain.csproj": {
+                "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\CodePrintManager.Domain.csproj"
+              },
+              "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Infrastructure\\CodePrintManager.Data\\CodePrintManager.Data.csproj": {
+                "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Infrastructure\\CodePrintManager.Data\\CodePrintManager.Data.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.DependencyInjection.Abstractions": {
+              "target": "Package",
+              "version": "[8.0.2, )"
+            },
+            "Microsoft.Extensions.Logging.Abstractions": {
+              "target": "Package",
+              "version": "[8.0.2, )"
+            },
+            "Serilog": {
+              "target": "Package",
+              "version": "[4.1.0, )"
+            },
+            "Serilog.Sinks.File": {
+              "target": "Package",
+              "version": "[6.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.423/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\CodePrintManager.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\CodePrintManager.Domain.csproj",
+        "projectName": "CodePrintManager.Domain",
+        "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\CodePrintManager.Domain.csproj",
+        "packagesPath": "C:\\Users\\Vahe\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Microsoft\\Xamarin\\NuGet\\"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Vahe\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.423/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Infrastructure\\CodePrintManager.Data\\CodePrintManager.Data.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Infrastructure\\CodePrintManager.Data\\CodePrintManager.Data.csproj",
+        "projectName": "CodePrintManager.Data",
+        "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Infrastructure\\CodePrintManager.Data\\CodePrintManager.Data.csproj",
+        "packagesPath": "C:\\Users\\Vahe\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Infrastructure\\CodePrintManager.Data\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Microsoft\\Xamarin\\NuGet\\"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Vahe\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\CodePrintManager.Domain.csproj": {
+                "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Domain\\CodePrintManager.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[8.0.11, )"
+            },
+            "Microsoft.EntityFrameworkCore.Sqlite": {
+              "target": "Package",
+              "version": "[8.0.11, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.423/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\tests\\CodePrintManager.Application.Tests\\CodePrintManager.Application.Tests.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\tests\\CodePrintManager.Application.Tests\\CodePrintManager.Application.Tests.csproj",
+        "projectName": "CodePrintManager.Application.Tests",
+        "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\tests\\CodePrintManager.Application.Tests\\CodePrintManager.Application.Tests.csproj",
+        "packagesPath": "C:\\Users\\Vahe\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\tests\\CodePrintManager.Application.Tests\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Microsoft\\Xamarin\\NuGet\\"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Vahe\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Application\\CodePrintManager.Application.csproj": {
+                "projectPath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Core\\CodePrintManager.Application\\CodePrintManager.Application.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "FluentAssertions": {
+              "target": "Package",
+              "version": "[6.12.2, )"
+            },
+            "Microsoft.EntityFrameworkCore.InMemory": {
+              "target": "Package",
+              "version": "[8.0.11, )"
+            },
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.8.0, )"
+            },
+            "NSubstitute": {
+              "target": "Package",
+              "version": "[5.1.0, )"
+            },
+            "coverlet.collector": {
+              "target": "Package",
+              "version": "[6.0.0, )"
+            },
+            "xunit": {
+              "target": "Package",
+              "version": "[2.5.3, )"
+            },
+            "xunit.runner.visualstudio": {
+              "target": "Package",
+              "version": "[2.5.3, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.423/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

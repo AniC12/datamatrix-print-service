@@ -1,0 +1,12 @@
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\bin\Debug\net8.0\CodePrintManager.Domain.deps.json
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\bin\Debug\net8.0\CodePrintManager.Domain.dll
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\bin\Debug\net8.0\CodePrintManager.Domain.pdb
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\CodePrintManager.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\CodePrintManager.Domain.AssemblyInfoInputs.cache
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\CodePrintManager.Domain.AssemblyInfo.cs
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\CodePrintManager.Domain.csproj.CoreCompileInputs.cache
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\CodePrintManager.Domain.sourcelink.json
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\CodePrintManager.Domain.dll
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\refint\CodePrintManager.Domain.dll
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\CodePrintManager.Domain.pdb
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Core\CodePrintManager.Domain\obj\Debug\net8.0\ref\CodePrintManager.Domain.dll

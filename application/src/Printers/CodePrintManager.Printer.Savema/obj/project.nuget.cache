@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "OBCfZzsdXwU=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Vahe\\CascadeProjects\\datamatrix-print-service\\application\\src\\Printers\\CodePrintManager.Printer.Savema\\CodePrintManager.Printer.Savema.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Vahe\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.2\\microsoft.extensions.dependencyinjection.abstractions.8.0.2.nupkg.sha512",
+    "C:\\Users\\Vahe\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\8.0.2\\microsoft.extensions.logging.abstractions.8.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}

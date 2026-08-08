@@ -1,0 +1,16 @@
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\bin\Debug\net8.0\CodePrintManager.Printer.Savema.deps.json
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\bin\Debug\net8.0\CodePrintManager.Printer.Savema.dll
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\bin\Debug\net8.0\CodePrintManager.Printer.Savema.pdb
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\bin\Debug\net8.0\CodePrintManager.Domain.dll
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\bin\Debug\net8.0\CodePrintManager.Domain.pdb
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.csproj.AssemblyReference.cache
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.AssemblyInfoInputs.cache
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.AssemblyInfo.cs
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.csproj.CoreCompileInputs.cache
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.sourcelink.json
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrin.5D8332E2.Up2Date
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.dll
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\refint\CodePrintManager.Printer.Savema.dll
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\CodePrintManager.Printer.Savema.pdb
+C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\obj\Debug\net8.0\ref\CodePrintManager.Printer.Savema.dll
