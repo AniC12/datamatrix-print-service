@@ -30,12 +30,19 @@ public partial class App : System.Windows.Application
         var dbPath = Path.Combine(appDir, "codeprintmanager.db");
 
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+            .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+            .Enrich.FromLogContext()
             .WriteTo.File(
                 Path.Combine(appDir, "logs", "app-.log"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 30)
+                retainedFileCountLimit: 30,
+                outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
+
+        Log.Information("Application starting. AppDir={AppDir}, DbPath={DbPath}", appDir, dbPath);
 
         _host = Host.CreateDefaultBuilder()
             .UseSerilog()
@@ -193,6 +200,8 @@ public partial class App : System.Windows.Application
 
     protected override async void OnExit(ExitEventArgs e)
     {
+        Log.Information("Application shutting down");
+
         if (_host != null)
         {
             await _host.StopAsync(TimeSpan.FromSeconds(5));

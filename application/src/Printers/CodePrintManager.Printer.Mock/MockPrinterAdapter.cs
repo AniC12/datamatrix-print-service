@@ -1,12 +1,15 @@
 using System.Collections.Concurrent;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CodePrintManager.Printer.Mock;
 
 public class MockPrinterAdapter : IPrinterAdapter
 {
     private readonly object _lock = new();
+    private readonly ILogger _logger;
     private CancellationTokenSource? _printCts;
     private Task? _printTask;
 
@@ -25,6 +28,11 @@ public class MockPrinterAdapter : IPrinterAdapter
     // Configuration
     public int PrintSpeedMs { get; set; } = 500;
 
+    public MockPrinterAdapter(ILogger? logger = null)
+    {
+        _logger = logger ?? NullLogger.Instance;
+    }
+
     // Test inspection
     public PrinterStatus CurrentState => _injectedError ?? _status;
     public int InspectCurrentCounter => _currentCounter;
@@ -36,6 +44,7 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<bool> ConnectAsync(string host, int port, CancellationToken ct = default)
     {
+        _logger.LogDebug("Mock: Connected to {Host}:{Port}", host, port);
         IsConnected = true;
         _status = PrinterStatus.Idle;
         return Task.FromResult(true);
@@ -43,6 +52,7 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task DisconnectAsync()
     {
+        _logger.LogDebug("Mock: Disconnected");
         IsConnected = false;
         _status = PrinterStatus.Offline;
         StopPrintInternal();
@@ -137,6 +147,7 @@ public class MockPrinterAdapter : IPrinterAdapter
             if (_status == PrinterStatus.Printing)
                 return Task.FromResult(true);
 
+            _logger.LogDebug("Mock: Print started (qty={Qty}, counter={Counter})", _printQuantity, _currentCounter);
             _status = PrinterStatus.Printing;
             _printCts = new CancellationTokenSource();
             _printTask = RunPrintLoopAsync(_printCts.Token);
@@ -146,6 +157,7 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<bool> StopPrintAsync(CancellationToken ct = default)
     {
+        _logger.LogDebug("Mock: Print stopped at counter={Counter}", _currentCounter);
         StopPrintInternal();
         _status = PrinterStatus.Idle;
         return Task.FromResult(true);
@@ -154,11 +166,13 @@ public class MockPrinterAdapter : IPrinterAdapter
     // Error injection for testing
     public void InjectError(PrinterStatus errorState)
     {
+        _logger.LogInformation("Mock: Error injected → {Status}", errorState);
         _injectedError = errorState;
     }
 
     public void ClearError()
     {
+        _logger.LogInformation("Mock: Error cleared");
         _injectedError = null;
     }
 

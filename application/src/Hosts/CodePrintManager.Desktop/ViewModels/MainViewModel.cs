@@ -5,12 +5,14 @@ using CodePrintManager.Domain.Events;
 using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 
 namespace CodePrintManager.Desktop.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
     private readonly IAlertService _alertService;
+    private readonly ILogger<MainViewModel> _logger;
 
     [ObservableProperty]
     private ObservableObject? _currentView;
@@ -32,9 +34,11 @@ public partial class MainViewModel : ObservableObject
         ProductsViewModel products,
         PrintersViewModel printers,
         JobsViewModel jobs,
-        NewJobViewModel newJob)
+        NewJobViewModel newJob,
+        ILogger<MainViewModel> logger)
     {
         _alertService = alertService;
+        _logger = logger;
         _dashboard = dashboard;
         _products = products;
         _printers = printers;
@@ -59,6 +63,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void NavigateTo(string viewName)
     {
+        _logger.LogInformation("Navigate → {ViewName}", viewName);
         CurrentView = viewName switch
         {
             "Dashboard" => _dashboard,
@@ -72,6 +77,7 @@ public partial class MainViewModel : ObservableObject
 
     private void NavigateToNewJob(int? productId = null, int? printerId = null)
     {
+        _logger.LogInformation("Navigate → NewJob (Product={ProductId}, Printer={PrinterId})", productId, printerId);
         _newJob.Reset(productId, printerId);
         CurrentView = _newJob;
         CurrentViewName = "NewJob";
@@ -79,6 +85,7 @@ public partial class MainViewModel : ObservableObject
 
     private void NavigateToJobDetail(int jobId)
     {
+        _logger.LogInformation("Navigate → JobDetail (Job={JobId})", jobId);
         _jobs.SelectJobById(jobId);
         CurrentView = _jobs;
         CurrentViewName = "Jobs";
@@ -107,6 +114,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void DismissAlert(AlertItemViewModel alert)
     {
+        _logger.LogDebug("Alert dismissed: {AlertId}", alert.Event.Id);
         Alerts.Remove(alert);
         _alertService.Dismiss(alert.Event.Id);
     }

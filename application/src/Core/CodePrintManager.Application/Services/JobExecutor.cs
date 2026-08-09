@@ -43,12 +43,15 @@ public class JobExecutor
 
     public void Start()
     {
+        _logger.LogInformation("Executor started: Job {JobId} (qty={Qty}, confirmed={Confirmed})",
+            _job.Id, _job.Quantity, _job.CodesConfirmed);
         _cts = new CancellationTokenSource();
         _pollTask = PollLoopAsync(_cts.Token);
     }
 
     public async Task StopAsync()
     {
+        _logger.LogInformation("Executor stopped: Job {JobId}", _job.Id);
         _cts?.Cancel();
         if (_pollTask != null)
             await _pollTask;
@@ -61,6 +64,8 @@ public class JobExecutor
             try
             {
                 var snapshot = await ReadCountersAsync(ct);
+                _logger.LogDebug("Job {JobId} poll: counter={Counter} (prev={Previous})",
+                    _job.Id, snapshot.Counter, _previousCounter);
                 DetectAnomalies(snapshot);
 
                 if (snapshot.Counter > _job.CodesConfirmed)
@@ -76,11 +81,17 @@ public class JobExecutor
                 await Task.Delay(500, ct);
             }
             catch (OperationCanceledException) { return; }
-            catch (IOException)
+            catch (IOException ex)
             {
+                _logger.LogError(ex, "Job {JobId} connection lost", _job.Id);
                 _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
                     $"Connection lost. Job #{_job.Id} paused.",
                     printerId: _job.PrinterId, jobId: _job.Id);
+                await Task.Delay(2000, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Job {JobId} executor error", _job.Id);
                 await Task.Delay(2000, ct);
             }
         }
@@ -95,6 +106,8 @@ public class JobExecutor
         {
             var lifetime = await _adapter.GetTotalCounterAsync(ct);
             lifetimeDelta = lifetime - _job.TotalBaseline.Value;
+            _logger.LogDebug("Job {JobId} cross-check: lifetime={Lifetime}, delta={Delta}, counter={Counter}",
+                _job.Id, lifetime, lifetimeDelta, counter);
         }
 
         return new PollSnapshot(counter, lifetimeDelta);
@@ -104,6 +117,8 @@ public class JobExecutor
     {
         if (snapshot.LifetimeDelta.HasValue && snapshot.LifetimeDelta != snapshot.Counter)
         {
+            _logger.LogWarning("Job {JobId} anomaly: counter mismatch SPGGCP={Counter}, SPGGTP delta={Delta}",
+                _job.Id, snapshot.Counter, snapshot.LifetimeDelta);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
                 $"Counter mismatch: SPGGCP={snapshot.Counter}, SPGGTP delta={snapshot.LifetimeDelta}",
                 printerId: _job.PrinterId, jobId: _job.Id);
@@ -112,6 +127,8 @@ public class JobExecutor
         var advance = snapshot.Counter - _previousCounter;
         if (_previousCounter > 0 && advance > 10)
         {
+            _logger.LogWarning("Job {JobId} anomaly: unexpected counter jump +{Advance}",
+                _job.Id, advance);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
                 $"Unexpected counter jump (+{advance})",
                 printerId: _job.PrinterId, jobId: _job.Id);
@@ -124,6 +141,10 @@ public class JobExecutor
         _job.CodesConfirmed = snapshot.Counter;
         await _db.SaveChangesAsync();
 
+        var pct = _job.Quantity > 0 ? (int)(100.0 * snapshot.Counter / _job.Quantity) : 0;
+        _logger.LogInformation("Job {JobId} progress: {Confirmed}/{Total} ({Pct}%)",
+            _job.Id, snapshot.Counter, _job.Quantity, pct);
+
         ProgressChanged?.Invoke(this,
             new JobProgressChangedEvent(_job.Id, snapshot.Counter, _job.Quantity));
     }
@@ -133,6 +154,8 @@ public class JobExecutor
         _job.Status = JobStatus.Completed;
         _job.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Job {JobId} completed ({Total}/{Total})", _job.Id, _job.Quantity, _job.Quantity);
 
         _alerts.Raise(AlertSeverity.Info, _job.Printer.Name,
             $"Job #{_job.Id} completed ({_job.Quantity}/{_job.Quantity})",

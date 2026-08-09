@@ -6,6 +6,7 @@ using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CodePrintManager.Desktop.ViewModels;
 
@@ -14,6 +15,7 @@ public partial class ProductsViewModel : ObservableObject
     private readonly IProductService _productService;
     private readonly ICodePoolService _codePoolService;
     private readonly AppDbContext _db;
+    private readonly ILogger<ProductsViewModel> _logger;
 
     public ObservableCollection<ProductNode> Products { get; } = new();
     public ObservableCollection<ImportHistoryItem> ImportHistory { get; } = new();
@@ -57,11 +59,13 @@ public partial class ProductsViewModel : ObservableObject
 
     public event EventHandler<int>? NavigateToNewJobRequested;
 
-    public ProductsViewModel(IProductService productService, ICodePoolService codePoolService, AppDbContext db)
+    public ProductsViewModel(IProductService productService, ICodePoolService codePoolService, AppDbContext db,
+        ILogger<ProductsViewModel> logger)
     {
         _productService = productService;
         _codePoolService = codePoolService;
         _db = db;
+        _logger = logger;
     }
 
     [RelayCommand]
@@ -71,11 +75,13 @@ public partial class ProductsViewModel : ObservableObject
         Products.Clear();
         foreach (var root in roots)
             Products.Add(root);
+        _logger.LogInformation("Products page loaded: {Count} root nodes", roots.Count);
     }
 
     [RelayCommand]
     private void ShowAddFolder()
     {
+        _logger.LogInformation("Products: Add Folder form opened");
         IsAddingFolder = true;
         IsAddingProduct = false;
         NewNodeName = string.Empty;
@@ -84,6 +90,7 @@ public partial class ProductsViewModel : ObservableObject
     [RelayCommand]
     private void ShowAddProduct()
     {
+        _logger.LogInformation("Products: Add Product form opened");
         IsAddingProduct = true;
         IsAddingFolder = false;
         NewNodeName = string.Empty;
@@ -103,6 +110,7 @@ public partial class ProductsViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(NewNodeName)) return;
         var parentId = SelectedProduct?.IsLeaf == false ? SelectedProduct.Id : SelectedProduct?.ParentId;
+        _logger.LogInformation("Products: Creating folder '{Name}' under Parent={ParentId}", NewNodeName.Trim(), parentId);
         await _productService.CreateFolderAsync(NewNodeName.Trim(), parentId);
         IsAddingFolder = false;
         NewNodeName = string.Empty;
@@ -126,6 +134,8 @@ public partial class ProductsViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(NewNodeName)) return;
         var parentId = SelectedProduct?.IsLeaf == false ? SelectedProduct.Id : SelectedProduct?.ParentId;
+        _logger.LogInformation("Products: Creating product '{Name}' (Template={Template}, CSV={Csv})",
+            NewNodeName.Trim(), NewProductTemplate.Trim(), NewProductCsvName.Trim());
         await _productService.CreateProductAsync(
             NewNodeName.Trim(), parentId,
             NewProductTemplate.Trim(), NewProductCsvName.Trim());
@@ -151,12 +161,14 @@ public partial class ProductsViewModel : ObservableObject
 
         try
         {
+            _logger.LogInformation("Products: Deleting Id={Id}", SelectedProduct.Id);
             await _productService.DeleteAsync(SelectedProduct.Id);
             SelectedProduct = null;
             await LoadProductsAsync();
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogError(ex, "Products: Delete failed for Id={Id}", SelectedProduct?.Id);
             System.Windows.MessageBox.Show(
                 ex.Message,
                 "Cannot Delete",
@@ -182,7 +194,10 @@ public partial class ProductsViewModel : ObservableObject
         var lines = await System.IO.File.ReadAllLinesAsync(filePath);
         var codes = lines.Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
         var batchName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+        _logger.LogInformation("Products: Importing CSV '{FileName}' ({LineCount} lines) for Product {Id}",
+            System.IO.Path.GetFileName(filePath), codes.Count, SelectedProduct.Id);
         await _codePoolService.ImportCodesAsync(SelectedProduct.Id, batchName, codes);
+        _logger.LogInformation("Products: Import complete for Product {Id}", SelectedProduct.Id);
         await RefreshCodeCountsAsync();
         await LoadImportHistoryAsync();
     }
@@ -221,6 +236,8 @@ public partial class ProductsViewModel : ObservableObject
 
     partial void OnSelectedProductChanged(ProductNode? value)
     {
+        if (value != null)
+            _logger.LogInformation("Product selected: '{Name}' (Id={Id}, IsLeaf={IsLeaf})", value.Name, value.Id, value.IsLeaf);
         _ = RefreshCodeCountsAsync();
         _ = LoadImportHistoryAsync();
         _ = CheckCanDeleteAsync();
@@ -256,6 +273,8 @@ public partial class ProductsViewModel : ObservableObject
         PrintedCodesCount = stats.GetValueOrDefault(CodeStatus.Printed, 0);
         BurnedCodesCount = stats.GetValueOrDefault(CodeStatus.Burned, 0);
         TotalCodesCount = stats.Values.Sum();
+        _logger.LogInformation("Product '{Name}' pool: Available={Avail}, Printed={Printed}, Burned={Burned}, Total={Total}",
+            SelectedProduct.Name, AvailableCodesCount, PrintedCodesCount, BurnedCodesCount, TotalCodesCount);
     }
 
     private async Task LoadImportHistoryAsync()

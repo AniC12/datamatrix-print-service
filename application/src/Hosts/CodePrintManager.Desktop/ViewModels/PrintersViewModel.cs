@@ -8,6 +8,7 @@ using CodePrintManager.Printer.Mock;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PrinterEntity = CodePrintManager.Domain.Entities.Printer;
 
 namespace CodePrintManager.Desktop.ViewModels;
@@ -18,6 +19,7 @@ public partial class PrintersViewModel : ObservableObject
     private readonly PrinterConnectionManager _connectionManager;
     private readonly IAuditService _audit;
     private readonly IPrinterAdapterFactory _adapterFactory;
+    private readonly ILogger<PrintersViewModel> _logger;
 
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
 
@@ -65,12 +67,13 @@ public partial class PrintersViewModel : ObservableObject
     public event EventHandler<int>? NavigateToNewJobRequested;
 
     public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit,
-        IPrinterAdapterFactory adapterFactory)
+        IPrinterAdapterFactory adapterFactory, ILogger<PrintersViewModel> logger)
     {
         _db = db;
         _connectionManager = connectionManager;
         _audit = audit;
         _adapterFactory = adapterFactory;
+        _logger = logger;
         _connectionManager.PrinterStatusChanged += (_, e) =>
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -89,6 +92,8 @@ public partial class PrintersViewModel : ObservableObject
         foreach (var p in printers)
             Printers.Add(p);
 
+        _logger.LogInformation("Printers page loaded: {Count} printers", printers.Count);
+
         if (SelectedPrinter == null && Printers.Count > 0)
             SelectedPrinter = Printers[0];
     }
@@ -99,6 +104,8 @@ public partial class PrintersViewModel : ObservableObject
         // Update status from connection manager
         var adapter = _connectionManager.GetAdapter(value.Id);
         SelectedPrinterStatus = adapter != null ? PrinterStatus.Idle : PrinterStatus.Offline;
+        _logger.LogInformation("Printer selected: '{Name}' (Id={Id}, Status={Status})",
+            value.Name, value.Id, SelectedPrinterStatus);
         _ = RefreshStorageAsync();
     }
 
@@ -111,11 +118,13 @@ public partial class PrintersViewModel : ObservableObject
         NewPrinterIp = string.Empty;
         NewPrinterPort = 9100;
         NewPrinterAdapterType = _adapterFactory is MockPrinterAdapterFactory ? "mock" : "savema_tto";
+        _logger.LogInformation("Printers: Add Printer form opened (default adapter={AdapterType})", NewPrinterAdapterType);
     }
 
     [RelayCommand]
     private void CancelAddPrinter()
     {
+        _logger.LogDebug("Printers: Add Printer cancelled");
         IsAddingPrinter = false;
         if (SelectedPrinter == null && Printers.Count > 0)
             SelectedPrinter = Printers[0];
@@ -137,6 +146,8 @@ public partial class PrintersViewModel : ObservableObject
 
         _db.Printers.Add(printer);
         await _db.SaveChangesAsync();
+        _logger.LogInformation("Printers: Printer added '{Name}' ({Ip}:{Port}, adapter={Type})",
+            printer.Name, printer.IpAddress, printer.Port, printer.AdapterType);
         IsAddingPrinter = false;
         await LoadPrintersAsync();
         SelectedPrinter = Printers.FirstOrDefault(p => p.Id == printer.Id);
@@ -146,6 +157,7 @@ public partial class PrintersViewModel : ObservableObject
     private async Task ConnectPrinterAsync()
     {
         if (SelectedPrinter == null) return;
+        _logger.LogInformation("Printers: Connect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.ConnectAsync(SelectedPrinter);
     }
 
@@ -153,6 +165,7 @@ public partial class PrintersViewModel : ObservableObject
     private async Task DisconnectPrinterAsync()
     {
         if (SelectedPrinter == null) return;
+        _logger.LogInformation("Printers: Disconnect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
         SelectedPrinterStatus = PrinterStatus.Offline;
     }
@@ -161,6 +174,7 @@ public partial class PrintersViewModel : ObservableObject
     private async Task DeletePrinterAsync()
     {
         if (SelectedPrinter == null) return;
+        _logger.LogInformation("Printers: Printer deleted '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
         _db.Printers.Remove(SelectedPrinter);
         await _db.SaveChangesAsync();
@@ -210,11 +224,13 @@ public partial class PrintersViewModel : ObservableObject
                 CsvFiles.Add(item);
             }
 
+            _logger.LogDebug("Printers: Storage refreshed: {TemplateCount} templates, {CsvCount} CSV files",
+                TemplateFiles.Count, CsvFiles.Count);
             UpdateDeleteCount();
         }
-        catch
+        catch (Exception ex)
         {
-            // Printer may not be connected
+            _logger.LogWarning(ex, "Printers: Storage refresh failed for Printer {Id}", SelectedPrinter?.Id);
         }
     }
 
@@ -246,6 +262,8 @@ public partial class PrintersViewModel : ObservableObject
 
         if (deletedFiles.Count > 0)
         {
+            _logger.LogInformation("Printers: Deleted {Count} files from Printer {Id}: {FileList}",
+                deletedFiles.Count, SelectedPrinter.Id, string.Join(", ", deletedFiles));
             await _audit.LogAsync("printer_files_deleted",
                 printerId: SelectedPrinter.Id,
                 details: $"Deleted {deletedFiles.Count} file(s): {string.Join(", ", deletedFiles)}");
@@ -258,6 +276,7 @@ public partial class PrintersViewModel : ObservableObject
     private async Task VerifyPrinterAsync()
     {
         if (SelectedPrinter == null) return;
+        _logger.LogInformation("Printers: Verify started for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
 
         var adapter = _connectionManager.GetAdapter(SelectedPrinter.Id);
         if (adapter == null)
@@ -380,9 +399,12 @@ public partial class PrintersViewModel : ObservableObject
             var hasFailure = VerifyResults.Any(r => r.Status == VerifyStatus.Fail);
             var hasWarning = VerifyResults.Any(r => r.Status == VerifyStatus.Warning);
             VerifyOverallStatus = hasFailure ? "ISSUES FOUND" : hasWarning ? "WARNINGS" : "ALL OK";
+            _logger.LogInformation("Printers: Verify result for '{Name}': {OverallStatus} ({ResultCount} checks)",
+                SelectedPrinter.Name, VerifyOverallStatus, VerifyResults.Count);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Printers: Verify failed for Printer {Id}", SelectedPrinter.Id);
             VerifyResults.Add(new VerifyResultItem("Error", VerifyStatus.Fail,
                 $"Verification failed: {ex.Message}"));
             VerifyOverallStatus = "ERROR";

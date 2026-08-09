@@ -8,6 +8,7 @@ using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CodePrintManager.Desktop.ViewModels;
 
@@ -17,6 +18,7 @@ public partial class DashboardViewModel : ObservableObject
     private readonly IPrintJobService _printJobService;
     private readonly JobEventBus _eventBus;
     private readonly AppDbContext _db;
+    private readonly ILogger<DashboardViewModel> _logger;
 
     public ObservableCollection<Components.PrinterCardViewModel> PrinterCards { get; } = new();
     public ObservableCollection<AuditEntryViewModel> RecentActivity { get; } = new();
@@ -28,12 +30,14 @@ public partial class DashboardViewModel : ObservableObject
         PrinterConnectionManager connectionManager,
         IPrintJobService printJobService,
         JobEventBus eventBus,
-        AppDbContext db)
+        AppDbContext db,
+        ILogger<DashboardViewModel> logger)
     {
         _connectionManager = connectionManager;
         _printJobService = printJobService;
         _eventBus = eventBus;
         _db = db;
+        _logger = logger;
 
         _connectionManager.PrinterStatusChanged += OnPrinterStatusChanged;
         _eventBus.ProgressChanged += OnJobProgressChanged;
@@ -43,6 +47,7 @@ public partial class DashboardViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        _logger.LogInformation("Dashboard loading");
         // Load printers with their most recent job
         var printers = await _db.Printers.ToListAsync();
         PrinterCards.Clear();
@@ -94,53 +99,65 @@ public partial class DashboardViewModel : ObservableObject
         RecentActivity.Clear();
         foreach (var entry in recentEntries)
             RecentActivity.Add(new AuditEntryViewModel(entry));
+
+        _logger.LogInformation("Dashboard loaded: {CardCount} printer cards, {ActivityCount} recent entries",
+            PrinterCards.Count, RecentActivity.Count);
     }
 
     [RelayCommand]
-    private void NewJob() => NavigateToNewJobRequested?.Invoke(this, EventArgs.Empty);
+    private void NewJob()
+    {
+        _logger.LogInformation("Dashboard: New Job clicked");
+        NavigateToNewJobRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     private async void OnStartPrintRequested(object? sender, int jobId)
     {
+        _logger.LogInformation("Dashboard: Start print requested for Job {JobId}", jobId);
         try
         {
             await _printJobService.StartJobAsync(jobId);
             await RefreshAsync();
         }
-        catch { /* Alert service will handle errors */ }
+        catch (Exception ex) { _logger.LogError(ex, "Dashboard: Start print failed for Job {JobId}", jobId); }
     }
 
     private async void OnCancelJobRequested(object? sender, int jobId)
     {
+        _logger.LogInformation("Dashboard: Cancel requested for Job {JobId}", jobId);
         try
         {
             await _printJobService.CancelJobAsync(jobId);
             await RefreshAsync();
         }
-        catch { /* Alert service will handle errors */ }
+        catch (Exception ex) { _logger.LogError(ex, "Dashboard: Cancel failed for Job {JobId}", jobId); }
     }
 
     private async void OnPauseJobRequested(object? sender, int jobId)
     {
+        _logger.LogInformation("Dashboard: Pause requested for Job {JobId}", jobId);
         try
         {
             await _printJobService.PauseJobAsync(jobId);
             await RefreshAsync();
         }
-        catch { /* Alert service will handle errors */ }
+        catch (Exception ex) { _logger.LogError(ex, "Dashboard: Pause failed for Job {JobId}", jobId); }
     }
 
     private async void OnResumeJobRequested(object? sender, int jobId)
     {
+        _logger.LogInformation("Dashboard: Resume requested for Job {JobId}", jobId);
         try
         {
             await _printJobService.ResumeJobAsync(jobId);
             await RefreshAsync();
         }
-        catch { /* Alert service will handle errors */ }
+        catch (Exception ex) { _logger.LogError(ex, "Dashboard: Resume failed for Job {JobId}", jobId); }
     }
 
     private void OnCardClicked(object? sender, int jobId)
     {
+        _logger.LogDebug("Dashboard: Card clicked for Job {JobId}", jobId);
         NavigateToJobRequested?.Invoke(this, jobId);
     }
 
@@ -170,6 +187,7 @@ public partial class DashboardViewModel : ObservableObject
 
     private void OnJobCompleted(object? sender, JobCompletedEvent e)
     {
+        _logger.LogInformation("Dashboard: Job {JobId} completed", e.JobId);
         System.Windows.Application.Current.Dispatcher.Invoke(async () =>
         {
             await RefreshAsync();

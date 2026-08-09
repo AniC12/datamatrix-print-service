@@ -8,6 +8,7 @@ using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PrinterEntity = CodePrintManager.Domain.Entities.Printer;
 
 namespace CodePrintManager.Desktop.ViewModels;
@@ -17,6 +18,7 @@ public partial class JobsViewModel : ObservableObject
     private readonly AppDbContext _db;
     private readonly IPrintJobService _printJobService;
     private readonly JobEventBus _eventBus;
+    private readonly ILogger<JobsViewModel> _logger;
 
     public ObservableCollection<PrintJob> ActiveJobs { get; } = new();
     public ObservableCollection<PrintJob> JobHistory { get; } = new();
@@ -78,11 +80,13 @@ public partial class JobsViewModel : ObservableObject
 
     public event EventHandler? NavigateToNewJobRequested;
 
-    public JobsViewModel(AppDbContext db, IPrintJobService printJobService, JobEventBus eventBus)
+    public JobsViewModel(AppDbContext db, IPrintJobService printJobService, JobEventBus eventBus,
+        ILogger<JobsViewModel> logger)
     {
         _db = db;
         _printJobService = printJobService;
         _eventBus = eventBus;
+        _logger = logger;
 
         _eventBus.ProgressChanged += OnJobProgressChanged;
         _eventBus.Completed += OnJobCompleted;
@@ -101,6 +105,9 @@ public partial class JobsViewModel : ObservableObject
 
         await LoadHistoryAsync();
         await LoadFiltersAsync();
+
+        _logger.LogInformation("Jobs page loaded: {ActiveCount} active, {HistoryCount} history",
+            ActiveJobs.Count, JobHistory.Count);
     }
 
     private async Task LoadFiltersAsync()
@@ -131,6 +138,9 @@ public partial class JobsViewModel : ObservableObject
 
     partial void OnSelectedJobChanged(PrintJob? value)
     {
+        if (value != null)
+            _logger.LogInformation("Job selected: #{JobId} (Product='{Product}', Printer='{Printer}', Status={Status}, Progress={Confirmed}/{Total})",
+                value.Id, value.Product?.Name, value.Printer?.Name, value.Status, value.CodesConfirmed, value.Quantity);
         if (value == null)
         {
             JobDetailProduct = string.Empty;
@@ -177,6 +187,7 @@ public partial class JobsViewModel : ObservableObject
     private async Task StartPrintAsync()
     {
         if (SelectedJob == null || SelectedJob.Status != JobStatus.Ready) return;
+        _logger.LogInformation("Jobs: Start print for Job {JobId}", SelectedJob.Id);
         await _printJobService.StartJobAsync(SelectedJob.Id);
         await LoadJobsAsync();
     }
@@ -185,6 +196,7 @@ public partial class JobsViewModel : ObservableObject
     private async Task CancelJobAsync()
     {
         if (SelectedJob == null) return;
+        _logger.LogInformation("Jobs: Cancel for Job {JobId}", SelectedJob.Id);
         await _printJobService.CancelJobAsync(SelectedJob.Id);
         await LoadJobsAsync();
     }
@@ -193,6 +205,7 @@ public partial class JobsViewModel : ObservableObject
     private async Task PauseJobAsync()
     {
         if (SelectedJob == null || SelectedJob.Status != JobStatus.Printing) return;
+        _logger.LogInformation("Jobs: Pause for Job {JobId}", SelectedJob.Id);
         await _printJobService.PauseJobAsync(SelectedJob.Id);
         await LoadJobsAsync();
     }
@@ -201,16 +214,22 @@ public partial class JobsViewModel : ObservableObject
     private async Task ResumeJobAsync()
     {
         if (SelectedJob == null || SelectedJob.Status != JobStatus.Paused) return;
+        _logger.LogInformation("Jobs: Resume for Job {JobId}", SelectedJob.Id);
         await _printJobService.ResumeJobAsync(SelectedJob.Id);
         await LoadJobsAsync();
     }
 
     [RelayCommand]
-    private void NewJob() => NavigateToNewJobRequested?.Invoke(this, EventArgs.Empty);
+    private void NewJob()
+    {
+        _logger.LogInformation("Jobs: New Job clicked");
+        NavigateToNewJobRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     [RelayCommand]
     private void ClearFilters()
     {
+        _logger.LogDebug("Jobs: Filters cleared");
         FilterPrinter = null;
         FilterProduct = null;
     }
@@ -248,6 +267,7 @@ public partial class JobsViewModel : ObservableObject
 
     private void OnJobCompleted(object? sender, JobCompletedEvent e)
     {
+        _logger.LogInformation("Jobs: Job {JobId} completed (live)", e.JobId);
         System.Windows.Application.Current.Dispatcher.Invoke(async () =>
         {
             // Update the completed job in-place so it stays displayed

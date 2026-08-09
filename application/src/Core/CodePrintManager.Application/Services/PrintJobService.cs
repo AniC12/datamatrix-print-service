@@ -60,6 +60,9 @@ public class PrintJobService : IPrintJobService
         _db.PrintJobs.Add(job);
         await _db.SaveChangesAsync();
 
+        _logger.LogInformation("Job {JobId} created (Product={ProductId}, Printer={PrinterId}, Qty={Quantity})",
+            job.Id, productId, printerId, quantity);
+
         await _audit.LogAsync("job_created", productId: productId, printerId: printerId, jobId: job.Id,
             details: new { quantity });
 
@@ -73,6 +76,8 @@ public class PrintJobService : IPrintJobService
             .Include(j => j.Printer)
             .FirstAsync(j => j.Id == jobId);
 
+        _logger.LogInformation("Job {JobId} preparing", jobId);
+
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
         await printerLock.WaitAsync(ct);
         try
@@ -83,13 +88,16 @@ public class PrintJobService : IPrintJobService
             // Step 1: Check printer state
             progress?.Report("checking_printer");
             var status = await adapter.GetStatusAsync(ct);
+            _logger.LogDebug("Job {JobId}: printer status = {Status}", jobId, status);
             if (status != PrinterStatus.Idle)
                 throw new InvalidOperationException($"Printer is not idle. Current state: {status}");
             progress?.Report("printer_verified");
 
             // Step 2: Reserve codes
             progress?.Report("reserving_codes");
+            _logger.LogDebug("Job {JobId}: reserving {Qty} codes", jobId, job.Quantity);
             var codes = await _codePool.ReserveCodesAsync(job.ProductId, job.Quantity, job.Id);
+            _logger.LogDebug("Job {JobId}: codes reserved", jobId);
             progress?.Report("codes_reserved");
 
             ct.ThrowIfCancellationRequested();
@@ -98,6 +106,7 @@ public class PrintJobService : IPrintJobService
             progress?.Report("uploading_data");
             var csvFilename = job.Product.PrinterCsvName
                 ?? throw new InvalidOperationException("Product has no CSV filename configured");
+            _logger.LogDebug("Job {JobId}: uploading CSV '{Filename}' ({Count} codes)", jobId, csvFilename, codes.Count);
             await adapter.DeleteCsvAsync(csvFilename, ct);
 
             ct.ThrowIfCancellationRequested();
@@ -113,12 +122,14 @@ public class PrintJobService : IPrintJobService
             var exists = await adapter.VerifyCsvExistsAsync(csvFilename, ct);
             if (!exists)
                 throw new InvalidOperationException("CSV verification failed: file not found on printer");
+            _logger.LogDebug("Job {JobId}: CSV uploaded and verified", jobId);
             progress?.Report("data_uploaded");
 
             // Step 4: Check template
             progress?.Report("loading_template");
             var templateName = job.Product.TemplateFile
                 ?? throw new InvalidOperationException("Product has no template configured");
+            _logger.LogDebug("Job {JobId}: checking template '{Template}'", jobId, templateName);
             var templates = await adapter.ListTemplatesAsync(ct);
             if (!templates.Contains(templateName))
             {
@@ -135,6 +146,7 @@ public class PrintJobService : IPrintJobService
                             printerId: job.PrinterId, jobId: job.Id);
                         throw new InvalidOperationException("Template upload failed: SPLRTF returned FAIL");
                     }
+                    _logger.LogInformation("Job {JobId}: template '{Template}' uploaded from disk", jobId, templateName);
                     // Use the filename (without path) for activation
                     templateName = Path.GetFileName(templateName);
                 }
@@ -150,17 +162,25 @@ public class PrintJobService : IPrintJobService
             var activateOk = await adapter.ActivateTemplateAsync(templateName, ct);
             if (!activateOk)
                 throw new InvalidOperationException("Template activation failed: SPLLTF returned FAIL");
+            _logger.LogDebug("Job {JobId}: template activated", jobId);
 
             progress?.Report("template_loaded");
 
             job.Status = JobStatus.Ready;
             await _db.SaveChangesAsync();
+            _logger.LogInformation("Job {JobId} prepared → Ready", jobId);
             progress?.Report("complete");
         }
         catch (OperationCanceledException)
         {
+            _logger.LogWarning("Job {JobId} preparation cancelled", jobId);
             job.Status = JobStatus.Cancelled;
             await _db.SaveChangesAsync();
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Job {JobId} preparation failed", jobId);
             throw;
         }
         finally
@@ -191,6 +211,9 @@ public class PrintJobService : IPrintJobService
         job.Status = JobStatus.Printing;
         job.StartedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Job {JobId} started (baseline={Baseline}, qty={Quantity})",
+            jobId, job.TotalBaseline, job.Quantity);
 
         // Spawn job executor with its own DbContext scope (outlives the calling scope)
         IServiceScope? executorScope = null;
@@ -229,6 +252,7 @@ public class PrintJobService : IPrintJobService
             JobCompleted?.Invoke(this, e);
         };
         _jobRegistry.Register(jobId, executor);
+        _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope})", jobId, _scopeFactory != null);
         executor.Start();
 
         await _audit.LogAsync("job_started", printerId: job.PrinterId, jobId: jobId);
@@ -237,6 +261,9 @@ public class PrintJobService : IPrintJobService
     public async Task CancelJobAsync(int jobId)
     {
         var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
+        _logger.LogInformation("Job {JobId} cancelling (status={Status}, confirmed={Confirmed})",
+            jobId, job.Status, job.CodesConfirmed);
+
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
 
         await printerLock.WaitAsync();
@@ -280,6 +307,9 @@ public class PrintJobService : IPrintJobService
             job.Status = JobStatus.Cancelled;
             job.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Job {JobId} cancelled (confirmed={Confirmed}/{Total})",
+                jobId, job.CodesConfirmed, job.Quantity);
 
             await _audit.LogAsync("job_cancelled", jobId: jobId);
         }
@@ -382,6 +412,7 @@ public class PrintJobService : IPrintJobService
 
         if (job.Status == JobStatus.Ready)
         {
+            _logger.LogInformation("Job {JobId} resuming (status=Ready, delegating to StartJobAsync)", jobId);
             await StartJobAsync(jobId, ct);
             return;
         }
@@ -398,6 +429,8 @@ public class PrintJobService : IPrintJobService
 
             // Set remaining quantity and restart printer
             var remaining = job.Quantity - job.CodesConfirmed;
+            _logger.LogInformation("Job {JobId} resuming (confirmed={Confirmed}, remaining={Remaining})",
+                jobId, job.CodesConfirmed, remaining);
             await adapter.SetPrintQuantityAsync(remaining, ct);
             await adapter.StartPrintAsync(ct);
 

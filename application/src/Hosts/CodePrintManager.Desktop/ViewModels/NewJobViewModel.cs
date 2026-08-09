@@ -6,6 +6,7 @@ using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PrinterEntity = CodePrintManager.Domain.Entities.Printer;
 
 namespace CodePrintManager.Desktop.ViewModels;
@@ -15,6 +16,7 @@ public partial class NewJobViewModel : ObservableObject
     private readonly IPrintJobService _printJobService;
     private readonly ICodePoolService _codePoolService;
     private readonly AppDbContext _db;
+    private readonly ILogger<NewJobViewModel> _logger;
 
     public ObservableCollection<ProductNode> Products { get; } = new();
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
@@ -75,15 +77,19 @@ public partial class NewJobViewModel : ObservableObject
     public NewJobViewModel(
         IPrintJobService printJobService,
         ICodePoolService codePoolService,
-        AppDbContext db)
+        AppDbContext db,
+        ILogger<NewJobViewModel> logger)
     {
         _printJobService = printJobService;
         _codePoolService = codePoolService;
         _db = db;
+        _logger = logger;
     }
 
     public void Reset(int? productId = null, int? printerId = null)
     {
+        _logger.LogInformation("NewJob: Wizard opened (preselect Product={ProductId}, Printer={PrinterId})",
+            productId, printerId);
         _preselectProductId = productId;
         _preselectPrinterId = printerId;
         SelectedProduct = null;
@@ -126,7 +132,10 @@ public partial class NewJobViewModel : ObservableObject
     partial void OnSelectedProductChanged(ProductNode? value)
     {
         if (value != null)
+        {
+            _logger.LogInformation("NewJob: Product selected '{Name}' (Id={Id})", value.Name, value.Id);
             _ = RefreshAvailableAsync(value.Id);
+        }
     }
 
     private async Task RefreshAvailableAsync(int productId)
@@ -153,10 +162,14 @@ public partial class NewJobViewModel : ObservableObject
 
         try
         {
+            _logger.LogInformation("NewJob: Prepare started (Product={ProductId}, Printer={PrinterId}, Qty={Qty})",
+                SelectedProduct.Id, SelectedPrinter.Id, Quantity);
+
             // Step 1: Create job
             var job = await _printJobService.CreateJobAsync(
                 SelectedProduct.Id, SelectedPrinter.Id, Quantity);
             CreatedJobId = job.Id;
+            _logger.LogInformation("NewJob: Job #{JobId} created", job.Id);
 
             // Step 2: Prepare with step-by-step progress
             var progress = new Progress<string>(step =>
@@ -209,9 +222,11 @@ public partial class NewJobViewModel : ObservableObject
                 PrepComplete = true;
                 StatusMessage = $"Job #{job.Id} is ready to print.";
             }
+            _logger.LogInformation("NewJob: Job #{JobId} prepared successfully → Ready", job.Id);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "NewJob: Preparation failed for Job #{JobId}", CreatedJobId);
             PrepFailed = true;
             PrepErrorMessage = ex.Message;
             StatusMessage = $"Preparation failed: {ex.Message}";
@@ -226,6 +241,7 @@ public partial class NewJobViewModel : ObservableObject
     private async Task StartPrintAsync()
     {
         if (CreatedJobId == null) return;
+        _logger.LogInformation("NewJob: Start print for Job #{JobId}", CreatedJobId.Value);
 
         try
         {
@@ -234,6 +250,7 @@ public partial class NewJobViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "NewJob: Start print failed for Job #{JobId}", CreatedJobId.Value);
             StatusMessage = $"Error starting print: {ex.Message}";
         }
     }
@@ -241,6 +258,7 @@ public partial class NewJobViewModel : ObservableObject
     [RelayCommand]
     private void GoToJob()
     {
+        _logger.LogDebug("NewJob: Navigate to Job #{JobId}", CreatedJobId);
         if (CreatedJobId.HasValue)
             NavigateToJobRequested?.Invoke(this, CreatedJobId.Value);
     }
@@ -248,6 +266,7 @@ public partial class NewJobViewModel : ObservableObject
     [RelayCommand]
     private async Task RetryPrepareAsync()
     {
+        _logger.LogInformation("NewJob: Retry preparation for Job #{JobId}", CreatedJobId);
         // Reset prep state and try again
         PrepFailed = false;
         PrepErrorMessage = null;
@@ -255,5 +274,9 @@ public partial class NewJobViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void GoBack() => NavigateBackRequested?.Invoke(this, EventArgs.Empty);
+    private void GoBack()
+    {
+        _logger.LogDebug("NewJob: Navigate back");
+        NavigateBackRequested?.Invoke(this, EventArgs.Empty);
+    }
 }

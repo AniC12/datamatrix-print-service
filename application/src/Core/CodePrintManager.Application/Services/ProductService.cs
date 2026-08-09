@@ -3,16 +3,19 @@ using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CodePrintManager.Application.Services;
 
 public class ProductService : IProductService
 {
     private readonly AppDbContext _db;
+    private readonly ILogger<ProductService> _logger;
 
-    public ProductService(AppDbContext db)
+    public ProductService(AppDbContext db, ILogger<ProductService> logger)
     {
         _db = db;
+        _logger = logger;
     }
 
     public async Task<List<ProductNode>> GetTreeAsync()
@@ -50,6 +53,7 @@ public class ProductService : IProductService
         };
         _db.ProductNodes.Add(node);
         await _db.SaveChangesAsync();
+        _logger.LogInformation("Folder created: '{Name}' (Id={Id}, Parent={ParentId})", name, node.Id, parentId);
         return node;
     }
 
@@ -67,6 +71,8 @@ public class ProductService : IProductService
         };
         _db.ProductNodes.Add(node);
         await _db.SaveChangesAsync();
+        _logger.LogInformation("Product created: '{Name}' (Id={Id}, Template={Template}, CSV={Csv})",
+            name, node.Id, templateFile, printerCsvName);
         return node;
     }
 
@@ -75,6 +81,7 @@ public class ProductService : IProductService
         product.UpdatedAt = DateTime.UtcNow;
         _db.ProductNodes.Update(product);
         await _db.SaveChangesAsync();
+        _logger.LogInformation("Product updated: Id={Id}", product.Id);
     }
 
     public async Task<bool> CanDeleteAsync(int id)
@@ -83,12 +90,20 @@ public class ProductService : IProductService
         var hasActiveJobs = await _db.PrintJobs
             .AnyAsync(j => j.ProductId == id &&
                 (j.Status == JobStatus.Preparing || j.Status == JobStatus.Ready || j.Status == JobStatus.Printing || j.Status == JobStatus.Paused));
-        if (hasActiveJobs) return false;
+        if (hasActiveJobs)
+        {
+            _logger.LogDebug("Product {Id} cannot be deleted: has active jobs", id);
+            return false;
+        }
 
         // Check for reserved codes
         var hasReservedCodes = await _db.Codes
             .AnyAsync(c => c.ProductId == id && c.Status == CodeStatus.Reserved);
-        if (hasReservedCodes) return false;
+        if (hasReservedCodes)
+        {
+            _logger.LogDebug("Product {Id} cannot be deleted: has reserved codes", id);
+            return false;
+        }
 
         return true;
     }
@@ -103,6 +118,7 @@ public class ProductService : IProductService
         {
             _db.ProductNodes.Remove(node);
             await _db.SaveChangesAsync();
+            _logger.LogInformation("Product deleted: Id={Id}", id);
         }
     }
 }

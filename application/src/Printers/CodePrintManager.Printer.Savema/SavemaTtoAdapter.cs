@@ -48,6 +48,7 @@ public class SavemaTtoAdapter : IPrinterAdapter
 
     public async Task DisconnectAsync()
     {
+        _logger.LogInformation("Printer disconnected");
         await _lock.WaitAsync();
         try { DisposeSocket(); }
         finally { _lock.Release(); }
@@ -171,9 +172,22 @@ public class SavemaTtoAdapter : IPrinterAdapter
             if (_stream == null)
                 throw new InvalidOperationException("Not connected to printer");
 
+            _logger.LogDebug("SPPL TX → {Command}", cmd.Length > 200 ? cmd[..200] + "..." : cmd);
             var bytes = Encoding.ASCII.GetBytes(cmd);
             await _stream.WriteAsync(bytes, ct);
-            return await ReadResponseAsync(ct);
+            var response = await ReadResponseAsync(ct);
+            var responseStr = response.Payload ?? "";
+            _logger.LogDebug("SPPL RX ← {Command}:{Response}", response.Command,
+                responseStr.Length > 200 ? responseStr[..200] + "..." : responseStr);
+            if (!response.IsOk && !response.IsFail)
+            {
+                // Data response — no warning needed
+            }
+            else if (response.IsFail)
+            {
+                _logger.LogWarning("SPPL command failed: {Command} → FAIL", cmd.Length > 60 ? cmd[..60] + "..." : cmd);
+            }
+            return response;
         }
         finally { _lock.Release(); }
     }
@@ -187,7 +201,10 @@ public class SavemaTtoAdapter : IPrinterAdapter
         {
             var bytesRead = await _stream!.ReadAsync(buffer, ct);
             if (bytesRead == 0)
+            {
+                _logger.LogError("Connection closed by printer during read");
                 throw new IOException("Connection closed by printer");
+            }
 
             sb.Append(Encoding.ASCII.GetString(buffer, 0, bytesRead));
             var raw = sb.ToString();

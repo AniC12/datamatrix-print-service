@@ -2,24 +2,42 @@ using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Events;
 using CodePrintManager.Domain.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace CodePrintManager.Application.Services;
 
 public class AlertService : IAlertService
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<AlertService> _logger;
 
     public event EventHandler<AlertRaisedEvent>? AlertRaised;
     public event EventHandler<Guid>? AlertDismissed;
 
-    public AlertService(IServiceScopeFactory scopeFactory)
+    public AlertService(IServiceScopeFactory scopeFactory, ILogger<AlertService> logger)
     {
         _scopeFactory = scopeFactory;
+        _logger = logger;
     }
 
     public void Raise(AlertSeverity severity, string source, string message,
                       int? printerId = null, int? jobId = null)
     {
+        // Log at the matching severity level
+        var logMsg = "Alert [{Severity}] {Source}: {Message} (Printer={PrinterId}, Job={JobId})";
+        switch (severity)
+        {
+            case AlertSeverity.Error:
+                _logger.LogError(logMsg, severity, source, message, printerId, jobId);
+                break;
+            case AlertSeverity.Warning:
+                _logger.LogWarning(logMsg, severity, source, message, printerId, jobId);
+                break;
+            default:
+                _logger.LogInformation(logMsg, severity, source, message, printerId, jobId);
+                break;
+        }
+
         var alert = new AlertRaisedEvent(
             Id: Guid.NewGuid(),
             Timestamp: DateTime.Now,

@@ -29,6 +29,9 @@ public class PrinterConnectionManager : IDisposable
 
     public async Task ConnectAsync(Printer printer, CancellationToken ct = default)
     {
+        _logger.LogInformation("Connecting printer '{Name}' (Id={PrinterId}) at {Ip}:{Port}, adapter={AdapterType}",
+            printer.Name, printer.Id, printer.IpAddress, printer.Port, printer.AdapterType);
+
         var adapter = CreateAdapter(printer.AdapterType);
         _adapters[printer.Id] = adapter;
 
@@ -36,12 +39,22 @@ public class PrinterConnectionManager : IDisposable
         var status = success ? PrinterStatus.Idle : PrinterStatus.Offline;
         PrinterStatusChanged?.Invoke(this, new PrinterStatusChangedEvent(printer.Id, PrinterStatus.Offline, status));
 
-        if (!success)
+        if (success)
+        {
+            _logger.LogInformation("Printer '{Name}' (Id={PrinterId}) connected", printer.Name, printer.Id);
+        }
+        else
+        {
+            _logger.LogWarning("Printer '{Name}' (Id={PrinterId}) connection failed, starting reconnect",
+                printer.Name, printer.Id);
             StartReconnectLoop(printer);
+        }
     }
 
     public async Task DisconnectAsync(int printerId)
     {
+        _logger.LogInformation("Disconnecting printer Id={PrinterId}", printerId);
+
         if (_reconnectCts.TryRemove(printerId, out var cts))
             cts.Cancel();
 
@@ -51,6 +64,7 @@ public class PrinterConnectionManager : IDisposable
 
     private IPrinterAdapter CreateAdapter(string adapterType)
     {
+        _logger.LogDebug("Creating adapter for type '{AdapterType}'", adapterType);
         var factory = _factories.FirstOrDefault(f => f.CanHandle(adapterType))
             ?? throw new InvalidOperationException($"No adapter factory for type '{adapterType}'");
         return factory.Create(adapterType);
@@ -61,6 +75,9 @@ public class PrinterConnectionManager : IDisposable
         var cts = new CancellationTokenSource();
         _reconnectCts[printer.Id] = cts;
 
+        _logger.LogWarning("Reconnect loop started for '{Name}' (Id={PrinterId}), initial delay=1000ms",
+            printer.Name, printer.Id);
+
         _ = Task.Run(async () =>
         {
             var delay = 1000;
@@ -70,12 +87,15 @@ public class PrinterConnectionManager : IDisposable
             {
                 await Task.Delay(delay, cts.Token);
 
+                _logger.LogDebug("Reconnect attempt for '{Name}' (Id={PrinterId}), delay={Delay}ms",
+                    printer.Name, printer.Id, delay);
+
                 if (_adapters.TryGetValue(printer.Id, out var adapter))
                 {
                     var success = await adapter.ConnectAsync(printer.IpAddress, printer.Port, cts.Token);
                     if (success)
                     {
-                        _logger.LogInformation("Reconnected to {Printer}", printer.Name);
+                        _logger.LogInformation("Reconnected to '{Name}' (Id={PrinterId})", printer.Name, printer.Id);
                         PrinterStatusChanged?.Invoke(this,
                             new PrinterStatusChangedEvent(printer.Id, PrinterStatus.Offline, PrinterStatus.Idle));
                         _reconnectCts.TryRemove(printer.Id, out _);
@@ -90,6 +110,9 @@ public class PrinterConnectionManager : IDisposable
 
     public void Dispose()
     {
+        _logger.LogDebug("PrinterConnectionManager disposing: {AdapterCount} adapters, {ReconnectCount} reconnect loops",
+            _adapters.Count, _reconnectCts.Count);
+
         foreach (var cts in _reconnectCts.Values)
             cts.Cancel();
 
