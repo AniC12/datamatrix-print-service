@@ -4,6 +4,7 @@ using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
+using CodePrintManager.Printer.Mock;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ public partial class PrintersViewModel : ObservableObject
     private readonly AppDbContext _db;
     private readonly PrinterConnectionManager _connectionManager;
     private readonly IAuditService _audit;
+    private readonly IPrinterAdapterFactory _adapterFactory;
 
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
 
@@ -62,11 +64,13 @@ public partial class PrintersViewModel : ObservableObject
 
     public event EventHandler<int>? NavigateToNewJobRequested;
 
-    public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit)
+    public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit,
+        IPrinterAdapterFactory adapterFactory)
     {
         _db = db;
         _connectionManager = connectionManager;
         _audit = audit;
+        _adapterFactory = adapterFactory;
         _connectionManager.PrinterStatusChanged += (_, e) =>
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -102,14 +106,20 @@ public partial class PrintersViewModel : ObservableObject
     private void ShowAddPrinter()
     {
         IsAddingPrinter = true;
+        SelectedPrinter = null;
         NewPrinterName = string.Empty;
         NewPrinterIp = string.Empty;
         NewPrinterPort = 9100;
-        NewPrinterAdapterType = "savema_tto";
+        NewPrinterAdapterType = _adapterFactory is MockPrinterAdapterFactory ? "mock" : "savema_tto";
     }
 
     [RelayCommand]
-    private void CancelAddPrinter() => IsAddingPrinter = false;
+    private void CancelAddPrinter()
+    {
+        IsAddingPrinter = false;
+        if (SelectedPrinter == null && Printers.Count > 0)
+            SelectedPrinter = Printers[0];
+    }
 
     [RelayCommand]
     private async Task ConfirmAddPrinterAsync()
