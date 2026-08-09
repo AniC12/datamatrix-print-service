@@ -164,6 +164,14 @@ public partial class ProductsViewModel : ObservableObject
 
         SelectedProduct.TemplateFile = dialog.FileName;
         await _db.SaveChangesAsync();
+        OnPropertyChanged(nameof(SelectedProduct));
+    }
+
+    [RelayCommand]
+    private async Task SaveCsvNameAsync()
+    {
+        if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;
+        await _db.SaveChangesAsync();
     }
 
     [RelayCommand]

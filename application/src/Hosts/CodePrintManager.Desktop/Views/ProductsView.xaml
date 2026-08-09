@@ -91,17 +91,25 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="110" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Template:" Opacity="0.6" />
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedProduct.TemplateFile}" FontWeight="SemiBold" />
+                            <TextBlock Text="Template:" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedProduct.TemplateFile, TargetNullValue='(not set)'}"
+                                       FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <Button Grid.Column="2" Content="Change" Command="{Binding ChangeTemplateCommand}"
+                                    Style="{StaticResource OutlineButton}" Padding="8,2" Margin="8,0,0,0" FontSize="11" />
                         </Grid>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="110" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="CSV Name:" Opacity="0.6" />
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedProduct.PrinterCsvName}" FontWeight="SemiBold" />
+                            <TextBlock Text="CSV Name:" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding SelectedProduct.PrinterCsvName, UpdateSourceTrigger=LostFocus}"
+                                     FontWeight="SemiBold" VerticalAlignment="Center" BorderThickness="0,0,0,1" Padding="2" />
+                            <Button Grid.Column="2" Content="Save" Command="{Binding SaveCsvNameCommand}"
+                                    Style="{StaticResource OutlineButton}" Padding="8,2" Margin="8,0,0,0" FontSize="11" />
                         </Grid>
 
                         <!-- Code Pool -->
@@ -132,7 +140,10 @@
                             <Button Content="Import CSV..." Command="{Binding ImportCsvCommand}"
                                     Style="{StaticResource OutlineButton}" Margin="0,0,8,0" />
                             <Button Content="+ New Job" Command="{Binding NewJobCommand}"
-                                    Style="{StaticResource PrimaryButton}" />
+                                    Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
+                            <Button Content="Delete" Command="{Binding DeleteProductCommand}"
+                                    Foreground="#F44336" Background="Transparent" BorderBrush="#F44336"
+                                    BorderThickness="1" Padding="10,4" />
                         </StackPanel>
 
                         <!-- Import History -->
