@@ -49,6 +49,12 @@ public partial class ProductsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAddingProduct;
 
+    [ObservableProperty]
+    private bool _canDeleteSelectedProduct;
+
+    [ObservableProperty]
+    private string _deleteBlockedReason = string.Empty;
+
     public event EventHandler<int>? NavigateToNewJobRequested;
 
     public ProductsViewModel(IProductService productService, ICodePoolService codePoolService, AppDbContext db)
@@ -104,6 +110,18 @@ public partial class ProductsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void BrowseNewTemplate()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Template Files|*.rox|All Files|*.*",
+            Title = "Select Template File (.rox)"
+        };
+        if (dialog.ShowDialog() == true)
+            NewProductTemplate = dialog.FileName;
+    }
+
+    [RelayCommand]
     private async Task ConfirmAddProductAsync()
     {
         if (string.IsNullOrWhiteSpace(NewNodeName)) return;
@@ -122,9 +140,29 @@ public partial class ProductsViewModel : ObservableObject
     private async Task DeleteProductAsync()
     {
         if (SelectedProduct == null) return;
-        await _productService.DeleteAsync(SelectedProduct.Id);
-        SelectedProduct = null;
-        await LoadProductsAsync();
+
+        var result = System.Windows.MessageBox.Show(
+            $"Are you sure you want to delete \"{SelectedProduct.Name}\"?\n\nThis action cannot be undone.",
+            "Confirm Delete",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes) return;
+
+        try
+        {
+            await _productService.DeleteAsync(SelectedProduct.Id);
+            SelectedProduct = null;
+            await LoadProductsAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            System.Windows.MessageBox.Show(
+                ex.Message,
+                "Cannot Delete",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
     }
 
     [RelayCommand]
@@ -185,6 +223,21 @@ public partial class ProductsViewModel : ObservableObject
     {
         _ = RefreshCodeCountsAsync();
         _ = LoadImportHistoryAsync();
+        _ = CheckCanDeleteAsync();
+    }
+
+    private async Task CheckCanDeleteAsync()
+    {
+        if (SelectedProduct == null)
+        {
+            CanDeleteSelectedProduct = false;
+            DeleteBlockedReason = string.Empty;
+            return;
+        }
+
+        var canDelete = await _productService.CanDeleteAsync(SelectedProduct.Id);
+        CanDeleteSelectedProduct = canDelete;
+        DeleteBlockedReason = canDelete ? string.Empty : "Has active jobs or reserved codes";
     }
 
     private async Task RefreshCodeCountsAsync()

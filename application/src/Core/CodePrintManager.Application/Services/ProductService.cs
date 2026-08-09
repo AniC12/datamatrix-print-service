@@ -1,5 +1,6 @@
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
+using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -76,8 +77,27 @@ public class ProductService : IProductService
         await _db.SaveChangesAsync();
     }
 
+    public async Task<bool> CanDeleteAsync(int id)
+    {
+        // Check for active jobs on this product
+        var hasActiveJobs = await _db.PrintJobs
+            .AnyAsync(j => j.ProductId == id &&
+                (j.Status == JobStatus.Preparing || j.Status == JobStatus.Ready || j.Status == JobStatus.Printing));
+        if (hasActiveJobs) return false;
+
+        // Check for reserved codes
+        var hasReservedCodes = await _db.Codes
+            .AnyAsync(c => c.ProductId == id && c.Status == CodeStatus.Reserved);
+        if (hasReservedCodes) return false;
+
+        return true;
+    }
+
     public async Task DeleteAsync(int id)
     {
+        if (!await CanDeleteAsync(id))
+            throw new InvalidOperationException("Cannot delete product with active jobs or reserved codes.");
+
         var node = await _db.ProductNodes.FindAsync(id);
         if (node != null)
         {

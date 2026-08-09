@@ -10,5 +10,6 @@ public interface IProductService
     Task<ProductNode> CreateFolderAsync(string name, int? parentId);
     Task<ProductNode> CreateProductAsync(string name, int? parentId, string templateFile, string printerCsvName);
     Task UpdateAsync(ProductNode product);
+    Task<bool> CanDeleteAsync(int id);
     Task DeleteAsync(int id);
 }
