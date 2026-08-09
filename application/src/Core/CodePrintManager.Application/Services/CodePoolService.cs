@@ -2,6 +2,7 @@ using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
+using CodePrintManager.Domain.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace CodePrintManager.Application.Services;
@@ -28,8 +29,18 @@ public class CodePoolService : ICodePoolService
             .Where(c => c.ProductId == productId)
             .MaxAsync(c => (int?)c.ImportOrder) ?? 0;
 
-        foreach (var code in codes)
+        for (int i = 0; i < codes.Count; i++)
         {
+            var code = codes[i];
+
+            // Validate code against SPPL forbidden sequences
+            var validationError = CodeValidator.GetValidationError(code);
+            if (validationError != null)
+            {
+                errors.Add($"Row {i + 1}: {validationError} — '{code}'");
+                continue;
+            }
+
             // Check global uniqueness
             var exists = await _db.Codes.AnyAsync(c => c.CodeText == code);
             if (exists)
@@ -92,7 +103,8 @@ public class CodePoolService : ICodePoolService
 
         foreach (var code in codes)
         {
-            code.Status = CodeStatus.Returned;
+            code.Status = CodeStatus.Available;
+            code.JobId = null;
             code.StatusChangedAt = DateTime.UtcNow;
         }
 

@@ -14,9 +14,13 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
 
-        // Services
+        // Singletons (survive scope disposal)
         services.AddSingleton<PrinterConnectionManager>();
         services.AddSingleton<IAlertService, AlertService>();
+        services.AddSingleton<ActiveJobRegistry>();
+        services.AddSingleton<JobEventBus>();
+
+        // Scoped services (per-operation DB context)
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<ICodePoolService, CodePoolService>();

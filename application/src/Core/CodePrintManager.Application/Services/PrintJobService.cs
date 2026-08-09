@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
@@ -17,9 +16,8 @@ public class PrintJobService : IPrintJobService
     private readonly IAlertService _alerts;
     private readonly IAuditService _audit;
     private readonly ILogger<PrintJobService> _logger;
-
-    private readonly ConcurrentDictionary<int, SemaphoreSlim> _printerLocks = new();
-    private readonly ConcurrentDictionary<int, JobExecutor> _activeJobs = new();
+    private readonly ActiveJobRegistry _jobRegistry;
+    private readonly JobEventBus _eventBus;
 
     public event EventHandler<JobProgressChangedEvent>? JobProgressChanged;
     public event EventHandler<JobCompletedEvent>? JobCompleted;
@@ -30,7 +28,9 @@ public class PrintJobService : IPrintJobService
         PrinterConnectionManager connectionManager,
         IAlertService alerts,
         IAuditService audit,
-        ILogger<PrintJobService> logger)
+        ILogger<PrintJobService> logger,
+        ActiveJobRegistry jobRegistry,
+        JobEventBus eventBus)
     {
         _db = db;
         _codePool = codePool;
@@ -38,10 +38,9 @@ public class PrintJobService : IPrintJobService
         _alerts = alerts;
         _audit = audit;
         _logger = logger;
+        _jobRegistry = jobRegistry;
+        _eventBus = eventBus;
     }
-
-    private SemaphoreSlim GetPrinterLock(int printerId)
-        => _printerLocks.GetOrAdd(printerId, _ => new SemaphoreSlim(1, 1));
 
     public async Task<PrintJob> CreateJobAsync(int productId, int printerId, int quantity)
     {
@@ -70,7 +69,7 @@ public class PrintJobService : IPrintJobService
             .Include(j => j.Printer)
             .FirstAsync(j => j.Id == jobId);
 
-        var printerLock = GetPrinterLock(job.PrinterId);
+        var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
         await printerLock.WaitAsync(ct);
         try
         {
@@ -159,13 +158,18 @@ public class PrintJobService : IPrintJobService
 
         // Spawn job executor
         var executor = new JobExecutor(job, adapter, _codePool, _alerts, _db, _logger);
-        executor.ProgressChanged += (_, e) => JobProgressChanged?.Invoke(this, e);
-        executor.Completed += (sender, e) =>
+        executor.ProgressChanged += (_, e) =>
         {
-            _activeJobs.TryRemove(jobId, out var _removed);
+            _eventBus.RaiseProgressChanged(this, e);
+            JobProgressChanged?.Invoke(this, e);
+        };
+        executor.Completed += (_, e) =>
+        {
+            _jobRegistry.TryRemove(jobId);
+            _eventBus.RaiseCompleted(this, e);
             JobCompleted?.Invoke(this, e);
         };
-        _activeJobs[jobId] = executor;
+        _jobRegistry.Register(jobId, executor);
         executor.Start();
 
         await _audit.LogAsync("job_started", printerId: job.PrinterId, jobId: jobId);
@@ -174,15 +178,15 @@ public class PrintJobService : IPrintJobService
     public async Task CancelJobAsync(int jobId)
     {
         var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
-        var printerLock = GetPrinterLock(job.PrinterId);
+        var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
 
         await printerLock.WaitAsync();
         try
         {
-            if (job.Status == JobStatus.Printing && _activeJobs.TryGetValue(jobId, out var executor))
+            if (job.Status == JobStatus.Printing && _jobRegistry.TryGet(jobId, out var executor) && executor != null)
             {
                 await executor.StopAsync();
-                _activeJobs.TryRemove(jobId, out _);
+                _jobRegistry.TryRemove(jobId);
 
                 var adapter = _connectionManager.GetAdapter(job.PrinterId);
                 if (adapter != null)

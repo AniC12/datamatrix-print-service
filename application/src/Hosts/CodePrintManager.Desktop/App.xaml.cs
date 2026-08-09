@@ -1,10 +1,12 @@
 ﻿using System.IO;
 using System.Windows;
 using CodePrintManager.Application;
+using CodePrintManager.Application.Services;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Interfaces;
 using CodePrintManager.Desktop.ViewModels;
 using CodePrintManager.Printer.Savema;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -62,14 +64,38 @@ public partial class App : System.Windows.Application
         await _host.StartAsync();
 
         // Initialize database (apply migrations + enable WAL mode)
-        using (var scope = _host.Services.CreateScope())
+        using (var initScope = _host.Services.CreateScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
             await DbInitializer.InitializeAsync(db);
         }
 
-        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-        mainWindow.DataContext = _host.Services.GetRequiredService<MainViewModel>();
+        // Auto-connect configured printers (fire-and-forget, non-blocking)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _host.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var connMgr = scope.ServiceProvider.GetRequiredService<PrinterConnectionManager>();
+                var printers = await db.Printers.ToListAsync();
+
+                foreach (var printer in printers)
+                {
+                    _ = connMgr.ConnectAsync(printer);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Error during printer auto-connect on startup");
+            }
+        });
+
+        // Create a scope for the main window lifetime
+        var windowScope = _host.Services.CreateScope();
+        var mainWindow = windowScope.ServiceProvider.GetRequiredService<MainWindow>();
+        mainWindow.DataContext = windowScope.ServiceProvider.GetRequiredService<MainViewModel>();
+        mainWindow.Closed += (s, e) => windowScope.Dispose(); // Dispose scope when window closes
         mainWindow.Show();
         MainWindow = mainWindow;
     }
