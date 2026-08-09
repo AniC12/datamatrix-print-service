@@ -31,7 +31,8 @@
                     </Grid.RowDefinitions>
 
                     <!-- Job Selector -->
-                    <TextBlock Grid.Row="0" Text="Select Job:" Margin="0,8,0,4" Opacity="0.6" />
+                    <TextBlock Grid.Row="0" Text="Select Job:" Margin="0,8,0,4" Opacity="0.6"
+                               Visibility="{Binding HasActiveJobs, Converter={StaticResource BoolToVisibilityConverter}}" />
                     <Grid Grid.Row="1">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" MaxHeight="150" />
@@ -39,8 +40,18 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
+                        <!-- Empty state -->
+                        <StackPanel Grid.Row="0" Grid.RowSpan="3"
+                                    Visibility="{Binding HasActiveJobs, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}"
+                                    VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,48,0,0">
+                            <TextBlock Text="No active jobs" FontSize="16" Opacity="0.5" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                            <Button Content="+ New Job" Command="{Binding NewJobCommand}"
+                                    Style="{StaticResource PrimaryButton}" Padding="16,8" HorizontalAlignment="Center" />
+                        </StackPanel>
+
                         <ListBox Grid.Row="0" ItemsSource="{Binding ActiveJobs}"
-                                 SelectedItem="{Binding SelectedJob}" Margin="0,0,0,8">
+                                 SelectedItem="{Binding SelectedJob}" Margin="0,0,0,8"
+                                 Visibility="{Binding HasActiveJobs, Converter={StaticResource BoolToVisibilityConverter}}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel>
@@ -136,6 +147,9 @@
                                     <Button Content="Start Print" Command="{Binding StartPrintCommand}"
                                             Style="{StaticResource PrimaryButton}" Padding="14,6" Margin="0,0,8,0"
                                             Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=StartPrint}" />
+                                    <Button Content="Pause" Command="{Binding PauseJobCommand}"
+                                            Style="{StaticResource OutlineButton}" Padding="14,6" Margin="0,0,8,0"
+                                            Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Pause}" />
                                     <Button Content="Cancel" Command="{Binding CancelJobCommand}"
                                             Style="{StaticResource DangerButton}" Padding="14,6"
                                             Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />

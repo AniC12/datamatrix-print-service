@@ -73,6 +73,9 @@ public partial class JobsViewModel : ObservableObject
     [ObservableProperty]
     private ProductNode? _filterProduct;
 
+    [ObservableProperty]
+    private bool _hasActiveJobs;
+
     public event EventHandler? NavigateToNewJobRequested;
 
     public JobsViewModel(AppDbContext db, IPrintJobService printJobService, JobEventBus eventBus)
@@ -93,6 +96,8 @@ public partial class JobsViewModel : ObservableObject
         ActiveJobs.Clear();
         foreach (var j in active)
             ActiveJobs.Add(j);
+
+        HasActiveJobs = ActiveJobs.Count > 0;
 
         await LoadHistoryAsync();
         await LoadFiltersAsync();
@@ -185,6 +190,12 @@ public partial class JobsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void PauseJob()
+    {
+        // Placeholder — will be wired in E6-3 (Pause/Resume support)
+    }
+
+    [RelayCommand]
     private void NewJob() => NavigateToNewJobRequested?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand]
@@ -198,10 +209,22 @@ public partial class JobsViewModel : ObservableObject
     {
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            // Update the active job in the list
-            var job = ActiveJobs.FirstOrDefault(j => j.Id == e.JobId);
-            if (job != null)
+            // Update the active job in the list and re-insert to trigger binding refresh
+            var index = -1;
+            for (int i = 0; i < ActiveJobs.Count; i++)
+            {
+                if (ActiveJobs[i].Id == e.JobId)
+                {
+                    index = i;
+                    break;
+                }
+            }
+            if (index >= 0)
+            {
+                var job = ActiveJobs[index];
                 job.CodesConfirmed = e.Confirmed;
+                ActiveJobs[index] = job; // triggers CollectionChanged → re-binds list item
+            }
 
             // Update detail view if this is the selected job
             if (SelectedJob?.Id == e.JobId)
@@ -217,7 +240,35 @@ public partial class JobsViewModel : ObservableObject
     {
         System.Windows.Application.Current.Dispatcher.Invoke(async () =>
         {
-            await LoadJobsAsync();
+            // Update the completed job in-place so it stays displayed
+            var index = -1;
+            for (int i = 0; i < ActiveJobs.Count; i++)
+            {
+                if (ActiveJobs[i].Id == e.JobId)
+                {
+                    index = i;
+                    break;
+                }
+            }
+            if (index >= 0)
+            {
+                // Reload the job from DB to get final status and timestamps
+                var freshJob = await _db.PrintJobs
+                    .Include(j => j.Product)
+                    .Include(j => j.Printer)
+                    .FirstOrDefaultAsync(j => j.Id == e.JobId);
+                if (freshJob != null)
+                {
+                    ActiveJobs[index] = freshJob;
+                    if (SelectedJob?.Id == e.JobId)
+                    {
+                        SelectedJob = freshJob;
+                    }
+                }
+            }
+
+            // Also refresh the history tab
+            await LoadHistoryAsync();
         });
     }
 }
