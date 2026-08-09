@@ -48,6 +48,10 @@ public class PrintJobService : IPrintJobService
 
     public async Task<PrintJob> CreateJobAsync(int productId, int printerId, int quantity)
     {
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), quantity,
+                "Quantity must be greater than zero");
+
         var job = new PrintJob
         {
             ProductId = productId,
@@ -261,6 +265,11 @@ public class PrintJobService : IPrintJobService
     public async Task CancelJobAsync(int jobId)
     {
         var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
+
+        if (job.Status is JobStatus.Completed or JobStatus.Cancelled)
+            throw new InvalidOperationException(
+                $"Cannot cancel job in {job.Status} state");
+
         _logger.LogInformation("Job {JobId} cancelling (status={Status}, confirmed={Confirmed})",
             jobId, job.Status, job.CodesConfirmed);
 
@@ -280,24 +289,31 @@ public class PrintJobService : IPrintJobService
                     var finalCounter = await adapter.GetCurrentCounterAsync();
                     await adapter.StopPrintAsync();
 
-                    // Mark codes: printed up to counter, burn +1, return rest
+                    // Mark codes printed up to counter
                     if (finalCounter > job.CodesConfirmed)
                         await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, finalCounter);
 
+                    // Burn the code at finalCounter ONLY because there is genuine uncertainty:
+                    // the printer may have printed it between the counter read and the stop command.
                     if (finalCounter < job.Quantity)
                         await _codePool.BurnCodeAsync(jobId, finalCounter);
 
-                    if (finalCounter + 1 < job.Quantity)
-                        await _codePool.ReturnCodesToPoolAsync(jobId, finalCounter + 1, job.Quantity - finalCounter - 1);
+                    // Return remaining codes (no uncertainty — they were never sent to the printer).
+                    // startIndex=0 because MarkCodesPrintedAsync and BurnCodeAsync already moved
+                    // codes out of Reserved status; the remaining Reserved set IS the unprinted codes.
+                    var remaining = job.Quantity - finalCounter - 1;
+                    if (remaining > 0)
+                        await _codePool.ReturnCodesToPoolAsync(jobId, 0, remaining);
                 }
             }
             else if (job.Status == JobStatus.Paused)
             {
-                // Paused job: codes up to CodesConfirmed are printed, burn +1, return rest
+                // Paused job: pause already reconciled the counter (printer stopped, counter
+                // read after stop). CodesConfirmed is accurate — no uncertainty, no burn needed.
+                // startIndex=0 because MarkCodesPrintedAsync already moved confirmed codes out
+                // of Reserved status, so the remaining Reserved set IS the unprinted codes.
                 if (job.CodesConfirmed < job.Quantity)
-                    await _codePool.BurnCodeAsync(jobId, job.CodesConfirmed);
-                if (job.CodesConfirmed + 1 < job.Quantity)
-                    await _codePool.ReturnCodesToPoolAsync(jobId, job.CodesConfirmed + 1, job.Quantity - job.CodesConfirmed - 1);
+                    await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity - job.CodesConfirmed);
             }
             else if (job.Status is JobStatus.Preparing or JobStatus.Ready)
             {

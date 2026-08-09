@@ -284,7 +284,7 @@ public class FullE2ETests : IntegrationTestBase
     // ──────────────────────────────────────────────
 
     [Fact]
-    public async Task CornerCase_CancelCompletedJob_TransitionsToCancelled()
+    public async Task CornerCase_CancelCompletedJob_IsRejected()
     {
         var printerId = await SetupPrinterAsync("CancelCompletedPrinter");
         var productId = await SetupProductAsync("CancelCompletedProduct", "cc.csv");
@@ -300,11 +300,13 @@ public class FullE2ETests : IntegrationTestBase
         await PollUntilAsync<JobResult>($"/api/jobs/{job.Id}", j => j.Status == "Completed",
             timeout: TimeSpan.FromSeconds(10));
 
-        // Cancel a completed job — the app allows this (transitions to Cancelled)
+        // Cancel a completed job — should be rejected
         var cancelResp = await Client.PostAsync($"/api/jobs/{job.Id}/cancel", null);
-        cancelResp.EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.BadRequest, cancelResp.StatusCode);
+
+        // Verify job remains Completed
         var final = await Client.GetFromJsonAsync<JobResult>($"/api/jobs/{job.Id}");
-        Assert.Equal("Cancelled", final!.Status);
+        Assert.Equal("Completed", final!.Status);
     }
 
     // ──────────────────────────────────────────────
@@ -354,6 +356,55 @@ public class FullE2ETests : IntegrationTestBase
         // Try to resume a completed job
         var resumeResp = await Client.PostAsync($"/api/jobs/{job.Id}/resume", null);
         Assert.Equal(HttpStatusCode.BadRequest, resumeResp.StatusCode);
+    }
+
+    // ──────────────────────────────────────────────
+    // CORNER CASE: Cancel a paused job returns codes without burning
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task CornerCase_CancelPausedJob_NoBurn()
+    {
+        var printerId = await SetupPrinterAsync("PauseCancelPrinter");
+        var productId = await SetupProductAsync("PauseCancelProduct", "pc.csv");
+        await ImportCodesAsync(productId, 20);
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 200 });
+
+        // Create, start, wait for some progress
+        var jobResp = await Client.PostAsJsonAsync("/api/jobs", new
+        {
+            ProductId = productId, PrinterId = printerId, Quantity = 10
+        });
+        var job = await jobResp.Content.ReadFromJsonAsync<JobResult>();
+        await Client.PostAsync($"/api/jobs/{job!.Id}/start", null);
+        await PollUntilAsync<JobResult>($"/api/jobs/{job.Id}",
+            j => j.CodesConfirmed >= 2,
+            timeout: TimeSpan.FromSeconds(15));
+
+        // Pause
+        var pauseResp = await Client.PostAsync($"/api/jobs/{job.Id}/pause", null);
+        pauseResp.EnsureSuccessStatusCode();
+        await Task.Delay(200);
+
+        var pausedJob = await Client.GetFromJsonAsync<JobResult>($"/api/jobs/{job.Id}");
+        Assert.Equal("Paused", pausedJob!.Status);
+        var confirmedAtPause = pausedJob.CodesConfirmed;
+
+        // Cancel the paused job
+        var cancelResp = await Client.PostAsync($"/api/jobs/{job.Id}/cancel", null);
+        cancelResp.EnsureSuccessStatusCode();
+        await Task.Delay(200);
+
+        // Verify: no codes burned — all unprinted codes returned to pool
+        var stats = await Client.GetFromJsonAsync<ProductDetailResult>($"/api/products/{productId}");
+        Assert.NotNull(stats?.PoolStats);
+        var available = stats.PoolStats.GetValueOrDefault("Available", 0);
+        var printed = stats.PoolStats.GetValueOrDefault("Printed", 0);
+        var burned = stats.PoolStats.GetValueOrDefault("Burned", 0);
+
+        Assert.Equal(0, burned); // No uncertainty from paused state
+        Assert.Equal(confirmedAtPause, printed);
+        Assert.Equal(20 - confirmedAtPause, available); // All unprinted codes returned
     }
 
     // ──────────────────────────────────────────────
@@ -477,6 +528,25 @@ public class FullE2ETests : IntegrationTestBase
 
     // ──────────────────────────────────────────────
     // CORNER CASE: Create job with quantity = 0
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task CornerCase_ZeroQuantityJob_Fails()
+    {
+        var printerId = await SetupPrinterAsync("ZeroQtyPrinter");
+        var productId = await SetupProductAsync("ZeroQtyProduct", "zero.csv");
+        await ImportCodesAsync(productId, 10);
+
+        var jobResp = await Client.PostAsJsonAsync("/api/jobs", new
+        {
+            ProductId = productId, PrinterId = printerId, Quantity = 0
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, jobResp.StatusCode);
+    }
+
+    // ──────────────────────────────────────────────
+    // CORNER CASE: Create job with non-existent product
     // ──────────────────────────────────────────────
 
     [Fact]
