@@ -8,41 +8,149 @@
              d:DataContext="{d:DesignInstance vm:ProductsViewModel}"
              Loaded="OnLoaded">
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="300" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-        <!-- Product Tree -->
-        <DockPanel Grid.Column="0">
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-                <TextBlock Text="Products" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="+ Add Folder" Command="{Binding ShowAddFolderCommand}"
+                        Style="{StaticResource OutlineButton}" Margin="0,0,8,0" />
+                <Button Content="+ Add Product" Command="{Binding ShowAddProductCommand}"
+                        Style="{StaticResource OutlineButton}" />
             </StackPanel>
-            <TreeView ItemsSource="{Binding Products}"
-                      SelectedItemChanged="OnTreeSelectionChanged">
-                <TreeView.ItemTemplate>
-                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                        <TextBlock Text="{Binding Name}" />
-                    </HierarchicalDataTemplate>
-                </TreeView.ItemTemplate>
-            </TreeView>
+            <TextBlock Text="PRODUCTS" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
         </DockPanel>
 
-        <!-- Product Details -->
-        <StackPanel Grid.Column="1" Margin="16,0,0,0"
-                    Visibility="{Binding SelectedProduct, Converter={StaticResource NullToVisibilityConverter}}">
-            <TextBlock Text="{Binding SelectedProduct.Name}" FontSize="18" FontWeight="Bold" />
-            <Separator Margin="0,8" />
+        <!-- Split panel -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal" Margin="0,8">
-                <TextBlock Text="Available codes: " />
-                <TextBlock Text="{Binding AvailableCodesCount}" FontWeight="Bold" />
-                <TextBlock Text=" / " />
-                <TextBlock Text="{Binding TotalCodesCount}" />
-            </StackPanel>
+            <!-- Left: Product Tree -->
+            <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                <!-- Add Folder/Product inline form -->
+                <Border DockPanel.Dock="Top" Margin="0,0,0,8"
+                        Visibility="{Binding IsAddingFolder, Converter={StaticResource BoolToVisibilityConverter}}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                    <StackPanel>
+                        <TextBlock Text="New Folder Name:" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding NewNodeName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Create" Command="{Binding ConfirmAddFolderCommand}"
+                                    Style="{StaticResource PrimaryButton}" Padding="10,4" Margin="0,0,8,0" />
+                            <Button Content="Cancel" Command="{Binding CancelAddCommand}"
+                                    Style="{StaticResource OutlineButton}" Padding="10,4" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
-            <Button Content="Import CSV..." Command="{Binding ImportCsvCommand}"
-                    Margin="0,16,0,0" HorizontalAlignment="Left" Padding="16,8" />
-        </StackPanel>
+                <Border DockPanel.Dock="Top" Margin="0,0,0,8"
+                        Visibility="{Binding IsAddingProduct, Converter={StaticResource BoolToVisibilityConverter}}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                    <StackPanel>
+                        <TextBlock Text="New Product Name:" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <TextBox Text="{Binding NewNodeName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4" />
+                        <TextBlock Text="Template File (.rox):" Margin="0,4,0,4" />
+                        <TextBox Text="{Binding NewProductTemplate, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4" />
+                        <TextBlock Text="Printer CSV Name:" Margin="0,4,0,4" />
+                        <TextBox Text="{Binding NewProductCsvName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Create" Command="{Binding ConfirmAddProductCommand}"
+                                    Style="{StaticResource PrimaryButton}" Padding="10,4" Margin="0,0,8,0" />
+                            <Button Content="Cancel" Command="{Binding CancelAddCommand}"
+                                    Style="{StaticResource OutlineButton}" Padding="10,4" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <TreeView ItemsSource="{Binding Products}"
+                          SelectedItemChanged="OnTreeSelectionChanged">
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Name}" />
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </DockPanel>
+
+            <!-- Right: Product Details -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="4,0,0,0"
+                            Visibility="{Binding SelectedProduct, Converter={StaticResource NullToVisibilityConverter}}">
+                    <TextBlock Text="{Binding SelectedProduct.Name}" FontSize="18" FontWeight="Bold" />
+                    <Separator Margin="0,8,0,12" />
+
+                    <!-- Template info (leaf only) -->
+                    <StackPanel Visibility="{Binding SelectedProduct.IsLeaf, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Template:" Opacity="0.6" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedProduct.TemplateFile}" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="CSV Name:" Opacity="0.6" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedProduct.PrinterCsvName}" FontWeight="SemiBold" />
+                        </Grid>
+
+                        <!-- Code Pool -->
+                        <TextBlock Text="Code Pool:" Style="{StaticResource SectionHeader}" Margin="0,4,0,8" />
+                        <Grid Margin="16,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition />
+                                <RowDefinition />
+                                <RowDefinition />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Available:" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AvailableCodesCount}" FontWeight="Bold" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Printed:" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PrintedCodesCount}" FontWeight="Bold" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Burned:" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BurnedCodesCount}" FontWeight="Bold" />
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Total:" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TotalCodesCount}" FontWeight="Bold" />
+                        </Grid>
+
+                        <!-- Action buttons -->
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button Content="Import CSV..." Command="{Binding ImportCsvCommand}"
+                                    Style="{StaticResource OutlineButton}" Margin="0,0,8,0" />
+                            <Button Content="+ New Job" Command="{Binding NewJobCommand}"
+                                    Style="{StaticResource PrimaryButton}" />
+                        </StackPanel>
+
+                        <!-- Import History -->
+                        <TextBlock Text="Import History:" Style="{StaticResource SectionHeader}" />
+                        <ItemsControl ItemsSource="{Binding ImportHistory}" Margin="16,0,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Margin="0,2" Opacity="0.8">
+                                        <Run Text="{Binding Date, Mode=OneTime}" FontWeight="SemiBold" />
+                                        <Run Text="  " />
+                                        <Run Text="{Binding Details, Mode=OneTime}" />
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>

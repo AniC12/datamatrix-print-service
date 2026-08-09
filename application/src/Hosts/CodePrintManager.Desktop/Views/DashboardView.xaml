@@ -10,55 +10,101 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Summary Cards -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
-            <Border Style="{StaticResource SummaryCard}">
-                <StackPanel>
-                    <TextBlock Text="Active Jobs" Style="{StaticResource CardLabel}" />
-                    <TextBlock Text="{Binding TotalActiveJobs}" Style="{StaticResource CardValue}" />
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource SummaryCard}">
-                <StackPanel>
-                    <TextBlock Text="Codes Available" Style="{StaticResource CardLabel}" />
-                    <TextBlock Text="{Binding TotalCodesAvailable}" Style="{StaticResource CardValue}" />
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource SummaryCard}">
-                <StackPanel>
-                    <TextBlock Text="Printed Today" Style="{StaticResource CardLabel}" />
-                    <TextBlock Text="{Binding TotalCodesPrintedToday}" Style="{StaticResource CardValue}" />
-                </StackPanel>
-            </Border>
-        </StackPanel>
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <Button DockPanel.Dock="Right" Content="+ New Job"
+                    Command="{Binding NewJobCommand}"
+                    Style="{StaticResource PrimaryButton}" Padding="16,8" />
+            <TextBlock Text="DASHBOARD" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
+        </DockPanel>
 
-        <!-- Section Header -->
-        <TextBlock Grid.Row="1" Text="Printers" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8" />
+        <!-- Main content: scrollable -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Printer Cards (full-width, stacked) -->
+                <ItemsControl ItemsSource="{Binding PrinterCards}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource DashboardPrinterCard}"
+                                    MouseLeftButtonUp="OnPrinterCardClick">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-        <!-- Printer Cards -->
-        <ItemsControl Grid.Row="2" ItemsSource="{Binding PrinterCards}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <WrapPanel />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border Style="{StaticResource PrinterCardBorder}" Margin="0,0,12,12">
-                        <StackPanel Margin="12">
-                            <TextBlock Text="{Binding Name}" FontWeight="Bold" />
-                            <TextBlock Text="{Binding IpAddress}" Opacity="0.6" />
-                            <TextBlock Text="{Binding Status}" Margin="0,4,0,0" />
-                            <ProgressBar Value="{Binding CurrentJobProgress}" Maximum="{Binding CurrentJobTotal}"
-                                         Height="8" Margin="0,8,0,0" />
-                        </StackPanel>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                                    <!-- Row 1: Printer name, IP, status -->
+                                    <DockPanel Grid.Row="0">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Ellipse Style="{StaticResource StatusDot}" Margin="0,0,6,0"
+                                                     Fill="{Binding JobStatus, Converter={StaticResource StatusToColorConverter}}" />
+                                            <TextBlock Text="{Binding JobStatus}" FontWeight="SemiBold"
+                                                       Foreground="{Binding JobStatus, Converter={StaticResource StatusToColorConverter}}" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="14" />
+                                            <TextBlock Text="{Binding IpAddress}" Opacity="0.5" Margin="12,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <!-- Row 2: Job info + progress -->
+                                    <DockPanel Grid.Row="1" Margin="0,6,0,0"
+                                               Visibility="{Binding HasJob, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}"
+                                                   Opacity="0.7" VerticalAlignment="Center" />
+                                        <TextBlock>
+                                            <Run Text="Job #" /><Run Text="{Binding JobId, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding JobProductName, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DockPanel>
+
+                                    <!-- Row 3: Progress bar + action buttons OR summary text -->
+                                    <DockPanel Grid.Row="2" Margin="0,6,0,0"
+                                               Visibility="{Binding HasJob, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <!-- Action buttons (right-aligned) -->
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
+                                            <Button Content="Start Print" Command="{Binding StartPrintCommand}"
+                                                    Style="{StaticResource PrimaryButton}" Padding="10,4" Margin="0,0,4,0"
+                                                    Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=StartPrint}" />
+                                            <Button Content="Cancel" Command="{Binding CancelJobCommand}"
+                                                    Style="{StaticResource DangerButton}" Padding="10,4"
+                                                    Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />
+                                        </StackPanel>
+
+                                        <!-- Progress bar or summary text -->
+                                        <Grid>
+                                            <ProgressBar Value="{Binding CurrentJobProgress}" Maximum="{Binding CurrentJobTotal}"
+                                                         Height="8" VerticalAlignment="Center"
+                                                         Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />
+                                            <TextBlock Text="{Binding JobSummaryText}" Opacity="0.6"
+                                                       VerticalAlignment="Center"
+                                                       Visibility="{Binding JobSummaryText, Converter={StaticResource NullToVisibilityConverter}}" />
+                                        </Grid>
+                                    </DockPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Recent Activity -->
+                <TextBlock Text="RECENT ACTIVITY" Style="{StaticResource SectionHeader}" Margin="0,24,0,8" />
+                <ItemsControl ItemsSource="{Binding RecentActivity}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Margin="0,2" Opacity="0.8">
+                                <Run Text="{Binding Time, Mode=OneTime}" FontWeight="SemiBold" />
+                                <Run Text="  " />
+                                <Run Text="{Binding Description, Mode=OneTime}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

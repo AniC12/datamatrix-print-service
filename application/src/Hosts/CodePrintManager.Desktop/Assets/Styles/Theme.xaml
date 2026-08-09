@@ -7,6 +7,7 @@
     <SolidColorBrush x:Key="SidebarForeground" Color="#E2E8F0" />
     <SolidColorBrush x:Key="AccentBrush" Color="#3182CE" />
     <SolidColorBrush x:Key="CardBorderBrush" Color="#E2E8F0" />
+    <SolidColorBrush x:Key="SectionHeaderForeground" Color="#2D3748" />
 
     <!-- Converters -->
     <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
@@ -14,6 +15,11 @@
     <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
     <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
     <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
+    <converters:SeverityToBackgroundConverter x:Key="SeverityToBackgroundConverter" />
+    <converters:SeverityToForegroundConverter x:Key="SeverityToForegroundConverter" />
+    <converters:SeverityToIconConverter x:Key="SeverityToIconConverter" />
+    <converters:JobStatusToActionVisibilityConverter x:Key="JobStatusToActionVisibilityConverter" />
+    <converters:BoolToCheckmarkConverter x:Key="BoolToCheckmarkConverter" />
 
     <!-- Global Styles -->
     <Style TargetType="TextBlock">

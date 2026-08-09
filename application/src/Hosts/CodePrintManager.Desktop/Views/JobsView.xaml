@@ -7,39 +7,216 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:JobsViewModel}"
              Loaded="OnLoaded">
-    <TabControl>
-        <!-- Active Jobs -->
-        <TabItem Header="Active Jobs">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,8">
-                    <Button Content="Cancel Selected" Command="{Binding CancelJobCommand}" Padding="12,6" />
-                </StackPanel>
-                <DataGrid ItemsSource="{Binding ActiveJobs}" SelectedItem="{Binding SelectedJob}"
-                          AutoGenerateColumns="False" IsReadOnly="True" Margin="0,8,0,0">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50" />
-                        <DataGridTextColumn Header="Product" Binding="{Binding Product.Name}" Width="*" />
-                        <DataGridTextColumn Header="Printer" Binding="{Binding Printer.Name}" Width="120" />
-                        <DataGridTextColumn Header="Progress" Binding="{Binding CodesConfirmed}" Width="80" />
-                        <DataGridTextColumn Header="Total" Binding="{Binding Quantity}" Width="80" />
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
-                    </DataGrid.Columns>
-                </DataGrid>
-            </DockPanel>
-        </TabItem>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-        <!-- Job History -->
-        <TabItem Header="History">
-            <DataGrid ItemsSource="{Binding JobHistory}" AutoGenerateColumns="False" IsReadOnly="True">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50" />
-                    <DataGridTextColumn Header="Product" Binding="{Binding Product.Name}" Width="*" />
-                    <DataGridTextColumn Header="Printer" Binding="{Binding Printer.Name}" Width="120" />
-                    <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity}" Width="80" />
-                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
-                    <DataGridTextColumn Header="Completed" Binding="{Binding CompletedAt, StringFormat=g}" Width="140" />
-                </DataGrid.Columns>
-            </DataGrid>
-        </TabItem>
-    </TabControl>
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <Button DockPanel.Dock="Right" Content="+ New Job"
+                    Command="{Binding NewJobCommand}"
+                    Style="{StaticResource PrimaryButton}" Padding="16,8" />
+            <TextBlock Text="JOBS" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
+        </DockPanel>
+
+        <TabControl Grid.Row="1">
+            <!-- Active Jobs Tab -->
+            <TabItem Header="Active Jobs">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Job Selector -->
+                    <TextBlock Grid.Row="0" Text="Select Job:" Margin="0,8,0,4" Opacity="0.6" />
+                    <Grid Grid.Row="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" MaxHeight="150" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <ListBox Grid.Row="0" ItemsSource="{Binding ActiveJobs}"
+                                 SelectedItem="{Binding SelectedJob}" Margin="0,0,0,8">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <Ellipse Style="{StaticResource StatusDot}" Margin="0,0,8,0"
+                                                 Fill="{Binding Status, Converter={StaticResource StatusToColorConverter}}" />
+                                        <TextBlock>
+                                            <Run Text="#" /><Run Text="{Binding Id, Mode=OneWay}" />
+                                            <Run Text="  " />
+                                            <Run Text="{Binding Product.Name, Mode=OneWay}" />
+                                            <Run Text=" → " />
+                                            <Run Text="{Binding Printer.Name, Mode=OneWay}" />
+                                            <Run Text="       " />
+                                            <Run Text="{Binding CodesConfirmed, Mode=OneWay}" /><Run Text="/" /><Run Text="{Binding Quantity, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Separator Grid.Row="1" />
+
+                        <!-- Job Detail Area -->
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                            <StackPanel Visibility="{Binding SelectedJob, Converter={StaticResource NullToVisibilityConverter}}">
+                                <TextBlock FontSize="16" FontWeight="Bold" Margin="0,0,0,12">
+                                    <Run Text="Job #" /><Run Text="{Binding SelectedJob.Id, Mode=OneWay}" />
+                                </TextBlock>
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Product:" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="{Binding JobDetailProduct}" />
+                                </Grid>
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Printer:" FontWeight="SemiBold" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <TextBlock Text="{Binding JobDetailPrinter}" />
+                                        <Ellipse Style="{StaticResource StatusDot}" Margin="8,0,4,0"
+                                                 Fill="{Binding JobDetailStatus, Converter={StaticResource StatusToColorConverter}}" />
+                                        <TextBlock Text="{Binding JobDetailStatus}"
+                                                   Foreground="{Binding JobDetailStatus, Converter={StaticResource StatusToColorConverter}}"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Quantity:" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1">
+                                        <Run Text="{Binding JobDetailQuantity, Mode=OneWay}" />
+                                        <Run Text=" codes" />
+                                    </TextBlock>
+                                </Grid>
+
+                                <!-- Preparation Checklist -->
+                                <TextBlock Text="Preparation:" Style="{StaticResource SectionHeader}" Margin="0,4,0,4" />
+                                <StackPanel Margin="8,0,0,0">
+                                    <TextBlock Style="{StaticResource CheckmarkLabel}">
+                                        <Run Text="{Binding PrepTemplatePresent, Mode=OneWay, Converter={StaticResource BoolToCheckmarkConverter}}" />
+                                        <Run Text=" Template present on printer" />
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource CheckmarkLabel}">
+                                        <Run Text="{Binding PrepCodesReserved, Mode=OneWay, Converter={StaticResource BoolToCheckmarkConverter}}" />
+                                        <Run Text=" Codes reserved from pool" />
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource CheckmarkLabel}">
+                                        <Run Text="{Binding PrepDataUploaded, Mode=OneWay, Converter={StaticResource BoolToCheckmarkConverter}}" />
+                                        <Run Text=" Data file uploaded and confirmed" />
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource CheckmarkLabel}">
+                                        <Run Text="{Binding PrepTemplateLoaded, Mode=OneWay, Converter={StaticResource BoolToCheckmarkConverter}}" />
+                                        <Run Text=" Template loaded (counter reset to 0)" />
+                                    </TextBlock>
+                                </StackPanel>
+
+                                <!-- Progress -->
+                                <TextBlock Text="Print Progress:" Style="{StaticResource SectionHeader}" Margin="0,8,0,4" />
+                                <TextBlock Text="{Binding JobDetailProgressText}" Margin="0,0,0,4" />
+                                <ProgressBar Value="{Binding JobDetailProgress}" Maximum="{Binding JobDetailQuantity}"
+                                             Height="10" Margin="0,0,0,16" />
+
+                                <!-- Action buttons -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="Start Print" Command="{Binding StartPrintCommand}"
+                                            Style="{StaticResource PrimaryButton}" Padding="14,6" Margin="0,0,8,0"
+                                            Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=StartPrint}" />
+                                    <Button Content="Cancel" Command="{Binding CancelJobCommand}"
+                                            Style="{StaticResource DangerButton}" Padding="14,6"
+                                            Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- Job History Tab -->
+            <TabItem Header="Job History">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Filters -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,8,0,8">
+                        <TextBlock Text="Filters:" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.6" />
+                        <ComboBox ItemsSource="{Binding FilterPrinters}" SelectedItem="{Binding FilterPrinter}"
+                                  DisplayMemberPath="Name" MinWidth="140" Margin="0,0,8,0">
+                            <ComboBox.Style>
+                                <Style TargetType="ComboBox">
+                                    <Setter Property="IsEditable" Value="False" />
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                        <ComboBox ItemsSource="{Binding FilterProducts}" SelectedItem="{Binding FilterProduct}"
+                                  DisplayMemberPath="Name" MinWidth="140" Margin="0,0,8,0" />
+                        <Button Content="Clear" Command="{Binding ClearFiltersCommand}"
+                                Style="{StaticResource LinkButton}" Padding="8,4" />
+                    </StackPanel>
+
+                    <!-- History Table -->
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding JobHistory}"
+                              SelectedItem="{Binding SelectedHistoryJob}"
+                              AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Id}" Width="50" />
+                            <DataGridTextColumn Header="Product" Binding="{Binding Product.Name}" Width="*" />
+                            <DataGridTextColumn Header="Printer" Binding="{Binding Printer.Name}" Width="120" />
+                            <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="70" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
+                            <DataGridTextColumn Header="Date" Binding="{Binding CompletedAt, StringFormat=MMM d}" Width="80" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Expanded detail for selected history job -->
+                    <Border Grid.Row="2" Margin="0,8,0,0" Padding="12"
+                            BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="4"
+                            Visibility="{Binding SelectedHistoryJob, Converter={StaticResource NullToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Margin="0,0,0,4">
+                                <Run Text="Job #" /><Run Text="{Binding SelectedHistoryJob.Id, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock>
+                                <Run Text="Product:  " FontWeight="SemiBold" />
+                                <Run Text="{Binding SelectedHistoryJob.Product.Name, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock>
+                                <Run Text="Printer:  " FontWeight="SemiBold" />
+                                <Run Text="{Binding SelectedHistoryJob.Printer.Name, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock>
+                                <Run Text="Quantity: " FontWeight="SemiBold" />
+                                <Run Text="{Binding SelectedHistoryJob.CodesConfirmed, Mode=OneWay}" />
+                                <Run Text=" / " />
+                                <Run Text="{Binding SelectedHistoryJob.Quantity, Mode=OneWay}" />
+                                <Run Text=" printed" />
+                            </TextBlock>
+                            <TextBlock>
+                                <Run Text="Result:   " FontWeight="SemiBold" />
+                                <Run Text="{Binding SelectedHistoryJob.Status, Mode=OneWay}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
 </UserControl>

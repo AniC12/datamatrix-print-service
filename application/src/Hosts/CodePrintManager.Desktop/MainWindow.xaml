@@ -20,7 +20,7 @@
         </Grid.RowDefinitions>
 
         <!-- Navigation Sidebar -->
-        <Border Grid.Column="0" Grid.RowSpan="2" Background="{StaticResource SidebarBackground}">
+        <Border Grid.Column="0" Grid.Row="0" Background="{StaticResource SidebarBackground}">
             <StackPanel Margin="0,16">
                 <TextBlock Text="Code Print Manager" FontWeight="Bold" FontSize="14"
                            Margin="16,0,16,24" Foreground="{StaticResource SidebarForeground}" />
@@ -33,9 +33,6 @@
                         Style="{StaticResource NavButton}" />
                 <Button Content="Jobs" Command="{Binding NavigateToCommand}" CommandParameter="Jobs"
                         Style="{StaticResource NavButton}" />
-                <Separator Margin="16,8" />
-                <Button Content="New Job" Command="{Binding NavigateToCommand}" CommandParameter="NewJob"
-                        Style="{StaticResource NavButton}" FontWeight="Bold" />
             </StackPanel>
         </Border>
 
@@ -60,25 +57,33 @@
             </ContentControl.Resources>
         </ContentControl>
 
-        <!-- Alert Bar -->
-        <Border Grid.Column="1" Grid.Row="1" Background="#FFF3CD" MaxHeight="120"
+        <!-- Alert Bar — spans full width at bottom -->
+        <Border Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1" MaxHeight="120"
                 Visibility="{Binding Alerts.Count, Converter={StaticResource CountToVisibilityConverter}}">
-            <ItemsControl ItemsSource="{Binding Alerts}" Margin="8">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <DockPanel Margin="2">
-                            <Button DockPanel.Dock="Right" Content="X" Padding="4,0"
-                                    Command="{Binding DataContext.DismissAlertCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}" Style="{StaticResource LinkButton}" />
-                            <TextBlock>
-                                <Run Text="{Binding Source, Mode=OneTime}" FontWeight="Bold" />
-                                <Run Text=": " />
-                                <Run Text="{Binding Message, Mode=OneTime}" />
-                            </TextBlock>
-                        </DockPanel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="110">
+                <ItemsControl ItemsSource="{Binding Alerts}" Margin="4">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="2" Padding="8,4" CornerRadius="3"
+                                    Background="{Binding Severity, Converter={StaticResource SeverityToBackgroundConverter}}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="X" Padding="6,2"
+                                            Command="{Binding DataContext.DismissAlertCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}" Style="{StaticResource LinkButton}" />
+                                    <TextBlock VerticalAlignment="Center"
+                                               Foreground="{Binding Severity, Converter={StaticResource SeverityToForegroundConverter}}">
+                                        <Run Text="{Binding Timestamp, StringFormat=HH:mm, Mode=OneTime}" />
+                                        <Run Text="  " />
+                                        <Run Text="{Binding Source, Mode=OneTime}" FontWeight="Bold" />
+                                        <Run Text=": " />
+                                        <Run Text="{Binding Message, Mode=OneTime}" />
+                                    </TextBlock>
+                                </DockPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>

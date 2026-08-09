@@ -42,6 +42,17 @@ public partial class MainViewModel : ObservableObject
         _newJob = newJob;
 
         _alertService.AlertRaised += OnAlertRaised;
+        _alertService.AlertDismissed += OnAlertDismissed;
+
+        // Wire up navigation requests from child ViewModels
+        _dashboard.NavigateToNewJobRequested += (_, _) => NavigateToNewJob();
+        _dashboard.NavigateToJobRequested += (_, jobId) => NavigateToJobDetail(jobId);
+        _products.NavigateToNewJobRequested += (_, productId) => NavigateToNewJob(productId: productId);
+        _printers.NavigateToNewJobRequested += (_, printerId) => NavigateToNewJob(printerId: printerId);
+        _jobs.NavigateToNewJobRequested += (_, _) => NavigateToNewJob();
+        _newJob.NavigateBackRequested += (_, _) => NavigateTo("Dashboard");
+        _newJob.NavigateToJobRequested += (_, jobId) => NavigateToJobDetail(jobId);
+
         CurrentView = _dashboard;
     }
 
@@ -54,10 +65,23 @@ public partial class MainViewModel : ObservableObject
             "Products" => _products,
             "Printers" => _printers,
             "Jobs" => _jobs,
-            "NewJob" => _newJob,
             _ => _dashboard
         };
         CurrentViewName = viewName;
+    }
+
+    private void NavigateToNewJob(int? productId = null, int? printerId = null)
+    {
+        _newJob.Reset(productId, printerId);
+        CurrentView = _newJob;
+        CurrentViewName = "NewJob";
+    }
+
+    private void NavigateToJobDetail(int jobId)
+    {
+        _jobs.SelectJobById(jobId);
+        CurrentView = _jobs;
+        CurrentViewName = "Jobs";
     }
 
     private void OnAlertRaised(object? sender, AlertRaisedEvent e)
@@ -70,8 +94,22 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
+    private void OnAlertDismissed(object? sender, Guid alertId)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var alert = Alerts.FirstOrDefault(a => a.Event.Id == alertId);
+            if (alert != null)
+                Alerts.Remove(alert);
+        });
+    }
+
     [RelayCommand]
-    private void DismissAlert(AlertItemViewModel alert) => Alerts.Remove(alert);
+    private void DismissAlert(AlertItemViewModel alert)
+    {
+        Alerts.Remove(alert);
+        _alertService.Dismiss(alert.Event.Id);
+    }
 }
 
 public partial class AlertItemViewModel : ObservableObject
