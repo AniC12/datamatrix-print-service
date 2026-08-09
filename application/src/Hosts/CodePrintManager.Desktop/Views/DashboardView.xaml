@@ -52,7 +52,7 @@
                                         </StackPanel>
                                     </DockPanel>
 
-                                    <!-- Row 2: Job info + progress -->
+                                    <!-- Row 2: Job info + progress text -->
                                     <DockPanel Grid.Row="1" Margin="0,6,0,0"
                                                Visibility="{Binding HasJob, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}"
@@ -70,16 +70,19 @@
                                             <Button Content="Start Print" Command="{Binding StartPrintCommand}"
                                                     Style="{StaticResource PrimaryButton}" Padding="10,4" Margin="0,0,4,0"
                                                     Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=StartPrint}" />
+                                            <Button Content="Pause" Command="{Binding PauseJobCommand}"
+                                                    Style="{StaticResource OutlineButton}" Padding="10,4" Margin="0,0,4,0"
+                                                    Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Pause}" />
                                             <Button Content="Cancel" Command="{Binding CancelJobCommand}"
                                                     Style="{StaticResource DangerButton}" Padding="10,4"
                                                     Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />
                                         </StackPanel>
 
-                                        <!-- Progress bar or summary text -->
+                                        <!-- Progress bar (active jobs) or summary text (completed) -->
                                         <Grid>
                                             <ProgressBar Value="{Binding CurrentJobProgress}" Maximum="{Binding CurrentJobTotal}"
                                                          Height="8" VerticalAlignment="Center"
-                                                         Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />
+                                                         Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibilityConverter}}" />
                                             <TextBlock Text="{Binding JobSummaryText}" Opacity="0.6"
                                                        VerticalAlignment="Center"
                                                        Visibility="{Binding JobSummaryText, Converter={StaticResource NullToVisibilityConverter}}" />

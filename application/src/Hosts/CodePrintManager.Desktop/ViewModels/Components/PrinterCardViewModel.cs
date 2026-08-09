@@ -32,6 +32,9 @@ public partial class PrinterCardViewModel : ObservableObject
     private int _currentJobTotal;
 
     [ObservableProperty]
+    private double _progressPercent;
+
+    [ObservableProperty]
     private string? _jobSummaryText;
 
     [ObservableProperty]
@@ -41,11 +44,15 @@ public partial class PrinterCardViewModel : ObservableObject
     private bool _hasJob;
 
     [ObservableProperty]
+    private bool _isActive;
+
+    [ObservableProperty]
     private DateTime? _completedAt;
 
     // Events for actions that need to be handled by parent
     public event EventHandler<int>? StartPrintRequested;
     public event EventHandler<int>? CancelJobRequested;
+    public event EventHandler<int>? PauseJobRequested;
     public event EventHandler<int>? CardClicked;
 
     public PrinterCardViewModel(PrinterEntity printer, PrintJob? currentJob = null)
@@ -67,31 +74,46 @@ public partial class PrinterCardViewModel : ObservableObject
         CurrentJobTotal = job.Quantity;
         CompletedAt = job.CompletedAt;
         HasJob = true;
+        IsActive = job.Status is Domain.Enums.JobStatus.Printing
+            or Domain.Enums.JobStatus.Ready
+            or Domain.Enums.JobStatus.Preparing;
 
-        UpdateProgressText();
-        UpdateSummaryText(job);
+        UpdateDerivedProperties();
+        UpdateSummaryText(job.Status);
     }
 
-    private void UpdateProgressText()
+    partial void OnCurrentJobProgressChanged(int value) => UpdateDerivedProperties();
+    partial void OnCurrentJobTotalChanged(int value) => UpdateDerivedProperties();
+
+    partial void OnJobStatusChanged(JobStatus? value)
+    {
+        IsActive = value is Domain.Enums.JobStatus.Printing
+            or Domain.Enums.JobStatus.Ready
+            or Domain.Enums.JobStatus.Preparing;
+        UpdateSummaryText(value);
+    }
+
+    private void UpdateDerivedProperties()
     {
         if (CurrentJobTotal > 0)
         {
-            var pct = CurrentJobTotal > 0 ? (int)(100.0 * CurrentJobProgress / CurrentJobTotal) : 0;
-            ProgressText = $"{CurrentJobProgress}/{CurrentJobTotal} ({pct}%)";
+            ProgressPercent = 100.0 * CurrentJobProgress / CurrentJobTotal;
+            ProgressText = $"{CurrentJobProgress}/{CurrentJobTotal} ({(int)ProgressPercent}%)";
         }
         else
         {
+            ProgressPercent = 0;
             ProgressText = string.Empty;
         }
     }
 
-    private void UpdateSummaryText(PrintJob job)
+    private void UpdateSummaryText(JobStatus? status)
     {
-        JobSummaryText = job.Status switch
+        JobSummaryText = status switch
         {
             Domain.Enums.JobStatus.Ready => "Prepared, waiting to start",
-            Domain.Enums.JobStatus.Completed => $"Completed {job.CompletedAt:MMM d HH:mm}",
-            Domain.Enums.JobStatus.Cancelled => $"Cancelled {job.CompletedAt:MMM d HH:mm}",
+            Domain.Enums.JobStatus.Completed => $"Completed {CompletedAt:MMM d HH:mm}",
+            Domain.Enums.JobStatus.Cancelled => $"Cancelled {CompletedAt:MMM d HH:mm}",
             Domain.Enums.JobStatus.Error => "Error occurred",
             _ => null
         };
@@ -109,6 +131,13 @@ public partial class PrinterCardViewModel : ObservableObject
     {
         if (JobId.HasValue)
             CancelJobRequested?.Invoke(this, JobId.Value);
+    }
+
+    [RelayCommand]
+    private void PauseJob()
+    {
+        if (JobId.HasValue)
+            PauseJobRequested?.Invoke(this, JobId.Value);
     }
 
     [RelayCommand]
