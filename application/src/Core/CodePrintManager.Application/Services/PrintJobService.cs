@@ -52,6 +52,13 @@ public class PrintJobService : IPrintJobService
             throw new ArgumentOutOfRangeException(nameof(quantity), quantity,
                 "Quantity must be greater than zero");
 
+        // Check available codes before creating the job
+        var available = await _db.Codes
+            .CountAsync(c => c.ProductId == productId && c.Status == CodeStatus.Available);
+        if (available < quantity)
+            throw new InvalidOperationException(
+                $"Not enough codes available. Requested: {quantity}, Available: {available}");
+
         var job = new PrintJob
         {
             ProductId = productId,
