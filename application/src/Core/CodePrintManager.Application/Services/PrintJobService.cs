@@ -62,7 +62,7 @@ public class PrintJobService : IPrintJobService
         return job;
     }
 
-    public async Task PrepareJobAsync(int jobId, CancellationToken ct = default)
+    public async Task PrepareJobAsync(int jobId, CancellationToken ct = default, IProgress<string>? progress = null)
     {
         var job = await _db.PrintJobs
             .Include(j => j.Product)
@@ -76,17 +76,22 @@ public class PrintJobService : IPrintJobService
             var adapter = _connectionManager.GetAdapter(job.PrinterId)
                 ?? throw new InvalidOperationException($"Printer {job.Printer.Name} is not connected");
 
-            // Check printer state
+            // Step 1: Check printer state
+            progress?.Report("checking_printer");
             var status = await adapter.GetStatusAsync(ct);
             if (status != PrinterStatus.Idle)
                 throw new InvalidOperationException($"Printer is not idle. Current state: {status}");
+            progress?.Report("printer_verified");
 
-            // Reserve codes
+            // Step 2: Reserve codes
+            progress?.Report("reserving_codes");
             var codes = await _codePool.ReserveCodesAsync(job.ProductId, job.Quantity, job.Id);
+            progress?.Report("codes_reserved");
 
             ct.ThrowIfCancellationRequested();
 
-            // Upload CSV
+            // Step 3: Upload CSV
+            progress?.Report("uploading_data");
             var csvFilename = job.Product.PrinterCsvName
                 ?? throw new InvalidOperationException("Product has no CSV filename configured");
             await adapter.DeleteCsvAsync(csvFilename, ct);
@@ -104,8 +109,10 @@ public class PrintJobService : IPrintJobService
             var exists = await adapter.VerifyCsvExistsAsync(csvFilename, ct);
             if (!exists)
                 throw new InvalidOperationException("CSV verification failed: file not found on printer");
+            progress?.Report("data_uploaded");
 
-            // Check template
+            // Step 4: Check template
+            progress?.Report("loading_template");
             var templateName = job.Product.TemplateFile
                 ?? throw new InvalidOperationException("Product has no template configured");
             var templates = await adapter.ListTemplatesAsync(ct);
@@ -140,8 +147,11 @@ public class PrintJobService : IPrintJobService
             if (!activateOk)
                 throw new InvalidOperationException("Template activation failed: SPLLTF returned FAIL");
 
+            progress?.Report("template_loaded");
+
             job.Status = JobStatus.Ready;
             await _db.SaveChangesAsync();
+            progress?.Report("complete");
         }
         catch (OperationCanceledException)
         {

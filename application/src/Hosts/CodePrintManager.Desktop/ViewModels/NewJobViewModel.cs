@@ -158,17 +158,57 @@ public partial class NewJobViewModel : ObservableObject
                 SelectedProduct.Id, SelectedPrinter.Id, Quantity);
             CreatedJobId = job.Id;
 
-            PrepVerified = true;
-            StatusMessage = "Reserving codes...";
+            // Step 2: Prepare with step-by-step progress
+            var progress = new Progress<string>(step =>
+            {
+                switch (step)
+                {
+                    case "checking_printer":
+                        StatusMessage = "Checking printer state...";
+                        break;
+                    case "printer_verified":
+                        PrepVerified = true;
+                        StatusMessage = "Reserving codes...";
+                        break;
+                    case "reserving_codes":
+                        StatusMessage = "Reserving codes...";
+                        break;
+                    case "codes_reserved":
+                        PrepCodesReserved = true;
+                        StatusMessage = "Uploading data file...";
+                        break;
+                    case "uploading_data":
+                        StatusMessage = "Uploading data file...";
+                        break;
+                    case "data_uploaded":
+                        PrepDataUploaded = true;
+                        StatusMessage = "Loading template...";
+                        break;
+                    case "loading_template":
+                        StatusMessage = "Loading template...";
+                        break;
+                    case "template_loaded":
+                        PrepTemplateLoaded = true;
+                        break;
+                    case "complete":
+                        PrepComplete = true;
+                        StatusMessage = $"Job #{job.Id} is ready to print.";
+                        break;
+                }
+            });
 
-            // Step 2: Prepare (reserves codes, uploads CSV, activates template)
-            await _printJobService.PrepareJobAsync(job.Id);
+            await _printJobService.PrepareJobAsync(job.Id, progress: progress);
 
-            PrepCodesReserved = true;
-            PrepDataUploaded = true;
-            PrepTemplateLoaded = true;
-            PrepComplete = true;
-            StatusMessage = $"Job #{job.Id} is ready to print.";
+            // Ensure final state is set even if progress callbacks were missed
+            if (!PrepComplete)
+            {
+                PrepVerified = true;
+                PrepCodesReserved = true;
+                PrepDataUploaded = true;
+                PrepTemplateLoaded = true;
+                PrepComplete = true;
+                StatusMessage = $"Job #{job.Id} is ready to print.";
+            }
         }
         catch (Exception ex)
         {

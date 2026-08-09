@@ -5,7 +5,7 @@ namespace CodePrintManager.Domain.Interfaces;
 public interface IPrintJobService
 {
     Task<PrintJob> CreateJobAsync(int productId, int printerId, int quantity);
-    Task PrepareJobAsync(int jobId, CancellationToken ct = default);
+    Task PrepareJobAsync(int jobId, CancellationToken ct = default, IProgress<string>? progress = null);
     Task StartJobAsync(int jobId, CancellationToken ct = default);
     Task CancelJobAsync(int jobId);
     Task<List<PrintJob>> GetActiveJobsAsync();

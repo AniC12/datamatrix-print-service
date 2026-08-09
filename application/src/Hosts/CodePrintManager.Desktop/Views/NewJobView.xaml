@@ -17,6 +17,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,16">
             <Button DockPanel.Dock="Right" Content="Back"
                     Command="{Binding GoBackCommand}"
+                    IsEnabled="{Binding IsProcessing, Converter={StaticResource InverseBoolConverter}}"
                     Style="{StaticResource OutlineButton}" Padding="12,6" />
             <TextBlock Text="NEW JOB" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
         </DockPanel>
