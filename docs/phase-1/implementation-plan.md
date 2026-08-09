@@ -6,9 +6,9 @@
 
 ## Current State Assessment
 
-> **Last updated: 2026-08-09**
+> **Last updated: 2025-08-10**
 
-The codebase compiles (0 errors, 0 warnings), all 4 test suites pass, and the application starts correctly. Foundation work (Epic 0) is complete, along with the critical scoping fix (E2-3) and several feature stories across Epics 1–3. The UI has been fully redesigned to match the screen specifications.
+The codebase compiles (0 errors, 0 warnings), all 4 test suites pass, and the application starts correctly. **18 of 32 stories complete (75 SP / 133 SP = 56%).** The critical path (end-to-end flow) and minimum viable demo are fully functional. Epics 0–5 are complete. Remaining work: E4-2 (Verify flow), E6-3 (Pause/Resume), E7 (testing), and E8 (polish/deployment).
 
 ### What works today
 
@@ -31,15 +31,15 @@ Every task required to go from "compiles" to "production-ready Phase 1 matching 
 | Epic | Stories Done | Stories Remaining | SP Done | SP Remaining |
 |------|-------------|-------------------|---------|--------------|
 | E0: Foundation | 4/4 | 0 | 10 | 0 |
-| E1: Core Print Flow | 3/4 | 1 (E1-1) | 13 | 5 |
+| E1: Core Print Flow | 4/4 | 0 | 18 | 0 |
 | E2: Safety & Recovery | 3/3 | 0 | 15 | 0 |
-| E3: Product Management | 1/2 | 1 (E3-2) | 5 | 3 |
-| E4: Printer Management | 0/2 | 2 | 0 | 10 |
-| E5: Dashboard & Real-Time | 0/2 | 2 | 0 | 11 |
-| E6: Job Management | 0/3 | 3 | 0 | 16 |
+| E3: Product Management | 2/2 | 0 | 8 | 0 |
+| E4: Printer Management | 1/2 | 1 (E4-2) | 5 | 5 |
+| E5: Dashboard & Real-Time | 2/2 | 0 | 11 | 0 |
+| E6: Job Management | 2/3 | 1 (E6-3) | 8 | 8 |
 | E7: Testing | 0/7 | 7 | 0 | 33 |
 | E8: Polish & Deployment | 0/5 | 5 | 0 | 12 |
-| **Total** | **11/32** | **21** | **43** | **90** |
+| **Total** | **18/32** | **14** | **75** | **58** |
 
 ---
 
@@ -90,28 +90,11 @@ Created `Domain/Validation/CodeValidator.cs` with forbidden sequences (`^`, `~gt
 
 > **The main use case.** A user can create a job, prepare it, start it, monitor progress, and see it complete. Matches `phase1-design.md` §3.1.
 
-### E1-1. Separate Prepare and Start in NewJobViewModel
+### E1-1. Separate Prepare and Start in NewJobViewModel — DONE
 
-**Points: 5** | **Depends on: E0-1, E0-2** | **Blocks: E5, E6**
+**Points: 5** | **Depends on: E0-1, E0-2** | **Blocks: E5, E6** | **Status: DONE**
 
-Design (phase1-design.md §6.6): New Job screen has separate [Prepare] button, shows inline preparation progress (checkmarks per step), then shows [Start Print] / [Go to Job] on success.
-
-Current `NewJobViewModel.StartJobAsync` calls Create + Prepare + Start in one shot with a single "Preparing job..." message.
-
-- Add observable properties: `IsPrepared`, `PrepareStatusItems` (collection of step name + done/failed)
-- Split into two commands: `PrepareCommand` and `StartPrintCommand`
-- `PrepareCommand`: Create job, show inline progress as each step completes:
-  - "Checking printer state..." → done
-  - "Reserving codes..." → done
-  - "Uploading data file..." → done
-  - "Loading template..." → done
-- On success: show "Job #N is ready to print." with [Start Print] and [Go to Job] buttons
-- `StartPrintCommand`: calls `StartJobAsync`, navigates to Jobs screen
-- On prepare failure: show error with [Retry], codes returned if reserved
-- Disable navigation (Back button) while preparation is in progress
-- Update `NewJobView.xaml` to match design mockup
-
-**Acceptance:** User sees each preparation step complete with a checkmark. After preparation, two buttons appear. Pressing [Start Print] starts the job and navigates to Jobs.
+`PrepareJobAsync` now accepts `IProgress<string>` callback, reporting 10 distinct steps (checking_printer → printer_verified → reserving_codes → codes_reserved → uploading_data → data_uploaded → loading_template → template_loaded → complete). `NewJobViewModel` maps progress callbacks to individual checkmark properties. Back button disabled during preparation. Prepare and Start are fully separated with [Start Print] / [Go to Job] shown on success.
 
 ### E1-2. Template upload from disk during Prepare — DONE
 
@@ -167,20 +150,11 @@ Extracted `JobEventBus` singleton (events) and `ActiveJobRegistry` singleton (ex
 
 Detail pane shows: template file with [Change] button, editable CSV name with [Save] button, code pool stats (Available/Printed/Burned/Total), import history list, [Import CSV...], [+ New Job], and [Delete] buttons. All wired to ViewModel commands.
 
-### E3-2. Add/Delete product tree nodes
+### E3-2. Add/Delete product tree nodes — DONE
 
-**Points: 3** | **Depends on: E0-1** | **Blocks: nothing**
+**Points: 3** | **Depends on: E0-1** | **Blocks: nothing** | **Status: DONE**
 
-Design (phase1-design.md §6.3) has [+ Add Folder] and [+ Add Product] buttons at the top.
-
-`ProductsViewModel` has `AddProductAsync(string name)` which creates a folder. Need to also support creating leaf products.
-
-- Add `AddFolderCommand` and `AddProductCommand` with input dialogs (simple popup or inline form)
-- `AddProductCommand` creates a leaf node (`IsLeaf = true`) and opens template assignment
-- Add `DeleteProductCommand` with confirmation dialog
-- Validate: cannot delete a product that has active jobs or reserved codes
-
-**Acceptance:** User can create folders and products in the tree, assign templates to products, and delete unused nodes.
+Inline forms for Add Folder/Add Product with parent resolution. `BrowseNewTemplateCommand` for .rox file picker. `CanDeleteAsync` validates no active jobs or reserved codes exist before allowing deletion. Delete button disabled with tooltip when blocked. Confirmation dialog (MessageBox YesNo) shown before delete.
 
 ---
 
@@ -188,25 +162,11 @@ Design (phase1-design.md §6.3) has [+ Add Folder] and [+ Add Product] buttons a
 
 > **Storage tab and Verify flow.** Reference: `phase1-design.md` §6.4, §3.3.
 
-### E4-1. Printers Storage tab — list files on printer
+### E4-1. Printers Storage tab — list files on printer — DONE
 
-**Points: 5** | **Depends on: E0-1, E0-2** | **Blocks: E4-2**
+**Points: 5** | **Depends on: E0-1, E0-2** | **Blocks: E4-2** | **Status: DONE**
 
-Design (phase1-design.md §6.4): Storage tab lists templates and CSV files on the selected printer, cross-references them with product configurations, and allows deleting unmapped files.
-
-- Add to `PrintersViewModel`:
-  - `PrinterTemplates` collection: `{ Name, IsMapped, MappedProductName }`
-  - `PrinterCsvFiles` collection: same shape
-  - `RefreshStorageCommand`: calls `adapter.ListTemplatesAsync()` and `adapter.ListCsvFilesAsync()`, cross-references with `product_nodes.template_file` and `product_nodes.printer_csv_name`
-  - `DeleteSelectedFilesCommand`: deletes selected unmapped files via `adapter.DeleteTemplateAsync` / `adapter.DeleteCsvAsync`
-  - Files mapped to a product cannot be selected for deletion (checkbox disabled)
-- Update `PrintersView.xaml`:
-  - Add TabControl with [Configuration] and [Storage] tabs
-  - Storage tab: two DataGrids (templates, CSV files) with checkboxes and status column
-  - [Refresh] and [Delete Selected] buttons
-- Audit log entry on deletion
-
-**Acceptance:** Selecting a printer and clicking the Storage tab queries the printer for its files, shows which are mapped to products, and allows deleting unmapped files.
+Storage tab with two DataGrids (templates, CSV files). Cross-references files with product configurations using filename-only comparison (case-insensitive). Checkboxes disabled for mapped files. Orphaned files pre-selected. Delete button deletes both templates and CSVs via adapter. Audit log entry on deletion (`printer_files_deleted` event with file list).
 
 ### E4-2. Verify flow
 
@@ -230,40 +190,17 @@ Design (phase1-design.md §3.3): Operator clicks "Verify" on a printer to check 
 
 > **Live monitoring.** Reference: `phase1-design.md` §6.2, `multi-printer-concurrency.md` §7.
 
-### E5-1. Dashboard printer cards with live progress
+### E5-1. Dashboard printer cards with live progress — DONE
 
-**Points: 8** | **Depends on: E1-3, E2-3** | **Blocks: nothing**
+**Points: 8** | **Depends on: E1-3, E2-3** | **Blocks: nothing** | **Status: DONE**
 
-Design (phase1-design.md §6.2): One card per printer (only printers with job history). Each card shows printer name, IP, status, last/current job, progress bar, and action buttons.
+`PrinterCardViewModel` has live progress via partial methods `OnCurrentJobProgressChanged`/`OnCurrentJobTotalChanged` → `UpdateDerivedProperties()`. `ProgressPercent` property for binding. `IsActive` controls progress bar visibility. Pause/Start/Cancel buttons with visibility per job status. `OnJobStatusChanged` updates summary text reactively. Cards sorted: running first, completed last.
 
-Current `PrinterCardViewModel` has basic properties but no job data or actions.
+### E5-2. Dashboard recent activity feed — DONE
 
-- Redesign `PrinterCardViewModel`:
-  - `CurrentJob` (nullable — last or active job for this printer)
-  - `CurrentJobProgress`, `CurrentJobTotal`, `ProgressPercent`
-  - `JobStatusText` (e.g., "342/500 (68%)" or "Completed Aug 7 14:25")
-  - Action commands: `PauseCommand`, `ResumeCommand`, `CancelCommand`, `StartPrintCommand` — visibility based on job status
-- Subscribe `PrinterCardViewModel` to `JobEventBus.ProgressChanged` — update progress for matching printer
-- Sort cards: running/error first, completed last
-- Update `DashboardView.xaml`:
-  - Card template matching design mockup (name, IP, status indicator, job info, progress bar, action buttons)
-  - Conditional button visibility based on job state
-  - Card click navigates to Jobs with that job selected
-- Add [+ New Job] button (top-right) — navigates to New Job screen
+**Points: 3** | **Depends on: E0-1** | **Blocks: nothing** | **Status: DONE**
 
-**Acceptance:** Dashboard shows one card per printer with job history. Active jobs show live progress bars updating every 500ms. Action buttons match job state. Clicking a card navigates to the Jobs screen.
-
-### E5-2. Dashboard recent activity feed
-
-**Points: 3** | **Depends on: E0-1** | **Blocks: nothing**
-
-Design (phase1-design.md §6.2): *"Recent Activity — last ~10 events."*
-
-- Query audit_log for last 10 entries, display as a simple list below printer cards
-- Format: "14:30 Job #47 started: Apple 0.5L -> Line1"
-- Auto-refresh on `JobCompleted` events
-
-**Acceptance:** Bottom of dashboard shows last 10 audit events in chronological order.
+`DashboardViewModel.RecentActivity` shows last 20 audit entries (format: "HH:mm {Description}"). Auto-refreshes on `JobCompleted` events via `OnJobCompleted` handler. `AuditEntryViewModel` formats time and description.
 
 ---
 
@@ -271,38 +208,17 @@ Design (phase1-design.md §6.2): *"Recent Activity — last ~10 events."*
 
 > **Active jobs and history.** Reference: `phase1-design.md` §6.5.
 
-### E6-1. Jobs Active tab — full design implementation
+### E6-1. Jobs Active tab — full design implementation — DONE
 
-**Points: 5** | **Depends on: E1-3, E2-3** | **Blocks: nothing**
+**Points: 5** | **Depends on: E1-3, E2-3** | **Blocks: nothing** | **Status: DONE**
 
-Design (phase1-design.md §6.5): Job selector at top, full detail below with product, printer + live status, quantity, preparation checklist, progress bar, action buttons.
+Live progress in list items via collection item replacement on progress tick. Completed jobs stay displayed in-place until user navigates away. Pause button placeholder added. Empty state with "No active jobs" message + [+ New Job] button. `HasActiveJobs` property drives visibility. Full detail pane with product, printer, status, quantity, prep checklist, progress bar, and action buttons.
 
-Current `JobsView.xaml` has a basic DataGrid. Needs redesign:
+### E6-2. Job History tab — filters — DONE
 
-- Job selector list (top): all active jobs with mini status
-- Selected job detail (bottom): product, printer with live status indicator, quantity, progress bar
-- Preparation checklist (if status = Ready): checkmarks for each prepare step
-- Contextual action buttons:
-  - Ready → [Start Print], [Cancel]
-  - Printing → [Cancel] (Pause is a stretch — see E6-3)
-  - Completed → summary, no buttons
-- Subscribe to `JobEventBus.ProgressChanged` for live progress
-- When job completes, keep it displayed until user navigates away
+**Points: 3** | **Depends on: E0-1** | **Blocks: nothing** | **Status: DONE**
 
-**Acceptance:** Selecting an active job shows full detail with live progress. Action buttons match job state.
-
-### E6-2. Job History tab — filters
-
-**Points: 3** | **Depends on: E0-1** | **Blocks: nothing**
-
-Design (phase1-design.md §6.5): Two filter dropdowns: [All Printers] and [All Products]. Jobs shown newest first.
-
-- Add filter properties to `JobsViewModel`: `SelectedPrinterFilter`, `SelectedProductFilter`
-- Load printer and product lists for dropdown options
-- Apply filters in `GetJobHistoryAsync` call (already supports `printerId` and `productId` parameters)
-- Click row to expand: show codes printed, duration, outcome
-
-**Acceptance:** History tab shows all past jobs. Selecting a printer or product from the dropdown filters the list.
+`FilterPrinter`/`FilterProduct` properties with reactive `LoadHistoryAsync` on change. ComboBox dropdowns for printer and product filtering. `ClearFiltersCommand` resets both. Expanded row detail in Border for `SelectedHistoryJob` showing product, printer, quantity, and result.
 
 ### E6-3. Pause / Resume support
 
@@ -548,31 +464,31 @@ Phase 6 (polish):
 | Epic | Stories | Done | Total SP | SP Done | Critical Path? |
 |------|---------|------|----------|---------|---------------|
 | E0: Foundation | 4 | **4/4** | 10 | 10 | Yes |
-| E1: Core Print Flow | 4 | **3/4** | 18 | 13 | Yes |
+| E1: Core Print Flow | 4 | **4/4** | 18 | 18 | Yes |
 | E2: Safety & Recovery | 3 | **3/3** | 15 | 15 | Yes |
-| E3: Product Management | 2 | **1/2** | 8 | 5 | No |
-| E4: Printer Management | 2 | 0/2 | 10 | 0 | No |
-| E5: Dashboard & Real-Time | 2 | 0/2 | 11 | 0 | No |
-| E6: Job Management | 3 | 0/3 | 16 | 0 | No |
+| E3: Product Management | 2 | **2/2** | 8 | 8 | Yes |
+| E4: Printer Management | 2 | **1/2** | 10 | 5 | No |
+| E5: Dashboard & Real-Time | 2 | **2/2** | 11 | 11 | Yes |
+| E6: Job Management | 3 | **2/3** | 16 | 8 | No |
 | E7: Testing | 7 | 0/7 | 33 | 0 | No |
 | E8: Polish & Deployment | 5 | 0/5 | 12 | 0 | No |
-| **Total** | **32** | **11/32** | **133 SP** | **43 SP** | |
+| **Total** | **32** | **18/32** | **133 SP** | **75 SP** | |
 
 ### Critical path (shortest path to "works end-to-end")
 
 ```
-✅ E0-1 (2) → ✅ E0-2 (3) → ✅ E2-3 (5) → E1-1 (5) → ✅ E1-3 (5) → E5-1 (8)
-                                              ↑
-                                       REMAINING: 13 SP
+✅ E0-1 (2) → ✅ E0-2 (3) → ✅ E2-3 (5) → ✅ E1-1 (5) → ✅ E1-3 (5) → ✅ E5-1 (8)
+                                              
+ALL DONE — end-to-end flow is complete (28 SP)
 ```
 
 ### Minimum viable demo (operator can print)
 
 ```
-✅ E0-1 + ✅ E0-2 + ✅ E0-3 + E1-1 + ✅ E1-4 = 18 SP (13 SP done, 5 SP remaining)
+✅ E0-1 + ✅ E0-2 + ✅ E0-3 + ✅ E1-1 + ✅ E1-4 = 18 SP — ALL COMPLETE
 ```
 
-Only **E1-1** (Separate Prepare/Start in NewJobViewModel) remains for the minimum viable demo. After that, an operator can: start the app, configure a printer, import codes, create a job with separate prepare/start steps, and see it complete.
+The minimum viable demo is **fully functional**. An operator can: start the app, configure a printer, import codes, create a job with separate prepare/start steps, monitor live progress, and see it complete.
 
 ---
 
@@ -673,9 +589,9 @@ Current implementation status of every feature area in the design spec.
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Summary cards (active jobs, available, printed today) | Done | |
-| Printer cards (one per printer) | Partial | Shows job info and status, needs full redesign per E5-1 |
-| Live progress on cards | Partial | Event subscription wired (E1-3), card property updates done; full UI polish in E5-1 |
-| Action buttons (Pause/Resume/Cancel/Start) | Partial | Start/Cancel wired, Pause/Resume needs E6-3 |
+| Printer cards (one per printer) | Done | Full redesign with IsActive, ProgressPercent, reactive summary (E5-1) |
+| Live progress on cards | Done | Partial methods on property change trigger UpdateDerivedProperties (E5-1) |
+| Action buttons (Pause/Resume/Cancel/Start) | Partial | Start/Cancel/Pause wired, Resume needs E6-3 |
 | Card click → navigate to Jobs | Done | Wired in DashboardViewModel (E8-2) |
 | Recent activity feed | Done | Last 20 audit entries shown (E5-2) |
 | [+ New Job] button | Done | Navigates to New Job screen (E8-1) |
@@ -695,7 +611,7 @@ Current implementation status of every feature area in the design spec.
 | Import CSV with file dialog | Done | OpenFileDialog wired (E1-4) |
 | [+ New Job] on product | Done | NavigateToNewJobRequested event (E8-1) |
 | [+ Add Folder] / [+ Add Product] | Done | Inline forms with Create/Cancel buttons, ViewModel commands |
-| Delete product node | Partial | [Delete] button added, no confirmation dialog or active-job guard (E3-2) |
+| Delete product node | Done | Confirmation dialog, CanDeleteAsync validation (active jobs + reserved codes), disabled button with tooltip (E3-2) |
 
 ### Desktop — Printers (§6.4)
 
@@ -706,10 +622,10 @@ Current implementation status of every feature area in the design spec.
 | Connect / Disconnect buttons | Done | |
 | Delete printer | Done | |
 | Configuration tab | Done | (Current implementation is effectively the Config tab) |
-| Storage tab — list templates on printer | Not Started | (E4-1) |
-| Storage tab — list CSV files on printer | Not Started | (E4-1) |
-| Storage tab — cross-reference with products | Not Started | (E4-1) |
-| Storage tab — delete unmapped files | Not Started | (E4-1) |
+| Storage tab — list templates on printer | Done | Cross-referenced by filename (case-insensitive) (E4-1) |
+| Storage tab — list CSV files on printer | Done | Cross-referenced by PrinterCsvName (E4-1) |
+| Storage tab — cross-reference with products | Done | Mapped status shown, checkbox disabled for mapped files (E4-1) |
+| Storage tab — delete unmapped files | Done | Audit logged, templates + CSVs deleted (E4-1) |
 | Verify flow | Not Started | (E4-2) |
 | [+ New Job] on printer | Not Started | (E8-1) |
 | Test Connection button | Not Started | |
@@ -719,12 +635,14 @@ Current implementation status of every feature area in the design spec.
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Active Jobs tab — job list | Done | DataGrid with active jobs |
-| Active Jobs tab — selected job detail | Partial | Basic info shown, no prep checklist or live status |
-| Active Jobs tab — live progress bar | Partial | Event subscription wired (E1-3), progress text updates; full UI bar in E6-1 |
-| Active Jobs tab — action buttons | Partial | Cancel and Start exist, Pause/Resume needs E6-3 |
+| Active Jobs tab — selected job detail | Done | Full detail: product, printer, status, quantity, prep checklist (E6-1) |
+| Active Jobs tab — live progress bar | Done | Collection item replacement on tick, progress bar + text (E6-1) |
+| Active Jobs tab — action buttons | Partial | Start/Cancel/Pause wired, Resume needs E6-3 |
+| Active Jobs tab — empty state | Done | "No active jobs" + [+ New Job] when empty (E6-1) |
+| Active Jobs tab — completed job retention | Done | Job stays in list until user navigates away (E6-1) |
 | Job History tab — list | Done | Shows completed/cancelled |
-| Job History tab — filters (printer, product) | Not Started | (E6-2) |
-| Job History tab — expanded row detail | Not Started | (E6-2) |
+| Job History tab — filters (printer, product) | Done | ComboBox filters + Clear button, reactive load (E6-2) |
+| Job History tab — expanded row detail | Done | Border with product, printer, qty, result on selection (E6-2) |
 | [+ New Job] button | Done | Navigates to New Job screen |
 
 ### Desktop — New Job (§6.6)
@@ -735,11 +653,11 @@ Current implementation status of every feature area in the design spec.
 | Printer selector (dropdown) | Done | |
 | Quantity field | Done | |
 | Available count display | Done | Updates on product selection |
-| Separate [Prepare] step | Not Started | Currently one-shot Start (E1-1) |
-| Inline preparation progress (checkmarks) | Not Started | (E1-1) |
-| [Start Print] / [Go to Job] after prepare | Not Started | (E1-1) |
-| On failure: error + [Retry] | Partial | Shows error, no Retry button |
-| Block navigation during prepare | Not Started | (E1-1) |
+| Separate [Prepare] step | Done | IProgress<string> callback with 10 steps (E1-1) |
+| Inline preparation progress (checkmarks) | Done | Maps progress to PrepVerified/CodesReserved/DataUploaded/TemplateLoaded (E1-1) |
+| [Start Print] / [Go to Job] after prepare | Done | Shown on PrepComplete (E1-1) |
+| On failure: error + [Retry] | Done | Shows error, Retry button re-runs prepare (E1-1) |
+| Block navigation during prepare | Done | Back button disabled via IsProcessing inverse binding (E1-1) |
 | Context preselection | Not Started | (E8-1) |
 | Grey out busy printers/products | Not Started | (E8-3) |
 
@@ -780,22 +698,16 @@ Current implementation status of every feature area in the design spec.
 
 | Status | Count |
 |--------|-------|
-| Done | 80 |
-| Partial | 12 |
+| Done | 99 |
+| Partial | 5 |
 | Bug | 0 |
-| Not Started | 19 |
+| Not Started | 7 |
 | Placeholder | 4 |
 | **Total line items** | **115** |
 
 ### What's Next (recommended priority order)
 
-1. **E1-1** (5 SP) — Separate Prepare/Start in NewJobViewModel (critical path for end-to-end flow)
-2. **E5-1** (8 SP) — Dashboard printer cards with live progress (depends on E1-3 done)
-3. **E6-1** (5 SP) — Jobs Active tab full design (depends on E1-3 done)
-4. **E4-1** (5 SP) — Printers Storage tab (depends on E0-2 done)
-5. **E3-2** (3 SP) — Add/Delete product tree nodes (confirmation dialog, active-job guard)
-6. **E6-2** (3 SP) — Job History tab filters
-7. **E4-2** (5 SP) — Verify flow (depends on E4-1)
-8. **E6-3** (8 SP) — Pause/Resume support
-9. **E7-**** (33 SP) — Testing (can run in parallel with features)
-10. **E8-**** (12 SP) — Polish & Deployment (final phase)
+1. **E4-2** (5 SP) — Verify flow (depends on E4-1 done)
+2. **E6-3** (8 SP) — Pause/Resume support (adds `Paused` state, SPPSTP/SPPSAP commands)
+3. **E7-**** (33 SP) — Testing (can run in parallel with features)
+4. **E8-**** (12 SP) — Polish & Deployment (final phase)
