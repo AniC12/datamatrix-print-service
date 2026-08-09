@@ -48,6 +48,18 @@ public partial class PrintersViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedDeleteCount;
 
+    // Verify tab
+    public ObservableCollection<VerifyResultItem> VerifyResults { get; } = new();
+
+    [ObservableProperty]
+    private bool _isVerifying;
+
+    [ObservableProperty]
+    private bool _hasVerifyResults;
+
+    [ObservableProperty]
+    private string _verifyOverallStatus = string.Empty;
+
     public event EventHandler<int>? NavigateToNewJobRequested;
 
     public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit)
@@ -233,6 +245,146 @@ public partial class PrintersViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task VerifyPrinterAsync()
+    {
+        if (SelectedPrinter == null) return;
+
+        var adapter = _connectionManager.GetAdapter(SelectedPrinter.Id);
+        if (adapter == null)
+        {
+            VerifyResults.Clear();
+            VerifyResults.Add(new VerifyResultItem("Connection", VerifyStatus.Fail, "Printer is not connected"));
+            HasVerifyResults = true;
+            VerifyOverallStatus = "FAILED";
+            return;
+        }
+
+        IsVerifying = true;
+        VerifyResults.Clear();
+        HasVerifyResults = false;
+
+        try
+        {
+            // Get the active job for this printer (if any)
+            var activeJob = await _db.PrintJobs
+                .Include(j => j.Product)
+                .Where(j => j.PrinterId == SelectedPrinter.Id &&
+                    (j.Status == JobStatus.Printing || j.Status == JobStatus.Ready || j.Status == JobStatus.Preparing))
+                .OrderByDescending(j => j.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            // 1. Check stored CSV file
+            if (activeJob?.Product?.PrinterCsvName != null)
+            {
+                var csvExists = await adapter.VerifyCsvExistsAsync(activeJob.Product.PrinterCsvName);
+                VerifyResults.Add(csvExists
+                    ? new VerifyResultItem("CSV File", VerifyStatus.Pass,
+                        $"\"{activeJob.Product.PrinterCsvName}\" present on printer")
+                    : new VerifyResultItem("CSV File", VerifyStatus.Warning,
+                        $"\"{activeJob.Product.PrinterCsvName}\" NOT found on printer"));
+            }
+            else if (activeJob != null)
+            {
+                VerifyResults.Add(new VerifyResultItem("CSV File", VerifyStatus.Warning,
+                    "No CSV name configured for this product"));
+            }
+            else
+            {
+                VerifyResults.Add(new VerifyResultItem("CSV File", VerifyStatus.Pass,
+                    "No active job — no CSV expected"));
+            }
+
+            // 2. Check active template
+            var activeTemplate = await adapter.GetActiveTemplateAsync();
+            if (activeJob?.Product?.TemplateFile != null)
+            {
+                var expectedName = System.IO.Path.GetFileNameWithoutExtension(activeJob.Product.TemplateFile);
+                var matches = activeTemplate != null &&
+                    (activeTemplate.Contains(expectedName, StringComparison.OrdinalIgnoreCase));
+                VerifyResults.Add(matches
+                    ? new VerifyResultItem("Active Template", VerifyStatus.Pass,
+                        $"\"{activeTemplate}\" matches expected")
+                    : new VerifyResultItem("Active Template", VerifyStatus.Warning,
+                        $"Active: \"{activeTemplate ?? "(none)"}\" — Expected: \"{expectedName}\""));
+            }
+            else if (activeJob != null)
+            {
+                VerifyResults.Add(new VerifyResultItem("Active Template", VerifyStatus.Warning,
+                    $"No template configured. Active on printer: \"{activeTemplate ?? "(none)"}\""));
+            }
+            else
+            {
+                VerifyResults.Add(new VerifyResultItem("Active Template", VerifyStatus.Pass,
+                    $"No active job. Printer has: \"{activeTemplate ?? "(none)"}\""));
+            }
+
+            // 3. Check counters (only meaningful with an active/printing job)
+            if (activeJob != null && activeJob.TotalBaseline.HasValue)
+            {
+                var totalCounter = await adapter.GetTotalCounterAsync();
+                var expectedTotal = activeJob.TotalBaseline.Value + activeJob.CodesConfirmed;
+                var delta = totalCounter - expectedTotal;
+
+                if (delta == 0)
+                {
+                    VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Pass,
+                        $"Printer: {totalCounter}, Expected: {expectedTotal} — consistent"));
+                }
+                else if (delta > 0)
+                {
+                    VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Warning,
+                        $"Printer: {totalCounter}, Expected: {expectedTotal} — printer is +{delta} ahead (prints during downtime?)"));
+                }
+                else
+                {
+                    VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Fail,
+                        $"Printer: {totalCounter}, Expected: {expectedTotal} — printer is {delta} behind (anomaly)"));
+                }
+            }
+            else if (activeJob != null)
+            {
+                VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Warning,
+                    "Job has not started printing yet — no baseline to compare"));
+            }
+            else
+            {
+                var totalCounter = await adapter.GetTotalCounterAsync();
+                VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Pass,
+                    $"No active job. Lifetime counter: {totalCounter}"));
+            }
+
+            // 4. Printer status
+            var status = await adapter.GetStatusAsync();
+            var statusResult = status switch
+            {
+                PrinterStatus.Error => new VerifyResultItem("Printer Status", VerifyStatus.Fail,
+                    $"Printer reports ERROR state"),
+                PrinterStatus.Blocked => new VerifyResultItem("Printer Status", VerifyStatus.Warning,
+                    $"Printer is BLOCKED (not in main window?)"),
+                _ => new VerifyResultItem("Printer Status", VerifyStatus.Pass,
+                    $"Printer state: {status}")
+            };
+            VerifyResults.Add(statusResult);
+
+            // Overall
+            var hasFailure = VerifyResults.Any(r => r.Status == VerifyStatus.Fail);
+            var hasWarning = VerifyResults.Any(r => r.Status == VerifyStatus.Warning);
+            VerifyOverallStatus = hasFailure ? "ISSUES FOUND" : hasWarning ? "WARNINGS" : "ALL OK";
+        }
+        catch (Exception ex)
+        {
+            VerifyResults.Add(new VerifyResultItem("Error", VerifyStatus.Fail,
+                $"Verification failed: {ex.Message}"));
+            VerifyOverallStatus = "ERROR";
+        }
+        finally
+        {
+            IsVerifying = false;
+            HasVerifyResults = true;
+        }
+    }
+
+    [RelayCommand]
     private void NewJob()
     {
         if (SelectedPrinter != null)
@@ -254,5 +406,28 @@ public partial class PrinterFileItem : ObservableObject
     {
         FileName = fileName;
         MappedProduct = mappedProduct;
+    }
+}
+
+public enum VerifyStatus { Pass, Warning, Fail }
+
+public class VerifyResultItem
+{
+    public string CheckName { get; }
+    public VerifyStatus Status { get; }
+    public string Details { get; }
+    public string StatusIcon => Status switch
+    {
+        VerifyStatus.Pass => "\u2705",    // green checkmark
+        VerifyStatus.Warning => "\u26A0", // warning triangle
+        VerifyStatus.Fail => "\u274C",    // red X
+        _ => "?"
+    };
+
+    public VerifyResultItem(string checkName, VerifyStatus status, string details)
+    {
+        CheckName = checkName;
+        Status = status;
+        Details = details;
     }
 }
