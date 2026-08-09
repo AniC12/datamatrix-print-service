@@ -185,6 +185,12 @@ public class PrintJobService : IPrintJobService
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Job {JobId} preparation failed", jobId);
+            // Clean up: return any reserved codes and mark job as Cancelled
+            // so the partial unique index doesn't block retries
+            job.Status = JobStatus.Cancelled;
+            job.CompletedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity);
             throw;
         }
         finally

@@ -687,10 +687,9 @@ public class FullE2ETests : IntegrationTestBase
         var burned = stats.PoolStats.GetValueOrDefault("Burned", 0);
 
         Assert.Equal(0, available);
-        // All 15 codes consumed: printed + burned = 15
-        Assert.Equal(15, printed + burned);
-        // Most should be printed (some may be burned at counter boundaries)
-        Assert.True(printed >= 13, $"Expected at least 13 printed, got {printed}");
+        // All 15 codes consumed: all printed, none burned (jobs completed normally)
+        Assert.Equal(15, printed);
+        Assert.Equal(0, burned);
 
         // Job 4: should fail — no codes left
         var job4Resp = await Client.PostAsJsonAsync("/api/jobs", new

@@ -124,11 +124,12 @@ public class CodePoolService : ICodePoolService
 
     public async Task ReturnCodesToPoolAsync(int jobId, int startIndex, int count)
     {
-        _logger.LogInformation("Returning {Count} codes to pool: Job {JobId}", count, jobId);
+        _logger.LogInformation("Returning {Count} codes to pool: Job {JobId} (startIndex={Start})", count, jobId, startIndex);
+        // Take from the front of the remaining Reserved set — previous operations
+        // (MarkCodesPrinted, BurnCode) already removed earlier codes from Reserved.
         var codes = await _db.Codes
             .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
             .OrderBy(c => c.ImportOrder)
-            .Skip(startIndex)
             .Take(count)
             .ToListAsync();
 
@@ -144,12 +145,15 @@ public class CodePoolService : ICodePoolService
 
     public async Task MarkCodesPrintedAsync(int jobId, int fromIndex, int toIndex)
     {
-        _logger.LogDebug("Codes printed: Job {JobId} [{From}..{To})", jobId, fromIndex, toIndex);
+        var count = toIndex - fromIndex;
+        _logger.LogDebug("Codes printed: Job {JobId} [{From}..{To}) count={Count}", jobId, fromIndex, toIndex, count);
+        // Take from the front of the remaining Reserved set.
+        // Previous calls already moved earlier codes out of Reserved, so the
+        // first N codes in this filtered set ARE the next ones to mark.
         var codes = await _db.Codes
             .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
             .OrderBy(c => c.ImportOrder)
-            .Skip(fromIndex)
-            .Take(toIndex - fromIndex)
+            .Take(count)
             .ToListAsync();
 
         foreach (var code in codes)
@@ -164,10 +168,11 @@ public class CodePoolService : ICodePoolService
     public async Task BurnCodeAsync(int jobId, int index)
     {
         _logger.LogWarning("Code burned: Job {JobId} index={Index}", jobId, index);
+        // Take the first remaining Reserved code (previous operations already
+        // moved earlier codes out of Reserved status).
         var code = await _db.Codes
             .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
             .OrderBy(c => c.ImportOrder)
-            .Skip(index)
             .FirstOrDefaultAsync();
 
         if (code != null)

@@ -266,10 +266,16 @@ public partial class NewJobViewModel : ObservableObject
     [RelayCommand]
     private async Task RetryPrepareAsync()
     {
-        _logger.LogInformation("NewJob: Retry preparation for Job #{JobId}", CreatedJobId);
-        // Reset prep state and try again
+        _logger.LogInformation("NewJob: Retry preparation (previous Job #{JobId} failed)", CreatedJobId);
+        // Reset all prep state — failed job was already cancelled by PrepareJobAsync
+        CreatedJobId = null;
         PrepFailed = false;
         PrepErrorMessage = null;
+        PrepVerified = false;
+        PrepCodesReserved = false;
+        PrepDataUploaded = false;
+        PrepTemplateLoaded = false;
+        PrepComplete = false;
         await PrepareAsync();
     }
 
