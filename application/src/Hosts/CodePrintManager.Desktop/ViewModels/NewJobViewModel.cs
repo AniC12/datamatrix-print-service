@@ -150,7 +150,7 @@ public partial class NewJobViewModel : ObservableObject
             return;
 
         IsProcessing = true;
-        ShowPrepProgress = true;
+        ShowPrepProgress = false;
         PrepVerified = false;
         PrepCodesReserved = false;
         PrepDataUploaded = false;
@@ -158,17 +158,19 @@ public partial class NewJobViewModel : ObservableObject
         PrepComplete = false;
         PrepFailed = false;
         PrepErrorMessage = null;
-        StatusMessage = "Preparing job...";
+        StatusMessage = "Creating job...";
 
         try
         {
             _logger.LogInformation("NewJob: Prepare started (Product={ProductId}, Printer={PrinterId}, Qty={Qty})",
                 SelectedProduct.Id, SelectedPrinter.Id, Quantity);
 
-            // Step 1: Create job
+            // Step 1: Create job (validates quantity, available codes, etc.)
             var job = await _printJobService.CreateJobAsync(
                 SelectedProduct.Id, SelectedPrinter.Id, Quantity);
             CreatedJobId = job.Id;
+            ShowPrepProgress = true;
+            StatusMessage = "Preparing job...";
             _logger.LogInformation("NewJob: Job #{JobId} created", job.Id);
 
             // Step 2: Prepare with step-by-step progress
