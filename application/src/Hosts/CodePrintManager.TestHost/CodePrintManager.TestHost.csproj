@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\CodePrintManager.Application\CodePrintManager.Application.csproj" />
+    <ProjectReference Include="..\..\Core\CodePrintManager.Domain\CodePrintManager.Domain.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\CodePrintManager.Data\CodePrintManager.Data.csproj" />
+    <ProjectReference Include="..\..\Printers\CodePrintManager.Printer.Mock\CodePrintManager.Printer.Mock.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

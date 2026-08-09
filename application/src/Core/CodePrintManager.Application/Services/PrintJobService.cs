@@ -4,6 +4,7 @@ using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Events;
 using CodePrintManager.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace CodePrintManager.Application.Services;
@@ -18,6 +19,7 @@ public class PrintJobService : IPrintJobService
     private readonly ILogger<PrintJobService> _logger;
     private readonly ActiveJobRegistry _jobRegistry;
     private readonly JobEventBus _eventBus;
+    private readonly IServiceScopeFactory? _scopeFactory;
 
     public event EventHandler<JobProgressChangedEvent>? JobProgressChanged;
     public event EventHandler<JobCompletedEvent>? JobCompleted;
@@ -30,7 +32,8 @@ public class PrintJobService : IPrintJobService
         IAuditService audit,
         ILogger<PrintJobService> logger,
         ActiveJobRegistry jobRegistry,
-        JobEventBus eventBus)
+        JobEventBus eventBus,
+        IServiceScopeFactory? scopeFactory = null)
     {
         _db = db;
         _codePool = codePool;
@@ -40,6 +43,7 @@ public class PrintJobService : IPrintJobService
         _logger = logger;
         _jobRegistry = jobRegistry;
         _eventBus = eventBus;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task<PrintJob> CreateJobAsync(int productId, int printerId, int quantity)
@@ -188,8 +192,30 @@ public class PrintJobService : IPrintJobService
         job.StartedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        // Spawn job executor
-        var executor = new JobExecutor(job, adapter, _codePool, _alerts, _db, _logger);
+        // Spawn job executor with its own DbContext scope (outlives the calling scope)
+        IServiceScope? executorScope = null;
+        AppDbContext executorDb;
+        ICodePoolService executorCodePool;
+
+        if (_scopeFactory != null)
+        {
+            executorScope = _scopeFactory.CreateScope();
+            executorDb = executorScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            executorCodePool = executorScope.ServiceProvider.GetRequiredService<ICodePoolService>();
+            // Re-attach the job entity to the new context
+            var executorJob = await executorDb.PrintJobs
+                .Include(j => j.Printer)
+                .FirstAsync(j => j.Id == jobId);
+            job = executorJob;
+        }
+        else
+        {
+            // Fallback: use caller's context (WPF host where scope is long-lived)
+            executorDb = _db;
+            executorCodePool = _codePool;
+        }
+
+        var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger);
         executor.ProgressChanged += (_, e) =>
         {
             _eventBus.RaiseProgressChanged(this, e);
@@ -198,6 +224,7 @@ public class PrintJobService : IPrintJobService
         executor.Completed += (_, e) =>
         {
             _jobRegistry.TryRemove(jobId);
+            executorScope?.Dispose();
             _eventBus.RaiseCompleted(this, e);
             JobCompleted?.Invoke(this, e);
         };
@@ -280,10 +307,20 @@ public class PrintJobService : IPrintJobService
                 _jobRegistry.TryRemove(jobId);
             }
 
-            // Stop the printer
+            // Stop the printer and reconcile counter
             var adapter = _connectionManager.GetAdapter(job.PrinterId);
             if (adapter != null)
+            {
                 await adapter.StopPrintAsync();
+
+                // Reconcile: the printer may have advanced past what the executor committed
+                var finalCounter = await adapter.GetCurrentCounterAsync();
+                if (finalCounter > job.CodesConfirmed)
+                {
+                    await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, finalCounter);
+                    job.CodesConfirmed = finalCounter;
+                }
+            }
 
             job.Status = JobStatus.Paused;
             await _db.SaveChangesAsync();
@@ -367,8 +404,25 @@ public class PrintJobService : IPrintJobService
             job.Status = JobStatus.Printing;
             await _db.SaveChangesAsync();
 
-            // Spawn a new executor from current progress
-            var executor = new JobExecutor(job, adapter, _codePool, _alerts, _db, _logger);
+            // Spawn a new executor with its own scope
+            IServiceScope? executorScope = null;
+            AppDbContext executorDb;
+            ICodePoolService executorCodePool;
+
+            if (_scopeFactory != null)
+            {
+                executorScope = _scopeFactory.CreateScope();
+                executorDb = executorScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                executorCodePool = executorScope.ServiceProvider.GetRequiredService<ICodePoolService>();
+                job = await executorDb.PrintJobs.Include(j => j.Printer).FirstAsync(j => j.Id == jobId);
+            }
+            else
+            {
+                executorDb = _db;
+                executorCodePool = _codePool;
+            }
+
+            var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger);
             executor.ProgressChanged += (_, e) =>
             {
                 _eventBus.RaiseProgressChanged(this, e);
@@ -377,6 +431,7 @@ public class PrintJobService : IPrintJobService
             executor.Completed += (_, e) =>
             {
                 _jobRegistry.TryRemove(jobId);
+                executorScope?.Dispose();
                 _eventBus.RaiseCompleted(this, e);
                 JobCompleted?.Invoke(this, e);
             };
