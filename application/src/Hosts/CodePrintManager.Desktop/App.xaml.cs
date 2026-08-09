@@ -8,6 +8,7 @@ using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
 using CodePrintManager.Desktop.ViewModels;
 using CodePrintManager.Desktop.Views;
+using CodePrintManager.Printer.Mock;
 using CodePrintManager.Printer.Savema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -47,8 +48,20 @@ public partial class App : System.Windows.Application
             {
                 services.AddCodePrintManager(dbPath);
 
-                // Register printer adapter factories
-                services.AddSingleton<IPrinterAdapterFactory, SavemaAdapterFactory>();
+                // Register printer adapter factory: mock or real Savema
+                var useMock = context.Configuration.GetValue<bool>("UseMockPrinter")
+                    || Environment.GetCommandLineArgs().Contains("--mock");
+
+                if (useMock)
+                {
+                    services.AddSingleton<MockPrinterAdapterFactory>();
+                    services.AddSingleton<IPrinterAdapterFactory>(sp =>
+                        sp.GetRequiredService<MockPrinterAdapterFactory>());
+                }
+                else
+                {
+                    services.AddSingleton<IPrinterAdapterFactory, SavemaAdapterFactory>();
+                }
 
                 // ViewModels
                 services.AddTransient<MainViewModel>();
@@ -102,6 +115,11 @@ public partial class App : System.Windows.Application
         var mainWindow = windowScope.ServiceProvider.GetRequiredService<MainWindow>();
         mainWindow.DataContext = windowScope.ServiceProvider.GetRequiredService<MainViewModel>();
         mainWindow.Closed += (s, e) => windowScope.Dispose(); // Dispose scope when window closes
+
+        // Indicate mock mode in the title bar
+        if (windowScope.ServiceProvider.GetRequiredService<IPrinterAdapterFactory>() is MockPrinterAdapterFactory)
+            mainWindow.Title += " [MOCK PRINTER]";
+
         mainWindow.Show();
         MainWindow = mainWindow;
     }
