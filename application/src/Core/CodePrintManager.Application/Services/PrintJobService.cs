@@ -110,7 +110,29 @@ public class PrintJobService : IPrintJobService
                 ?? throw new InvalidOperationException("Product has no template configured");
             var templates = await adapter.ListTemplatesAsync(ct);
             if (!templates.Contains(templateName))
-                throw new InvalidOperationException($"Template '{templateName}' not found on printer. Upload it first.");
+            {
+                // Attempt to upload .rox file from disk
+                if (File.Exists(templateName))
+                {
+                    var roxBytes = await File.ReadAllBytesAsync(templateName, ct);
+                    var uploadTemplateOk = await adapter.UploadTemplateAsync(
+                        Path.GetFileName(templateName), roxBytes, ct);
+                    if (!uploadTemplateOk)
+                    {
+                        _alerts.Raise(AlertSeverity.Error, job.Printer.Name,
+                            "Template upload failed. Load it manually via Sayasis.",
+                            printerId: job.PrinterId, jobId: job.Id);
+                        throw new InvalidOperationException("Template upload failed: SPLRTF returned FAIL");
+                    }
+                    // Use the filename (without path) for activation
+                    templateName = Path.GetFileName(templateName);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Template '{templateName}' not found on printer and .rox file not found on disk.");
+                }
+            }
 
             // Activate template (resets counter, loads CSV buffer)
             ct.ThrowIfCancellationRequested();

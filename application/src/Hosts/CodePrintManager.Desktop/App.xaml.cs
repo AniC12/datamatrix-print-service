@@ -1,10 +1,13 @@
 ﻿using System.IO;
 using System.Windows;
 using CodePrintManager.Application;
+using CodePrintManager.Application.Models;
 using CodePrintManager.Application.Services;
 using CodePrintManager.Data;
+using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
 using CodePrintManager.Desktop.ViewModels;
+using CodePrintManager.Desktop.Views;
 using CodePrintManager.Printer.Savema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -91,6 +94,9 @@ public partial class App : System.Windows.Application
             }
         });
 
+        // Startup recovery: detect and resolve stale jobs from prior crash
+        await RunStartupRecoveryAsync();
+
         // Create a scope for the main window lifetime
         var windowScope = _host.Services.CreateScope();
         var mainWindow = windowScope.ServiceProvider.GetRequiredService<MainWindow>();
@@ -98,6 +104,73 @@ public partial class App : System.Windows.Application
         mainWindow.Closed += (s, e) => windowScope.Dispose(); // Dispose scope when window closes
         mainWindow.Show();
         MainWindow = mainWindow;
+    }
+
+    private async Task RunStartupRecoveryAsync()
+    {
+        try
+        {
+            using var scope = _host!.Services.CreateScope();
+            var jobService = scope.ServiceProvider.GetRequiredService<IPrintJobService>();
+            var codePool = scope.ServiceProvider.GetRequiredService<ICodePoolService>();
+            var connMgr = scope.ServiceProvider.GetRequiredService<PrinterConnectionManager>();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var staleJobs = await jobService.GetStaleJobsAsync();
+            if (staleJobs.Count == 0) return;
+
+            var recoveryItems = new List<RecoveryItem>();
+
+            foreach (var job in staleJobs)
+            {
+                if (job.Status is JobStatus.Preparing or JobStatus.Ready)
+                {
+                    // Auto-cancel preparing/ready jobs — return reserved codes
+                    await jobService.CancelJobAsync(job.Id);
+                    Log.Information("Recovery: auto-cancelled stale {Status} job #{JobId}", job.Status, job.Id);
+                }
+                else if (job.Status == JobStatus.Printing)
+                {
+                    // Try to read SPGGTP from printer to detect discrepancy
+                    int printerConfirmed = -1; // -1 = offline
+                    try
+                    {
+                        var adapter = connMgr.GetAdapter(job.PrinterId);
+                        if (adapter != null)
+                        {
+                            var lifetime = await adapter.GetTotalCounterAsync();
+                            printerConfirmed = job.TotalBaseline.HasValue
+                                ? lifetime - job.TotalBaseline.Value
+                                : job.CodesConfirmed;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex, "Recovery: could not read counter for printer {PrinterId}", job.PrinterId);
+                    }
+
+                    var discrepancy = printerConfirmed >= 0
+                        ? printerConfirmed - job.CodesConfirmed
+                        : 0;
+
+                    recoveryItems.Add(new RecoveryItem(job, job.CodesConfirmed, printerConfirmed, discrepancy));
+                }
+            }
+
+            // Show recovery dialog if there are printing jobs to resolve
+            if (recoveryItems.Count > 0)
+            {
+                var recoveryVm = scope.ServiceProvider.GetRequiredService<RecoveryViewModel>();
+                recoveryVm.LoadItems(recoveryItems);
+
+                var dialog = new RecoveryDialog { DataContext = recoveryVm };
+                dialog.ShowDialog();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error during startup recovery");
+        }
     }
 
     protected override async void OnExit(ExitEventArgs e)

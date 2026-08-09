@@ -150,6 +150,23 @@ public partial class ProductsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ChangeTemplateAsync()
+    {
+        if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Template Files|*.rox|All Files|*.*",
+            Title = "Select Template File (.rox)"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        SelectedProduct.TemplateFile = dialog.FileName;
+        await _db.SaveChangesAsync();
+    }
+
+    [RelayCommand]
     private void NewJob()
     {
         if (SelectedProduct?.IsLeaf == true)

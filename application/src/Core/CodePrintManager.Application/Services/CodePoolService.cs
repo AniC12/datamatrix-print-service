@@ -11,11 +11,15 @@ public class CodePoolService : ICodePoolService
 {
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
+    private readonly IAlertService _alerts;
 
-    public CodePoolService(AppDbContext db, IAuditService audit)
+    private const int LowStockThreshold = 500;
+
+    public CodePoolService(AppDbContext db, IAuditService audit, IAlertService alerts)
     {
         _db = db;
         _audit = audit;
+        _alerts = alerts;
     }
 
     public async Task<CsvImportResult> ImportCodesAsync(int productId, string batchName, IReadOnlyList<string> codes)
@@ -89,6 +93,18 @@ public class CodePoolService : ICodePoolService
         }
 
         await _db.SaveChangesAsync();
+
+        // Check remaining stock and raise warning if low
+        var remaining = await _db.Codes
+            .CountAsync(c => c.ProductId == productId && c.Status == CodeStatus.Available);
+        if (remaining < LowStockThreshold && remaining >= 0)
+        {
+            var product = await _db.ProductNodes.FindAsync(productId);
+            var name = product?.Name ?? $"Product #{productId}";
+            _alerts.Raise(AlertSeverity.Warning, "Code Pool",
+                $"{name}: only {remaining} codes remaining.");
+        }
+
         return codes;
     }
 

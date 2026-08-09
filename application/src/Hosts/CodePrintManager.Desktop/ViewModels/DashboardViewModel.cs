@@ -15,6 +15,7 @@ public partial class DashboardViewModel : ObservableObject
 {
     private readonly PrinterConnectionManager _connectionManager;
     private readonly IPrintJobService _printJobService;
+    private readonly JobEventBus _eventBus;
     private readonly AppDbContext _db;
 
     public ObservableCollection<Components.PrinterCardViewModel> PrinterCards { get; } = new();
@@ -26,13 +27,17 @@ public partial class DashboardViewModel : ObservableObject
     public DashboardViewModel(
         PrinterConnectionManager connectionManager,
         IPrintJobService printJobService,
+        JobEventBus eventBus,
         AppDbContext db)
     {
         _connectionManager = connectionManager;
         _printJobService = printJobService;
+        _eventBus = eventBus;
         _db = db;
 
         _connectionManager.PrinterStatusChanged += OnPrinterStatusChanged;
+        _eventBus.ProgressChanged += OnJobProgressChanged;
+        _eventBus.Completed += OnJobCompleted;
     }
 
     [RelayCommand]
@@ -123,6 +128,28 @@ public partial class DashboardViewModel : ObservableObject
             var card = PrinterCards.FirstOrDefault(c => c.PrinterId == e.PrinterId);
             if (card != null)
                 card.Status = e.NewStatus;
+        });
+    }
+
+    private void OnJobProgressChanged(object? sender, JobProgressChangedEvent e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var card = PrinterCards.FirstOrDefault(c => c.JobId == e.JobId);
+            if (card != null)
+            {
+                card.CurrentJobProgress = e.Confirmed;
+                card.CurrentJobTotal = e.Total;
+                card.JobStatus = JobStatus.Printing;
+            }
+        });
+    }
+
+    private void OnJobCompleted(object? sender, JobCompletedEvent e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(async () =>
+        {
+            await RefreshAsync();
         });
     }
 }

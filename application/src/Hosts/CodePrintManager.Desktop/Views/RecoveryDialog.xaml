@@ -5,33 +5,41 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:CodePrintManager.Desktop.ViewModels"
         mc:Ignorable="d"
-        Title="Job Recovery" Height="400" Width="600"
+        Title="Job Recovery — Interrupted Jobs Detected" Height="420" Width="700"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         d:DataContext="{d:DesignInstance vm:RecoveryViewModel}">
-    <Grid Margin="16">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="The following jobs were interrupted. Please resolve them before continuing."
-                   TextWrapping="Wrap" Margin="0,0,0,16" />
+        <TextBlock Grid.Row="0" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"
+                   Text="The following print jobs were interrupted. Please resolve each one before continuing." 
+                   TextWrapping="Wrap" />
 
-        <DataGrid Grid.Row="1" ItemsSource="{Binding StaleJobs}" SelectedItem="{Binding SelectedItem}"
-                  AutoGenerateColumns="False" IsReadOnly="True">
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                  BorderBrush="#E0E0E0" BorderThickness="1">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Job ID" Binding="{Binding Job.Id}" Width="60" />
-                <DataGridTextColumn Header="Product" Binding="{Binding Job.Product.Name}" Width="*" />
-                <DataGridTextColumn Header="Printer" Binding="{Binding Job.Printer.Name}" Width="120" />
-                <DataGridTextColumn Header="Progress" Binding="{Binding Job.CodesConfirmed}" Width="80" />
-                <DataGridTextColumn Header="Discrepancy" Binding="{Binding Discrepancy}" Width="100" />
+                <DataGridTextColumn Header="Job #" Binding="{Binding JobId}" Width="60" />
+                <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*" />
+                <DataGridTextColumn Header="Printer" Binding="{Binding PrinterName}" Width="120" />
+                <DataGridTextColumn Header="App Says" Binding="{Binding AppConfirmed}" Width="80" />
+                <DataGridTextColumn Header="Printer Says" Binding="{Binding PrinterConfirmed}" Width="90" />
+                <DataGridTextColumn Header="Delta" Binding="{Binding DeltaDisplay}" Width="70" />
             </DataGrid.Columns>
         </DataGrid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Resume" Command="{Binding ResumeJobCommand}" Padding="16,8" Margin="0,0,8,0" />
-            <Button Content="Cancel Job" Command="{Binding CancelJobCommand}" Padding="16,8" />
+            <Button Content="Resume Selected" Command="{Binding ResumeCommand}" 
+                    Padding="16,8" Margin="0,0,8,0"
+                    Background="#4CAF50" Foreground="White" FontWeight="SemiBold" />
+            <Button Content="Abort Selected" Command="{Binding AbortCommand}" 
+                    Padding="16,8"
+                    Background="#F44336" Foreground="White" FontWeight="SemiBold" />
         </StackPanel>
     </Grid>
 </Window>

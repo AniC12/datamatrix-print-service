@@ -3,17 +3,10 @@
   "configurations": [
     {
       "name": "Desktop App",
-      "type": "coreclr",
+      "type": "node-terminal",
       "request": "launch",
-      "preLaunchTask": "build-desktop",
-      "program": "${workspaceFolder}/application/src/Hosts/CodePrintManager.Desktop/bin/Debug/net8.0-windows/CodePrintManager.Desktop.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/application/src/Hosts/CodePrintManager.Desktop",
-      "stopAtEntry": false,
-      "console": "internalConsole",
-      "env": {
-        "DOTNET_ENVIRONMENT": "Development"
-      }
+      "command": "dotnet run --project application/src/Hosts/CodePrintManager.Desktop",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CodePrintManager.Printer.Savema")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+43aa1ae74251dbf0a0a0b90b520efa18578f883d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+506ec30d2529b5d79ae3f200c03053c1cfcac2d3")]
 [assembly: System.Reflection.AssemblyProductAttribute("CodePrintManager.Printer.Savema")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CodePrintManager.Printer.Savema")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
+using CodePrintManager.Application.Services;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
+using CodePrintManager.Domain.Events;
 using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,6 +16,7 @@ public partial class JobsViewModel : ObservableObject
 {
     private readonly AppDbContext _db;
     private readonly IPrintJobService _printJobService;
+    private readonly JobEventBus _eventBus;
 
     public ObservableCollection<PrintJob> ActiveJobs { get; } = new();
     public ObservableCollection<PrintJob> JobHistory { get; } = new();
@@ -72,10 +75,14 @@ public partial class JobsViewModel : ObservableObject
 
     public event EventHandler? NavigateToNewJobRequested;
 
-    public JobsViewModel(AppDbContext db, IPrintJobService printJobService)
+    public JobsViewModel(AppDbContext db, IPrintJobService printJobService, JobEventBus eventBus)
     {
         _db = db;
         _printJobService = printJobService;
+        _eventBus = eventBus;
+
+        _eventBus.ProgressChanged += OnJobProgressChanged;
+        _eventBus.Completed += OnJobCompleted;
     }
 
     [RelayCommand]
@@ -185,5 +192,32 @@ public partial class JobsViewModel : ObservableObject
     {
         FilterPrinter = null;
         FilterProduct = null;
+    }
+
+    private void OnJobProgressChanged(object? sender, JobProgressChangedEvent e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            // Update the active job in the list
+            var job = ActiveJobs.FirstOrDefault(j => j.Id == e.JobId);
+            if (job != null)
+                job.CodesConfirmed = e.Confirmed;
+
+            // Update detail view if this is the selected job
+            if (SelectedJob?.Id == e.JobId)
+            {
+                JobDetailProgress = e.Confirmed;
+                var pct = e.Total > 0 ? (int)(100.0 * e.Confirmed / e.Total) : 0;
+                JobDetailProgressText = $"{e.Confirmed} / {e.Total}  ({pct}%)";
+            }
+        });
+    }
+
+    private void OnJobCompleted(object? sender, JobCompletedEvent e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(async () =>
+        {
+            await LoadJobsAsync();
+        });
     }
 }

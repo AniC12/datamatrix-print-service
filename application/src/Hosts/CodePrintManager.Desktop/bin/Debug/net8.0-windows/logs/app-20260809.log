@@ -1,0 +1,361 @@
+2026-08-09 00:34:38.560 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 00:34:38.595 +04:00 [INF] Hosting environment: Development
+2026-08-09 00:34:38.596 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service
+2026-08-09 00:34:39.890 +04:00 [INF] Executed DbCommand (38ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:34:39.901 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:34:39.917 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 00:34:39.934 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 00:35:18.787 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 00:35:18.836 +04:00 [INF] Hosting environment: Development
+2026-08-09 00:35:18.837 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service
+2026-08-09 00:35:19.788 +04:00 [INF] Executed DbCommand (28ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:35:19.797 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:35:19.810 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 00:35:19.824 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 00:36:05.723 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 00:36:05.759 +04:00 [INF] Hosting environment: Development
+2026-08-09 00:36:05.760 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service
+2026-08-09 00:36:06.646 +04:00 [INF] Executed DbCommand (25ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:36:06.655 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:36:06.668 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 00:36:06.683 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 00:38:38.319 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 00:38:38.377 +04:00 [INF] Hosting environment: Development
+2026-08-09 00:38:38.379 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application
+2026-08-09 00:38:39.560 +04:00 [INF] Executed DbCommand (26ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:38:39.572 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:38:39.588 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 00:38:39.609 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 00:39:47.669 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 00:39:47.743 +04:00 [INF] Hosting environment: Development
+2026-08-09 00:39:47.744 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application
+2026-08-09 00:39:49.309 +04:00 [INF] Executed DbCommand (47ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:39:49.328 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:39:49.356 +04:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 00:39:49.382 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 00:39:50.770 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 00:39:50.965 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*)
+FROM "print_jobs" AS "p"
+WHERE "p"."Status" IN ('Printing', 'Ready')
+2026-08-09 00:39:50.982 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*)
+FROM "codes" AS "c"
+WHERE "c"."Status" = 'Available'
+2026-08-09 00:39:51.002 +04:00 [INF] Executed DbCommand (4ms) [Parameters=[@__today_0='?' (DbType = DateTime)], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*)
+FROM "codes" AS "c"
+WHERE "c"."Status" = 'Printed' AND "c"."StatusChangedAt" >= @__today_0
+2026-08-09 00:39:57.771 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 00:39:59.508 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 00:40:04.842 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CodesConfirmed", "p"."CompletedAt", "p"."CreatedAt", "p"."PrinterId", "p"."ProductId", "p"."Quantity", "p"."StartedAt", "p"."Status", "p"."TotalBaseline", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt", "p1"."Id", "p1"."AdapterType", "p1"."CreatedAt", "p1"."IpAddress", "p1"."IsActive", "p1"."Model", "p1"."Name", "p1"."Port", "p1"."UpdatedAt"
+FROM "print_jobs" AS "p"
+INNER JOIN "product_nodes" AS "p0" ON "p"."ProductId" = "p0"."Id"
+INNER JOIN "printers" AS "p1" ON "p"."PrinterId" = "p1"."Id"
+WHERE "p"."Status" IN ('Printing', 'Ready', 'Preparing')
+ORDER BY "p"."CreatedAt" DESC
+2026-08-09 00:40:04.868 +04:00 [INF] Executed DbCommand (2ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SELECT "t"."Id", "t"."CodesConfirmed", "t"."CompletedAt", "t"."CreatedAt", "t"."PrinterId", "t"."ProductId", "t"."Quantity", "t"."StartedAt", "t"."Status", "t"."TotalBaseline", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt", "p1"."Id", "p1"."AdapterType", "p1"."CreatedAt", "p1"."IpAddress", "p1"."IsActive", "p1"."Model", "p1"."Name", "p1"."Port", "p1"."UpdatedAt"
+FROM (
+    SELECT "p"."Id", "p"."CodesConfirmed", "p"."CompletedAt", "p"."CreatedAt", "p"."PrinterId", "p"."ProductId", "p"."Quantity", "p"."StartedAt", "p"."Status", "p"."TotalBaseline"
+    FROM "print_jobs" AS "p"
+    WHERE "p"."Status" IN ('Completed', 'Cancelled', 'Error')
+    ORDER BY "p"."CompletedAt" DESC
+    LIMIT @__p_0
+) AS "t"
+INNER JOIN "product_nodes" AS "p0" ON "t"."ProductId" = "p0"."Id"
+INNER JOIN "printers" AS "p1" ON "t"."PrinterId" = "p1"."Id"
+ORDER BY "t"."CompletedAt" DESC
+2026-08-09 00:40:10.579 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt"
+FROM "product_nodes" AS "p"
+WHERE "p"."IsLeaf"
+2026-08-09 00:40:10.579 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 00:40:14.264 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 00:40:18.024 +04:00 [INF] Application is shutting down...
+2026-08-09 00:42:48.481 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 00:42:48.517 +04:00 [INF] Hosting environment: Development
+2026-08-09 00:42:48.518 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service
+2026-08-09 00:42:49.377 +04:00 [INF] Executed DbCommand (16ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:42:49.386 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 00:42:49.399 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 00:42:49.413 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 00:42:50.162 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 00:42:50.311 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*)
+FROM "print_jobs" AS "p"
+WHERE "p"."Status" IN ('Printing', 'Ready')
+2026-08-09 00:42:50.320 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*)
+FROM "codes" AS "c"
+WHERE "c"."Status" = 'Available'
+2026-08-09 00:42:50.332 +04:00 [INF] Executed DbCommand (3ms) [Parameters=[@__today_0='?' (DbType = DateTime)], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*)
+FROM "codes" AS "c"
+WHERE "c"."Status" = 'Printed' AND "c"."StatusChangedAt" >= @__today_0
+2026-08-09 00:43:02.008 +04:00 [INF] Application is shutting down...
+2026-08-09 09:41:25.919 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 09:41:25.969 +04:00 [INF] Hosting environment: Production
+2026-08-09 09:41:25.970 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application
+2026-08-09 09:41:27.417 +04:00 [INF] Executed DbCommand (20ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 09:41:27.429 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 09:41:27.449 +04:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 09:41:27.472 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 09:41:28.996 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:41:29.106 +04:00 [INF] Executed DbCommand (3ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SELECT "a"."Id", "a"."CreatedAt", "a"."Details", "a"."EventType", "a"."JobId", "a"."PrinterId", "a"."ProductId"
+FROM "audit_log" AS "a"
+ORDER BY "a"."CreatedAt" DESC
+LIMIT @__p_0
+2026-08-09 09:41:36.617 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:41:37.573 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:41:42.323 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CodesConfirmed", "p"."CompletedAt", "p"."CreatedAt", "p"."PrinterId", "p"."ProductId", "p"."Quantity", "p"."StartedAt", "p"."Status", "p"."TotalBaseline", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt", "p1"."Id", "p1"."AdapterType", "p1"."CreatedAt", "p1"."IpAddress", "p1"."IsActive", "p1"."Model", "p1"."Name", "p1"."Port", "p1"."UpdatedAt"
+FROM "print_jobs" AS "p"
+INNER JOIN "product_nodes" AS "p0" ON "p"."ProductId" = "p0"."Id"
+INNER JOIN "printers" AS "p1" ON "p"."PrinterId" = "p1"."Id"
+WHERE "p"."Status" IN ('Preparing', 'Ready', 'Printing')
+ORDER BY "p"."CreatedAt" DESC
+2026-08-09 09:41:42.337 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CodesConfirmed", "p"."CompletedAt", "p"."CreatedAt", "p"."PrinterId", "p"."ProductId", "p"."Quantity", "p"."StartedAt", "p"."Status", "p"."TotalBaseline", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt", "p1"."Id", "p1"."AdapterType", "p1"."CreatedAt", "p1"."IpAddress", "p1"."IsActive", "p1"."Model", "p1"."Name", "p1"."Port", "p1"."UpdatedAt"
+FROM "print_jobs" AS "p"
+INNER JOIN "product_nodes" AS "p0" ON "p"."ProductId" = "p0"."Id"
+INNER JOIN "printers" AS "p1" ON "p"."PrinterId" = "p1"."Id"
+WHERE "p"."Status" IN ('Completed', 'Cancelled')
+ORDER BY "p"."CompletedAt" DESC
+2026-08-09 09:41:42.339 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:41:42.343 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt"
+FROM "product_nodes" AS "p"
+WHERE "p"."IsLeaf"
+2026-08-09 09:41:43.976 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:41:43.980 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SELECT "a"."Id", "a"."CreatedAt", "a"."Details", "a"."EventType", "a"."JobId", "a"."PrinterId", "a"."ProductId"
+FROM "audit_log" AS "a"
+ORDER BY "a"."CreatedAt" DESC
+LIMIT @__p_0
+2026-08-09 09:41:44.798 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:41:47.094 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:41:47.442 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CodesConfirmed", "p"."CompletedAt", "p"."CreatedAt", "p"."PrinterId", "p"."ProductId", "p"."Quantity", "p"."StartedAt", "p"."Status", "p"."TotalBaseline", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt", "p1"."Id", "p1"."AdapterType", "p1"."CreatedAt", "p1"."IpAddress", "p1"."IsActive", "p1"."Model", "p1"."Name", "p1"."Port", "p1"."UpdatedAt"
+FROM "print_jobs" AS "p"
+INNER JOIN "product_nodes" AS "p0" ON "p"."ProductId" = "p0"."Id"
+INNER JOIN "printers" AS "p1" ON "p"."PrinterId" = "p1"."Id"
+WHERE "p"."Status" IN ('Preparing', 'Ready', 'Printing')
+ORDER BY "p"."CreatedAt" DESC
+2026-08-09 09:41:47.444 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CodesConfirmed", "p"."CompletedAt", "p"."CreatedAt", "p"."PrinterId", "p"."ProductId", "p"."Quantity", "p"."StartedAt", "p"."Status", "p"."TotalBaseline", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt", "p1"."Id", "p1"."AdapterType", "p1"."CreatedAt", "p1"."IpAddress", "p1"."IsActive", "p1"."Model", "p1"."Name", "p1"."Port", "p1"."UpdatedAt"
+FROM "print_jobs" AS "p"
+INNER JOIN "product_nodes" AS "p0" ON "p"."ProductId" = "p0"."Id"
+INNER JOIN "printers" AS "p1" ON "p"."PrinterId" = "p1"."Id"
+WHERE "p"."Status" IN ('Completed', 'Cancelled')
+ORDER BY "p"."CompletedAt" DESC
+2026-08-09 09:41:47.445 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:41:47.446 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt"
+FROM "product_nodes" AS "p"
+WHERE "p"."IsLeaf"
+2026-08-09 09:41:47.753 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:41:49.667 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:41:59.225 +04:00 [INF] Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = DateTime), @p1='?' (Size = 4), @p2='?' (DbType = Int32), @p3='?', @p4='?', @p5='?' (DbType = DateTime)], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO "product_nodes" ("CreatedAt", "Name", "ParentId", "PrinterCsvName", "TemplateFile", "UpdatedAt")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+RETURNING "Id", "IsLeaf";
+2026-08-09 09:41:59.310 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:42:09.545 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[@p0='?' (DbType = DateTime), @p1='?' (Size = 6), @p2='?' (DbType = Int32), @p3='?', @p4='?', @p5='?' (DbType = DateTime)], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO "product_nodes" ("CreatedAt", "Name", "ParentId", "PrinterCsvName", "TemplateFile", "UpdatedAt")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+RETURNING "Id", "IsLeaf";
+2026-08-09 09:42:09.563 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:42:17.368 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:42:17.368 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SELECT "a"."Id", "a"."CreatedAt", "a"."Details", "a"."EventType", "a"."JobId", "a"."PrinterId", "a"."ProductId"
+FROM "audit_log" AS "a"
+ORDER BY "a"."CreatedAt" DESC
+LIMIT @__p_0
+2026-08-09 09:42:18.273 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:42:29.860 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[@p0='?' (DbType = DateTime), @p1='?' (Size = 8), @p2='?' (DbType = Int32), @p3='?', @p4='?', @p5='?' (DbType = DateTime)], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO "product_nodes" ("CreatedAt", "Name", "ParentId", "PrinterCsvName", "TemplateFile", "UpdatedAt")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+RETURNING "Id", "IsLeaf";
+2026-08-09 09:42:29.882 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:42:53.609 +04:00 [INF] Application is shutting down...
+2026-08-09 09:53:09.361 +04:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-08-09 09:53:09.401 +04:00 [INF] Hosting environment: Production
+2026-08-09 09:53:09.402 +04:00 [INF] Content root path: C:\Users\Vahe\CascadeProjects\datamatrix-print-service
+2026-08-09 09:53:10.525 +04:00 [INF] Executed DbCommand (13ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 09:53:10.536 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2026-08-09 09:53:10.552 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-08-09 09:53:10.571 +04:00 [INF] No migrations were applied. The database is already up to date.
+2026-08-09 09:53:10.837 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:53:11.179 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:53:11.309 +04:00 [INF] Executed DbCommand (3ms) [Parameters=[@__p_0='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SELECT "a"."Id", "a"."CreatedAt", "a"."Details", "a"."EventType", "a"."JobId", "a"."PrinterId", "a"."ProductId"
+FROM "audit_log" AS "a"
+ORDER BY "a"."CreatedAt" DESC
+LIMIT @__p_0
+2026-08-09 09:53:15.540 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:53:29.906 +04:00 [INF] Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = DateTime), @p1='?' (DbType = Boolean), @p2='?' (Size = 5), @p3='?' (DbType = Int32), @p4='?', @p5='?', @p6='?' (DbType = DateTime)], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO "product_nodes" ("CreatedAt", "IsLeaf", "Name", "ParentId", "PrinterCsvName", "TemplateFile", "UpdatedAt")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6)
+RETURNING "Id";
+2026-08-09 09:53:30.024 +04:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."CreatedAt", "p"."IsLeaf", "p"."Name", "p"."ParentId", "p"."PrinterCsvName", "p"."TemplateFile", "p"."UpdatedAt", "p0"."Id", "p0"."CreatedAt", "p0"."IsLeaf", "p0"."Name", "p0"."ParentId", "p0"."PrinterCsvName", "p0"."TemplateFile", "p0"."UpdatedAt"
+FROM "product_nodes" AS "p"
+LEFT JOIN "product_nodes" AS "p0" ON "p"."Id" = "p0"."ParentId"
+WHERE "p"."ParentId" IS NULL
+ORDER BY "p"."Name", "p"."Id"
+2026-08-09 09:53:32.933 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[@__productId_0='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SELECT "c"."Status", "c"."Id", "c"."CodeText", "c"."CreatedAt", "c"."ImportBatch", "c"."ImportOrder", "c"."JobId", "c"."ProductId", "c"."StatusChangedAt"
+FROM "codes" AS "c"
+WHERE "c"."ProductId" = @__productId_0
+ORDER BY "c"."Status"
+2026-08-09 09:53:32.946 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[@__SelectedProduct_Id_0='?' (DbType = Int32), @__p_1='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SELECT "a"."Id", "a"."CreatedAt", "a"."Details", "a"."EventType", "a"."JobId", "a"."PrinterId", "a"."ProductId"
+FROM "audit_log" AS "a"
+WHERE "a"."EventType" = 'import' AND "a"."ProductId" = @__SelectedProduct_Id_0
+ORDER BY "a"."CreatedAt" DESC
+LIMIT @__p_1
+2026-08-09 09:54:07.735 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:54:26.235 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[@p0='?' (Size = 10), @p1='?' (DbType = DateTime), @p2='?' (Size = 3), @p3='?', @p4='?' (Size = 9), @p5='?' (DbType = Int32), @p6='?' (DbType = DateTime)], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO "printers" ("AdapterType", "CreatedAt", "IpAddress", "Model", "Name", "Port", "UpdatedAt")
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6)
+RETURNING "Id", "IsActive";
+2026-08-09 09:54:26.261 +04:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "p"."Id", "p"."AdapterType", "p"."CreatedAt", "p"."IpAddress", "p"."IsActive", "p"."Model", "p"."Name", "p"."Port", "p"."UpdatedAt"
+FROM "printers" AS "p"
+2026-08-09 09:54:38.976 +04:00 [WRN] Failed to connect to 192:9100
+System.Net.Sockets.SocketException (10051): A socket operation was attempted to an unreachable network.
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource.GetResult(Int16 token)
+   at System.Net.Sockets.TcpClient.CompleteConnectAsync(ValueTask task)
+   at CodePrintManager.Printer.Savema.SavemaTtoAdapter.ConnectAsync(String host, Int32 port, CancellationToken ct) in C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\SavemaTtoAdapter.cs:line 35
+2026-08-09 09:54:40.027 +04:00 [WRN] Failed to connect to 192:9100
+System.Net.Sockets.SocketException (10051): A socket operation was attempted to an unreachable network.
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.ThrowException(SocketError error, CancellationToken cancellationToken)
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource.GetResult(Int16 token)
+   at System.Net.Sockets.Socket.<ConnectAsync>g__WaitForConnectWithCancellation|285_0(AwaitableSocketAsyncEventArgs saea, ValueTask connectTask, CancellationToken cancellationToken)
+   at System.Net.Sockets.TcpClient.CompleteConnectAsync(ValueTask task)
+   at CodePrintManager.Printer.Savema.SavemaTtoAdapter.ConnectAsync(String host, Int32 port, CancellationToken ct) in C:\Users\Vahe\CascadeProjects\datamatrix-print-service\application\src\Printers\CodePrintManager.Printer.Savema\SavemaTtoAdapter.cs:line 35
+2026-08-09 09:54:43.144 +04:00 [INF] Application is shutting down...
