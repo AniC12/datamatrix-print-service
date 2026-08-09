@@ -3,6 +3,7 @@ using CodePrintManager.Application.Services;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
+using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,7 @@ public partial class PrintersViewModel : ObservableObject
 {
     private readonly AppDbContext _db;
     private readonly PrinterConnectionManager _connectionManager;
+    private readonly IAuditService _audit;
 
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
 
@@ -48,10 +50,11 @@ public partial class PrintersViewModel : ObservableObject
 
     public event EventHandler<int>? NavigateToNewJobRequested;
 
-    public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager)
+    public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit)
     {
         _db = db;
         _connectionManager = connectionManager;
+        _audit = audit;
         _connectionManager.PrinterStatusChanged += (_, e) =>
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -163,8 +166,12 @@ public partial class PrintersViewModel : ObservableObject
 
             foreach (var t in templates)
             {
-                var mapped = products.FirstOrDefault(p => p.TemplateFile == t);
+                // Compare by filename only — TemplateFile may be a full path
+                var mapped = products.FirstOrDefault(p =>
+                    !string.IsNullOrEmpty(p.TemplateFile) &&
+                    string.Equals(System.IO.Path.GetFileName(p.TemplateFile), t, StringComparison.OrdinalIgnoreCase));
                 var item = new PrinterFileItem(t, mapped?.Name);
+                if (mapped == null) item.IsSelected = true;
                 item.PropertyChanged += (_, _) => UpdateDeleteCount();
                 TemplateFiles.Add(item);
             }
@@ -173,9 +180,9 @@ public partial class PrintersViewModel : ObservableObject
             var dataFiles = await adapter.ListCsvFilesAsync();
             foreach (var d in dataFiles)
             {
-                var mapped = products.FirstOrDefault(p => p.PrinterCsvName == d);
+                var mapped = products.FirstOrDefault(p =>
+                    string.Equals(p.PrinterCsvName, d, StringComparison.OrdinalIgnoreCase));
                 var item = new PrinterFileItem(d, mapped?.Name);
-                // Pre-select orphaned files
                 if (mapped == null) item.IsSelected = true;
                 item.PropertyChanged += (_, _) => UpdateDeleteCount();
                 CsvFiles.Add(item);
@@ -201,12 +208,27 @@ public partial class PrintersViewModel : ObservableObject
         var adapter = _connectionManager.GetAdapter(SelectedPrinter.Id);
         if (adapter == null) return;
 
-        foreach (var f in CsvFiles.Where(f => f.IsSelected).ToList())
+        var deletedFiles = new List<string>();
+
+        foreach (var f in TemplateFiles.Where(f => f.IsSelected && !f.IsMapped).ToList())
         {
-            await adapter.DeleteCsvAsync(f.FileName);
+            if (await adapter.DeleteTemplateAsync(f.FileName))
+                deletedFiles.Add($"template:{f.FileName}");
         }
 
-        // Templates can't easily be deleted via SPPL in many cases, but attempt it
+        foreach (var f in CsvFiles.Where(f => f.IsSelected && !f.IsMapped).ToList())
+        {
+            if (await adapter.DeleteCsvAsync(f.FileName))
+                deletedFiles.Add($"csv:{f.FileName}");
+        }
+
+        if (deletedFiles.Count > 0)
+        {
+            await _audit.LogAsync("printer_files_deleted",
+                printerId: SelectedPrinter.Id,
+                details: $"Deleted {deletedFiles.Count} file(s): {string.Join(", ", deletedFiles)}");
+        }
+
         await RefreshStorageAsync();
     }
 

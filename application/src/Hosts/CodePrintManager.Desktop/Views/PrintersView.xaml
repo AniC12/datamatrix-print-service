@@ -131,7 +131,15 @@
                                   CanUserAddRows="False" IsReadOnly="False" HeadersVisibility="Column"
                                   Margin="0,0,0,16">
                             <DataGrid.Columns>
-                                <DataGridCheckBoxColumn Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" Width="40" />
+                                <DataGridTemplateColumn Width="40">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding IsMapped, Converter={StaticResource InverseBoolConverter}}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Name" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />
                                 <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="200" IsReadOnly="True" />
                             </DataGrid.Columns>
@@ -143,7 +151,15 @@
                                   CanUserAddRows="False" IsReadOnly="False" HeadersVisibility="Column"
                                   Margin="0,0,0,16">
                             <DataGrid.Columns>
-                                <DataGridCheckBoxColumn Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" Width="40" />
+                                <DataGridTemplateColumn Width="40">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding IsMapped, Converter={StaticResource InverseBoolConverter}}"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Name" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />
                                 <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="200" IsReadOnly="True" />
                             </DataGrid.Columns>
