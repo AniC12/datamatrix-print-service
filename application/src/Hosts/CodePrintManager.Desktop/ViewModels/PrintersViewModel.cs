@@ -42,6 +42,8 @@ public partial class PrintersViewModel : ObservableObject
     [ObservableProperty]
     private string _newPrinterAdapterType = "savema_tto";
 
+    public List<string> AvailableAdapterTypes { get; private set; } = new() { "savema_tto" };
+
     [ObservableProperty]
     private bool _isAddingPrinter;
 
@@ -74,6 +76,12 @@ public partial class PrintersViewModel : ObservableObject
         _audit = audit;
         _adapterFactory = adapterFactory;
         _logger = logger;
+
+        // Build available adapter types from registered factory
+        AvailableAdapterTypes = adapterFactory is MockPrinterAdapterFactory
+            ? new List<string> { "mock", "savema_tto" }
+            : new List<string> { "savema_tto", "mock" };
+
         _connectionManager.PrinterStatusChanged += (_, e) =>
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>

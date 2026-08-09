@@ -54,7 +54,9 @@
                 <TextBlock Text="Port" Margin="0,0,0,2" />
                 <TextBox Text="{Binding NewPrinterPort, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
                 <TextBlock Text="Adapter Type" Margin="0,0,0,2" />
-                <TextBox Text="{Binding NewPrinterAdapterType, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+                <ComboBox ItemsSource="{Binding AvailableAdapterTypes}"
+                          SelectedItem="{Binding NewPrinterAdapterType}"
+                          Margin="0,0,0,12" />
                 <StackPanel Orientation="Horizontal">
                     <Button Content="Add" Command="{Binding ConfirmAddPrinterCommand}"
                             Style="{StaticResource PrimaryButton}" Padding="16,6" Margin="0,0,8,0" />
