@@ -8,6 +8,7 @@ public interface IPrintJobService
     Task PrepareJobAsync(int jobId, CancellationToken ct = default, IProgress<string>? progress = null);
     Task StartJobAsync(int jobId, CancellationToken ct = default);
     Task CancelJobAsync(int jobId);
+    Task PauseJobAsync(int jobId);
     Task<List<PrintJob>> GetActiveJobsAsync();
     Task<List<PrintJob>> GetJobHistoryAsync(int? printerId = null, int? productId = null);
     Task<List<PrintJob>> GetStaleJobsAsync();

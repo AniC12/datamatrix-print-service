@@ -31,12 +31,12 @@ public class PrintJobConfiguration : IEntityTypeConfiguration<PrintJob>
 
         // Concurrency guard: at most one active job per printer
         builder.HasIndex(e => e.PrinterId)
-            .HasFilter("[Status] IN ('Preparing', 'Ready', 'Printing')")
+            .HasFilter("[Status] IN ('Preparing', 'Ready', 'Printing', 'Paused')")
             .IsUnique();
 
         // Concurrency guard: at most one active job per product
         builder.HasIndex(e => e.ProductId)
-            .HasFilter("[Status] IN ('Preparing', 'Ready', 'Printing')")
+            .HasFilter("[Status] IN ('Preparing', 'Ready', 'Printing', 'Paused')")
             .IsUnique();
     }
 }

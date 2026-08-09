@@ -190,9 +190,19 @@ public partial class JobsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void PauseJob()
+    private async Task PauseJobAsync()
     {
-        // Placeholder — will be wired in E6-3 (Pause/Resume support)
+        if (SelectedJob == null || SelectedJob.Status != JobStatus.Printing) return;
+        await _printJobService.PauseJobAsync(SelectedJob.Id);
+        await LoadJobsAsync();
+    }
+
+    [RelayCommand]
+    private async Task ResumeJobAsync()
+    {
+        if (SelectedJob == null || SelectedJob.Status != JobStatus.Paused) return;
+        await _printJobService.ResumeJobAsync(SelectedJob.Id);
+        await LoadJobsAsync();
     }
 
     [RelayCommand]

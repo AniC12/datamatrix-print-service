@@ -17,6 +17,7 @@ public class StatusToColorConverter : IValueConverter
             PrinterStatus.Blocked => new SolidColorBrush(Color.FromRgb(255, 193, 7)),
             PrinterStatus.Offline => new SolidColorBrush(Color.FromRgb(108, 117, 125)),
             JobStatus.Printing => new SolidColorBrush(Color.FromRgb(0, 123, 255)),
+            JobStatus.Paused => new SolidColorBrush(Color.FromRgb(255, 152, 0)),
             JobStatus.Ready => new SolidColorBrush(Color.FromRgb(23, 162, 184)),
             JobStatus.Preparing => new SolidColorBrush(Color.FromRgb(255, 193, 7)),
             JobStatus.Completed => new SolidColorBrush(Color.FromRgb(40, 167, 69)),
@@ -91,9 +92,9 @@ public class JobStatusToActionVisibilityConverter : IValueConverter
         var visible = action switch
         {
             "Pause" => status == JobStatus.Printing,
-            "Cancel" => status is JobStatus.Printing or JobStatus.Ready or JobStatus.Preparing,
+            "Resume" => status == JobStatus.Paused,
+            "Cancel" => status is JobStatus.Printing or JobStatus.Ready or JobStatus.Preparing or JobStatus.Paused,
             "StartPrint" => status == JobStatus.Ready,
-            "Resume" => false, // Paused not in Phase 1 enum but reserved
             _ => false
         };
 

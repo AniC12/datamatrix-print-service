@@ -237,6 +237,14 @@ public class PrintJobService : IPrintJobService
                         await _codePool.ReturnCodesToPoolAsync(jobId, finalCounter + 1, job.Quantity - finalCounter - 1);
                 }
             }
+            else if (job.Status == JobStatus.Paused)
+            {
+                // Paused job: codes up to CodesConfirmed are printed, burn +1, return rest
+                if (job.CodesConfirmed < job.Quantity)
+                    await _codePool.BurnCodeAsync(jobId, job.CodesConfirmed);
+                if (job.CodesConfirmed + 1 < job.Quantity)
+                    await _codePool.ReturnCodesToPoolAsync(jobId, job.CodesConfirmed + 1, job.Quantity - job.CodesConfirmed - 1);
+            }
             else if (job.Status is JobStatus.Preparing or JobStatus.Ready)
             {
                 await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity);
@@ -254,6 +262,41 @@ public class PrintJobService : IPrintJobService
         }
     }
 
+    public async Task PauseJobAsync(int jobId)
+    {
+        var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
+
+        if (job.Status != JobStatus.Printing)
+            throw new InvalidOperationException($"Only printing jobs can be paused. Current status: {job.Status}");
+
+        var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
+        await printerLock.WaitAsync();
+        try
+        {
+            // Stop the executor polling loop (but don't destroy progress)
+            if (_jobRegistry.TryGet(jobId, out var executor) && executor != null)
+            {
+                await executor.StopAsync();
+                _jobRegistry.TryRemove(jobId);
+            }
+
+            // Stop the printer
+            var adapter = _connectionManager.GetAdapter(job.PrinterId);
+            if (adapter != null)
+                await adapter.StopPrintAsync();
+
+            job.Status = JobStatus.Paused;
+            await _db.SaveChangesAsync();
+
+            await _audit.LogAsync("job_paused", jobId: jobId, printerId: job.PrinterId);
+            _logger.LogInformation("Job {JobId} paused at {Confirmed}/{Total}", jobId, job.CodesConfirmed, job.Quantity);
+        }
+        finally
+        {
+            printerLock.Release();
+        }
+    }
+
     public async Task<List<PrintJob>> GetActiveJobsAsync()
     {
         return await _db.PrintJobs
@@ -261,7 +304,8 @@ public class PrintJobService : IPrintJobService
             .Include(j => j.Printer)
             .Where(j => j.Status == JobStatus.Preparing
                      || j.Status == JobStatus.Ready
-                     || j.Status == JobStatus.Printing)
+                     || j.Status == JobStatus.Printing
+                     || j.Status == JobStatus.Paused)
             .OrderByDescending(j => j.CreatedAt)
             .ToListAsync();
     }
@@ -288,18 +332,63 @@ public class PrintJobService : IPrintJobService
             .Include(j => j.Printer)
             .Where(j => j.Status == JobStatus.Preparing
                      || j.Status == JobStatus.Ready
-                     || j.Status == JobStatus.Printing)
+                     || j.Status == JobStatus.Printing
+                     || j.Status == JobStatus.Paused)
             .ToListAsync();
     }
 
     public async Task ResumeJobAsync(int jobId, CancellationToken ct = default)
     {
-        var job = await _db.PrintJobs.FindAsync(jobId)
-            ?? throw new InvalidOperationException($"Job {jobId} not found");
+        var job = await _db.PrintJobs
+            .Include(j => j.Printer)
+            .FirstAsync(j => j.Id == jobId);
 
-        if (job.Status == JobStatus.Printing || job.Status == JobStatus.Ready)
+        if (job.Status == JobStatus.Ready)
         {
             await StartJobAsync(jobId, ct);
+            return;
+        }
+
+        if (job.Status != JobStatus.Paused)
+            throw new InvalidOperationException($"Only paused or ready jobs can be resumed. Current status: {job.Status}");
+
+        var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
+        await printerLock.WaitAsync(ct);
+        try
+        {
+            var adapter = _connectionManager.GetAdapter(job.PrinterId)
+                ?? throw new InvalidOperationException("Printer not connected");
+
+            // Set remaining quantity and restart printer
+            var remaining = job.Quantity - job.CodesConfirmed;
+            await adapter.SetPrintQuantityAsync(remaining, ct);
+            await adapter.StartPrintAsync(ct);
+
+            job.Status = JobStatus.Printing;
+            await _db.SaveChangesAsync();
+
+            // Spawn a new executor from current progress
+            var executor = new JobExecutor(job, adapter, _codePool, _alerts, _db, _logger);
+            executor.ProgressChanged += (_, e) =>
+            {
+                _eventBus.RaiseProgressChanged(this, e);
+                JobProgressChanged?.Invoke(this, e);
+            };
+            executor.Completed += (_, e) =>
+            {
+                _jobRegistry.TryRemove(jobId);
+                _eventBus.RaiseCompleted(this, e);
+                JobCompleted?.Invoke(this, e);
+            };
+            _jobRegistry.Register(jobId, executor);
+            executor.Start();
+
+            await _audit.LogAsync("job_resumed", jobId: jobId, printerId: job.PrinterId);
+            _logger.LogInformation("Job {JobId} resumed at {Confirmed}/{Total}", jobId, job.CodesConfirmed, job.Quantity);
+        }
+        finally
+        {
+            printerLock.Release();
         }
     }
 }

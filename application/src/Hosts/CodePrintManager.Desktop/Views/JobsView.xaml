@@ -150,6 +150,9 @@
                                     <Button Content="Pause" Command="{Binding PauseJobCommand}"
                                             Style="{StaticResource OutlineButton}" Padding="14,6" Margin="0,0,8,0"
                                             Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Pause}" />
+                                    <Button Content="Resume" Command="{Binding ResumeJobCommand}"
+                                            Style="{StaticResource PrimaryButton}" Padding="14,6" Margin="0,0,8,0"
+                                            Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Resume}" />
                                     <Button Content="Cancel" Command="{Binding CancelJobCommand}"
                                             Style="{StaticResource DangerButton}" Padding="14,6"
                                             Visibility="{Binding JobDetailStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />

@@ -269,7 +269,7 @@ public partial class PrintersViewModel : ObservableObject
             var activeJob = await _db.PrintJobs
                 .Include(j => j.Product)
                 .Where(j => j.PrinterId == SelectedPrinter.Id &&
-                    (j.Status == JobStatus.Printing || j.Status == JobStatus.Ready || j.Status == JobStatus.Preparing))
+                    (j.Status == JobStatus.Printing || j.Status == JobStatus.Ready || j.Status == JobStatus.Preparing || j.Status == JobStatus.Paused))
                 .OrderByDescending(j => j.CreatedAt)
                 .FirstOrDefaultAsync();
 

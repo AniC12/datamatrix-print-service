@@ -64,18 +64,21 @@ public partial class DashboardViewModel : ObservableObject
             var card = new Components.PrinterCardViewModel(p, latestJob);
             card.StartPrintRequested += OnStartPrintRequested;
             card.CancelJobRequested += OnCancelJobRequested;
+            card.PauseJobRequested += OnPauseJobRequested;
+            card.ResumeJobRequested += OnResumeJobRequested;
             card.CardClicked += OnCardClicked;
             PrinterCards.Add(card);
         }
 
-        // Sort: active jobs first (Printing, Error, Ready), then completed
+        // Sort: active jobs first (Printing, Paused, Error, Ready), then completed
         var sorted = PrinterCards.OrderBy(c => c.JobStatus switch
         {
             JobStatus.Printing => 0,
-            JobStatus.Error => 1,
-            JobStatus.Ready => 2,
-            JobStatus.Preparing => 3,
-            _ => 4
+            JobStatus.Paused => 1,
+            JobStatus.Error => 2,
+            JobStatus.Ready => 3,
+            JobStatus.Preparing => 4,
+            _ => 5
         }).ToList();
 
         PrinterCards.Clear();
@@ -111,6 +114,26 @@ public partial class DashboardViewModel : ObservableObject
         try
         {
             await _printJobService.CancelJobAsync(jobId);
+            await RefreshAsync();
+        }
+        catch { /* Alert service will handle errors */ }
+    }
+
+    private async void OnPauseJobRequested(object? sender, int jobId)
+    {
+        try
+        {
+            await _printJobService.PauseJobAsync(jobId);
+            await RefreshAsync();
+        }
+        catch { /* Alert service will handle errors */ }
+    }
+
+    private async void OnResumeJobRequested(object? sender, int jobId)
+    {
+        try
+        {
+            await _printJobService.ResumeJobAsync(jobId);
             await RefreshAsync();
         }
         catch { /* Alert service will handle errors */ }

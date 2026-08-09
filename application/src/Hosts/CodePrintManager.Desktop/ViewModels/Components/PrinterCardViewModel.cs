@@ -53,6 +53,7 @@ public partial class PrinterCardViewModel : ObservableObject
     public event EventHandler<int>? StartPrintRequested;
     public event EventHandler<int>? CancelJobRequested;
     public event EventHandler<int>? PauseJobRequested;
+    public event EventHandler<int>? ResumeJobRequested;
     public event EventHandler<int>? CardClicked;
 
     public PrinterCardViewModel(PrinterEntity printer, PrintJob? currentJob = null)
@@ -76,7 +77,8 @@ public partial class PrinterCardViewModel : ObservableObject
         HasJob = true;
         IsActive = job.Status is Domain.Enums.JobStatus.Printing
             or Domain.Enums.JobStatus.Ready
-            or Domain.Enums.JobStatus.Preparing;
+            or Domain.Enums.JobStatus.Preparing
+            or Domain.Enums.JobStatus.Paused;
 
         UpdateDerivedProperties();
         UpdateSummaryText(job.Status);
@@ -89,7 +91,8 @@ public partial class PrinterCardViewModel : ObservableObject
     {
         IsActive = value is Domain.Enums.JobStatus.Printing
             or Domain.Enums.JobStatus.Ready
-            or Domain.Enums.JobStatus.Preparing;
+            or Domain.Enums.JobStatus.Preparing
+            or Domain.Enums.JobStatus.Paused;
         UpdateSummaryText(value);
     }
 
@@ -112,6 +115,7 @@ public partial class PrinterCardViewModel : ObservableObject
         JobSummaryText = status switch
         {
             Domain.Enums.JobStatus.Ready => "Prepared, waiting to start",
+            Domain.Enums.JobStatus.Paused => $"Paused at {CurrentJobProgress}/{CurrentJobTotal}",
             Domain.Enums.JobStatus.Completed => $"Completed {CompletedAt:MMM d HH:mm}",
             Domain.Enums.JobStatus.Cancelled => $"Cancelled {CompletedAt:MMM d HH:mm}",
             Domain.Enums.JobStatus.Error => "Error occurred",
@@ -138,6 +142,13 @@ public partial class PrinterCardViewModel : ObservableObject
     {
         if (JobId.HasValue)
             PauseJobRequested?.Invoke(this, JobId.Value);
+    }
+
+    [RelayCommand]
+    private void ResumeJob()
+    {
+        if (JobId.HasValue)
+            ResumeJobRequested?.Invoke(this, JobId.Value);
     }
 
     [RelayCommand]

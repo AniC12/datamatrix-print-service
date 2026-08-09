@@ -82,7 +82,7 @@ public class ProductService : IProductService
         // Check for active jobs on this product
         var hasActiveJobs = await _db.PrintJobs
             .AnyAsync(j => j.ProductId == id &&
-                (j.Status == JobStatus.Preparing || j.Status == JobStatus.Ready || j.Status == JobStatus.Printing));
+                (j.Status == JobStatus.Preparing || j.Status == JobStatus.Ready || j.Status == JobStatus.Printing || j.Status == JobStatus.Paused));
         if (hasActiveJobs) return false;
 
         // Check for reserved codes
