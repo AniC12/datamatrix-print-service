@@ -18,7 +18,7 @@ public partial class ProductsViewModel : ObservableObject
     private readonly ILogger<ProductsViewModel> _logger;
 
     public ObservableCollection<ProductNode> Products { get; } = new();
-    public ObservableCollection<ImportHistoryItem> ImportHistory { get; } = new();
+    public ObservableCollection<ActivityHistoryItem> ActivityHistory { get; } = new();
 
     [ObservableProperty]
     private ProductNode? _selectedProduct;
@@ -56,6 +56,21 @@ public partial class ProductsViewModel : ObservableObject
 
     [ObservableProperty]
     private string _deleteBlockedReason = string.Empty;
+
+    /// <summary>Hint text showing where new nodes will be added.</summary>
+    [ObservableProperty]
+    private string _addTargetHint = "Root";
+
+    /// <summary>True when the selected leaf has available codes to print.</summary>
+    [ObservableProperty]
+    private bool _canCreateNewJob;
+
+    // Rename fields
+    [ObservableProperty]
+    private string _editName = string.Empty;
+
+    [ObservableProperty]
+    private bool _isRenaming;
 
     public event EventHandler<int>? NavigateToNewJobRequested;
 
@@ -199,7 +214,7 @@ public partial class ProductsViewModel : ObservableObject
         await _codePoolService.ImportCodesAsync(SelectedProduct.Id, batchName, codes);
         _logger.LogInformation("Products: Import complete for Product {Id}", SelectedProduct.Id);
         await RefreshCodeCountsAsync();
-        await LoadImportHistoryAsync();
+        await LoadActivityHistoryAsync();
     }
 
     [RelayCommand]
@@ -230,16 +245,68 @@ public partial class ProductsViewModel : ObservableObject
     [RelayCommand]
     private void NewJob()
     {
-        if (SelectedProduct?.IsLeaf == true)
+        if (SelectedProduct?.IsLeaf == true && CanCreateNewJob)
             NavigateToNewJobRequested?.Invoke(this, SelectedProduct.Id);
+    }
+
+    [RelayCommand]
+    private void ShowRename()
+    {
+        if (SelectedProduct == null) return;
+        EditName = SelectedProduct.Name;
+        IsRenaming = true;
+        _logger.LogInformation("Products: Rename started for '{Name}' (Id={Id})", SelectedProduct.Name, SelectedProduct.Id);
+    }
+
+    [RelayCommand]
+    private void CancelRename()
+    {
+        IsRenaming = false;
+        EditName = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmRenameAsync()
+    {
+        if (SelectedProduct == null || string.IsNullOrWhiteSpace(EditName)) return;
+
+        var trimmed = EditName.Trim();
+        if (trimmed == SelectedProduct.Name)
+        {
+            IsRenaming = false;
+            return;
+        }
+
+        _logger.LogInformation("Products: Renaming Id={Id} from '{Old}' to '{New}'",
+            SelectedProduct.Id, SelectedProduct.Name, trimmed);
+        SelectedProduct.Name = trimmed;
+        SelectedProduct.UpdatedAt = DateTime.UtcNow;
+        await _productService.UpdateAsync(SelectedProduct);
+        IsRenaming = false;
+        EditName = string.Empty;
+        OnPropertyChanged(nameof(SelectedProduct));
+        await LoadProductsAsync();
     }
 
     partial void OnSelectedProductChanged(ProductNode? value)
     {
         if (value != null)
             _logger.LogInformation("Product selected: '{Name}' (Id={Id}, IsLeaf={IsLeaf})", value.Name, value.Id, value.IsLeaf);
+
+        // Update the "adding to" hint
+        if (value == null)
+            AddTargetHint = "Root";
+        else if (!value.IsLeaf)
+            AddTargetHint = value.Name;
+        else
+            AddTargetHint = value.Parent?.Name ?? "Root";
+
+        // Close any open rename form on selection change
+        IsRenaming = false;
+        EditName = string.Empty;
+
         _ = RefreshCodeCountsAsync();
-        _ = LoadImportHistoryAsync();
+        _ = LoadActivityHistoryAsync();
         _ = CheckCanDeleteAsync();
     }
 
@@ -265,6 +332,7 @@ public partial class ProductsViewModel : ObservableObject
             PrintedCodesCount = 0;
             BurnedCodesCount = 0;
             TotalCodesCount = 0;
+            CanCreateNewJob = false;
             return;
         }
 
@@ -273,34 +341,77 @@ public partial class ProductsViewModel : ObservableObject
         PrintedCodesCount = stats.GetValueOrDefault(CodeStatus.Printed, 0);
         BurnedCodesCount = stats.GetValueOrDefault(CodeStatus.Burned, 0);
         TotalCodesCount = stats.Values.Sum();
+        CanCreateNewJob = AvailableCodesCount > 0;
         _logger.LogInformation("Product '{Name}' pool: Available={Avail}, Printed={Printed}, Burned={Burned}, Total={Total}",
             SelectedProduct.Name, AvailableCodesCount, PrintedCodesCount, BurnedCodesCount, TotalCodesCount);
     }
 
-    private async Task LoadImportHistoryAsync()
+    private async Task LoadActivityHistoryAsync()
     {
-        ImportHistory.Clear();
+        ActivityHistory.Clear();
         if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;
 
+        // Import events from audit log
         var imports = await _db.AuditLog
             .Where(a => a.EventType == "import" && a.ProductId == SelectedProduct.Id)
             .OrderByDescending(a => a.CreatedAt)
             .Take(20)
+            .Select(a => new ActivityHistoryItem
+            {
+                Date = a.CreatedAt,
+                Type = ActivityType.Import,
+                Description = a.Details ?? "Imported codes"
+            })
             .ToListAsync();
 
-        foreach (var entry in imports)
-            ImportHistory.Add(new ImportHistoryItem(entry));
+        // Jobs that actually printed at least one code
+        var jobs = await _db.PrintJobs
+            .Where(j => j.ProductId == SelectedProduct.Id &&
+                (j.Status == JobStatus.Completed || j.Status == JobStatus.Cancelled || j.Status == JobStatus.Error) &&
+                j.CodesConfirmed > 0)
+            .OrderByDescending(j => j.CompletedAt ?? j.CreatedAt)
+            .Take(20)
+            .Select(j => new ActivityHistoryItem
+            {
+                Date = j.CompletedAt ?? j.CreatedAt,
+                Type = j.Status == JobStatus.Completed ? ActivityType.JobCompleted :
+                       j.Status == JobStatus.Cancelled ? ActivityType.JobCancelled :
+                       ActivityType.JobError,
+                Description = $"Job #{j.Id} {j.Status.ToString().ToLower()} \u2014 {j.CodesConfirmed}/{j.Quantity} printed"
+            })
+            .ToListAsync();
+
+        // Merge and sort by date descending, take 20
+        var merged = imports.Concat(jobs)
+            .OrderByDescending(h => h.Date)
+            .Take(20);
+
+        foreach (var item in merged)
+            ActivityHistory.Add(item);
     }
 }
 
-public class ImportHistoryItem
-{
-    public string Date { get; }
-    public string Details { get; }
+public enum ActivityType { Import, JobCompleted, JobCancelled, JobError }
 
-    public ImportHistoryItem(AuditEntry entry)
+public class ActivityHistoryItem
+{
+    public DateTime Date { get; init; }
+    public ActivityType Type { get; init; }
+    public string Description { get; init; } = string.Empty;
+
+    public string DateText => Date.ToLocalTime().ToString("MMM dd HH:mm");
+
+    public System.Windows.Media.Brush TypeBrush => Type switch
     {
-        Date = entry.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd");
-        Details = entry.Details ?? "imported codes";
-    }
+        ActivityType.Import => new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3182CE")),
+        ActivityType.JobCompleted => new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#38A169")),
+        ActivityType.JobCancelled => new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#DD6B20")),
+        ActivityType.JobError => new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E53E3E")),
+        _ => new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#718096"))
+    };
 }

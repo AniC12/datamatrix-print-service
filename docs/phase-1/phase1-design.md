@@ -594,33 +594,57 @@ Key behaviors:
 
 ### 6.3 Products Screen
 
+Two-tab detail pane: **Operations** (daily workflow) and **Settings** (configuration). Tree toolbar for adding nodes.
+
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  PRODUCTS                               [+ Add Folder] [+ Add Product]│
+│  PRODUCTS                                                          │
 ├────────────────────┬─────────────────────────────────────────────┤
+│  [+F] [+P]        │  APPLE 0.5L                                  │
 │                    │                                               │
-│  ▼ Juice           │  APPLE 0.5L                                  │
-│    ▼ Apple         │                                               │
-│      ● 0.5L  ←    │  Template:  apple_05_template.rox  [Change]  │
-│      ● 1.0L       │  CSV Name:  apple_05.csv                     │
-│    ► Orange        │                                               │
-│  ► Water           │  Code Pool:                                   │
-│  ► Milk            │    Available: 8,300                           │
-│                    │    Printed:   1,700                           │
-│                    │    Burned:    3                                │
-│                    │    Total:     10,003                          │
-│                    │                                               │
+│  ▼ Juice           │  [Operations]  [Settings]                    │
+│    ▼ Apple         │  ──────────────────────────────────────────  │
+│      ● 0.5L  ←    │                                               │
+│      ● 1.0L       │  Code Pool:                                   │
+│    ▼ Orange        │    Available: 8,300                           │
+│  ▼ Water           │    Printed:   1,700                           │
+│    ● Still 0.5L    │    Burned:    3                               │
+│  ▼ Milk            │    Total:     10,003                          │
+│    ● 1.0L          │                                               │
 │                    │  [Import CSV...]  [+ New Job]                 │
 │                    │                                               │
-│                    │  Import History:                              │
-│                    │    2026-08-06  gold_0.5_10000.csv (10,000)   │
+│                    │  History:                                     │
+│                    │    Aug 10  Job #52 completed — 500/500        │
+│                    │    Aug 09  Imported 10,000 — gold_0.5.csv     │
+│                    │    Aug 08  Job #48 cancelled — 200/500        │
+│                    │    Aug 06  Imported 5,000 — batch_aug6.csv    │
+│                    │                                               │
+└────────────────────┴─────────────────────────────────────────────┘
+```
+
+```
+┌────────────────────┬─────────────────────────────────────────────┐
+│                    │  [Operations]  [Settings]                    │
+│  (tree unchanged)  │  ──────────────────────────────────────────  │
+│                    │                                               │
+│                    │  Template:  apple_05_template.rox  [Change]  │
+│                    │  CSV Name:  [apple_05.csv       ]  [Save]   │
+│                    │                                               │
+│                    │  ─── Danger Zone ────────────────────────    │
+│                    │  [Delete Product]                            │
 │                    │                                               │
 └────────────────────┴─────────────────────────────────────────────┘
 ```
 
 Key behaviors:
-- **[+ New Job]** — opens New Job screen with this product preselected
-- Rest unchanged: tree navigation, template assignment, code pool stats, CSV import with global dedup
+- **Tree** always expanded by default. Toolbar: [+F] = add folder, [+P] = add product (relative to selection; click empty space to deselect and add at root).
+- **Operations tab** (default): code pool stats, [Import CSV...], [+ New Job], unified activity history (imports + job outcomes merged chronologically, newest first).
+- **Settings tab**: template file path + [Change], printer CSV name + [Save], [Delete Product] in a danger zone at the bottom.
+- **[+ New Job]** — opens New Job screen with this product preselected.
+- **History** — merged timeline: imports (blue), completed (green), cancelled (orange), error (red). Max 20 entries.
+- **Delete** — blocked if product has active jobs or reserved codes; confirmation dialog required.
+
+> See `products-page-design.md` for full button-by-button specification, validation rules, and unit test coverage.
 
 ### 6.4 Printers Screen
 

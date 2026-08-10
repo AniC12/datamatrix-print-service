@@ -238,36 +238,39 @@ The first screen you see when opening the application. It is the active monitori
 
 ### 7.2 Products
 
-A split-panel screen for managing your product catalog:
+A split-panel screen for managing your product catalog. The detail pane has two tabs: **Operations** (daily use) and **Settings** (configuration).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  PRODUCTS                      [+ Add Folder] [+ Add Product]   │
+│  PRODUCTS                                                        │
 ├───────────────────┬─────────────────────────────────────────────┤
-│                   │                                             │
-│  ▼ Juice          │  APPLE 0.5L                                 │
-│    ▼ Apple        │                                             │
-│      ● 0.5L  ←    │  Template:  apple_05_template.rox  [Change] │
-│      ● 1.0L       │  CSV Name:  apple_05.csv                    │
-│    ► Orange       │                                             │
-│  ► Water          │  Code Pool:                                 │
-│  ► Milk           │    Available: 8,300                         │
-│                   │    Printed:   1,700                         │
-│                   │    Burned:    3                             │
-│                   │    Total:     10,003                        │
-│                   │                                             │
-│                   │  [Import CSV...]  [+ New Job]               │
-│                   │                                             │
-│                   │  Import History:                            │
-│                   │    2026-08-06  gold_0.5_10000.csv (10,000)  │
-│                   │                                             │
+│  [+F] [+P]       │  APPLE 0.5L                                  │
+│                   │                                              │
+│  ▼ Juice          │  [Operations]  [Settings]                    │
+│    ▼ Apple        │  ─────────────────────────────────────────── │
+│      ● 0.5L  ←    │                                              │
+│      ● 1.0L       │  Code Pool:                                  │
+│    ▼ Orange       │    Available: 8,300                          │
+│  ▼ Water          │    Printed:   1,700                          │
+│    ● Still 0.5L   │    Burned:    3                              │
+│  ▼ Milk           │    Total:     10,003                         │
+│    ● 1.0L         │                                              │
+│                   │  [Import CSV...]  [+ New Job]                │
+│                   │                                              │
+│                   │  History:                                    │
+│                   │    Aug 10  Job #52 completed — 500/500       │
+│                   │    Aug 09  Imported 10,000 — gold_0.5.csv    │
+│                   │    Aug 08  Job #48 cancelled — 200/500       │
+│                   │    Aug 06  Imported 5,000 — batch_aug6.csv   │
+│                   │                                              │
 └───────────────────┴─────────────────────────────────────────────┘
 ```
 
-- **Left side** — the product tree; expand/collapse folders, click a product to see details
-- **Right side** — selected product's template, data file name, code pool statistics, import button, and import history
+- **Left side** — the product tree (always expanded by default). Icon toolbar at top: [+F] adds a folder, [+P] adds a product. Adding is relative to the selected node; click empty space to deselect and add at root.
+- **Right side — Operations tab** (default): code pool statistics, [Import CSV...], [+ New Job], and a merged activity history showing both imports and print jobs chronologically.
+- **Right side — Settings tab**: template file + [Change], printer CSV name + [Save], and [Delete Product] as a danger-zone action at the bottom.
 - **[+ New Job]** button — opens the New Job screen with this product preselected
-- **Add Folder / Add Product** buttons at the top to build out the hierarchy
+- **History** — unified timeline of imports (blue) and job outcomes: completed (green), cancelled (orange), error (red)
 
 When importing codes, the system validates the file and checks for duplicates across all products. Duplicate codes are rejected with a clear message.
 

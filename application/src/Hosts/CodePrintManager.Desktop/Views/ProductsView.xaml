@@ -14,15 +14,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <DockPanel Grid.Row="0" Margin="0,0,0,12">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Content="+ Add Folder" Command="{Binding ShowAddFolderCommand}"
-                        Style="{StaticResource OutlineButton}" Margin="0,0,8,0" />
-                <Button Content="+ Add Product" Command="{Binding ShowAddProductCommand}"
-                        Style="{StaticResource OutlineButton}" />
-            </StackPanel>
-            <TextBlock Text="PRODUCTS" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
-        </DockPanel>
+        <TextBlock Grid.Row="0" Text="PRODUCTS" Style="{StaticResource PageHeader}" Margin="0,0,0,12" />
 
         <!-- Split panel -->
         <Grid Grid.Row="1">
@@ -31,9 +23,24 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Left: Product Tree -->
+            <!-- Left: Tree Panel -->
             <DockPanel Grid.Column="0" Margin="0,0,12,0">
-                <!-- Add Folder/Product inline form -->
+
+                <!-- Toolbar: [+F] [+P] -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
+                    <Button Content="+ Folder" Command="{Binding ShowAddFolderCommand}"
+                            Style="{StaticResource OutlineButton}" Padding="8,4" Margin="0,0,6,0" FontSize="11" />
+                    <Button Content="+ Product" Command="{Binding ShowAddProductCommand}"
+                            Style="{StaticResource OutlineButton}" Padding="8,4" FontSize="11" />
+                </StackPanel>
+
+                <!-- "Adding to" hint -->
+                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" FontSize="11" Opacity="0.6">
+                    <Run Text="Adding to: " />
+                    <Run Text="{Binding AddTargetHint}" FontWeight="SemiBold" />
+                </TextBlock>
+
+                <!-- Add Folder inline form -->
                 <Border DockPanel.Dock="Top" Margin="0,0,0,8"
                         Visibility="{Binding IsAddingFolder, Converter={StaticResource BoolToVisibilityConverter}}"
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
@@ -49,6 +56,7 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Add Product inline form -->
                 <Border DockPanel.Dock="Top" Margin="0,0,0,8"
                         Visibility="{Binding IsAddingProduct, Converter={StaticResource BoolToVisibilityConverter}}"
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
@@ -73,8 +81,15 @@
                     </StackPanel>
                 </Border>
 
-                <TreeView ItemsSource="{Binding Products}"
-                          SelectedItemChanged="OnTreeSelectionChanged">
+                <!-- Product Tree (always expanded) -->
+                <TreeView x:Name="ProductTree" ItemsSource="{Binding Products}"
+                          SelectedItemChanged="OnTreeSelectionChanged"
+                          MouseDown="OnTreeBackgroundClick">
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="True" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
                     <TreeView.ItemTemplate>
                         <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                             <TextBlock Text="{Binding Name}" />
@@ -83,91 +98,185 @@
                 </TreeView>
             </DockPanel>
 
-            <!-- Right: Product Details -->
-            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="4,0,0,0"
-                            Visibility="{Binding SelectedProduct, Converter={StaticResource NullToVisibilityConverter}}">
+            <!-- Right: Detail Pane with Tabs -->
+            <Grid Grid.Column="1">
+                <!-- Product selected -->
+                <StackPanel Visibility="{Binding SelectedProduct, Converter={StaticResource NullToVisibilityConverter}}">
                     <TextBlock Text="{Binding SelectedProduct.Name}" FontSize="18" FontWeight="Bold" />
                     <Separator Margin="0,8,0,12" />
 
-                    <!-- Template info (leaf only) -->
-                    <StackPanel Visibility="{Binding SelectedProduct.IsLeaf, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <Grid Margin="0,0,0,4">
+                    <!-- Leaf product: show tabs -->
+                    <TabControl Visibility="{Binding SelectedProduct.IsLeaf, Converter={StaticResource BoolToVisibilityConverter}}"
+                                BorderThickness="0,1,0,0" Padding="0,12,0,0">
+
+                        <!-- Operations Tab -->
+                        <TabItem Header="Operations">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <!-- Code Pool Stats -->
+                                    <TextBlock Text="Code Pool:" Style="{StaticResource SectionHeader}" Margin="0,0,0,8" />
+                                    <Grid Margin="16,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="100" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition />
+                                            <RowDefinition />
+                                            <RowDefinition />
+                                            <RowDefinition />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Available:" />
+                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AvailableCodesCount}" FontWeight="Bold" />
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Printed:" />
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PrintedCodesCount}" FontWeight="Bold" />
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Burned:" />
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BurnedCodesCount}" FontWeight="Bold" />
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Total:" />
+                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TotalCodesCount}" FontWeight="Bold" />
+                                    </Grid>
+
+                                    <!-- Action buttons -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                        <Button Content="Import CSV..." Command="{Binding ImportCsvCommand}"
+                                                Style="{StaticResource OutlineButton}" Margin="0,0,8,0" />
+                                        <Button Content="+ New Job" Command="{Binding NewJobCommand}"
+                                                IsEnabled="{Binding CanCreateNewJob}"
+                                                ToolTip="{Binding AvailableCodesCount, StringFormat='Available: {0}'}"
+                                                Style="{StaticResource PrimaryButton}" />
+                                    </StackPanel>
+
+                                    <!-- Activity History (merged imports + jobs) -->
+                                    <TextBlock Text="History:" Style="{StaticResource SectionHeader}" />
+                                    <ItemsControl ItemsSource="{Binding ActivityHistory}" Margin="8,0,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,3">
+                                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                             Fill="{Binding TypeBrush}" />
+                                                    <TextBlock VerticalAlignment="Center">
+                                                        <Run Text="{Binding DateText, Mode=OneTime}" FontWeight="SemiBold" Foreground="#4A5568" />
+                                                        <Run Text="  " />
+                                                        <Run Text="{Binding Description, Mode=OneTime}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- Settings Tab -->
+                        <TabItem Header="Settings">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <!-- Rename -->
+                                    <TextBlock Text="Name:" Style="{StaticResource SectionHeader}" Margin="0,0,0,8" />
+                                    <Grid Margin="16,0,0,0"
+                                          Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding SelectedProduct.Name}" VerticalAlignment="Center"
+                                                   FontWeight="SemiBold" />
+                                        <Button Grid.Column="1" Content="Rename" Command="{Binding ShowRenameCommand}"
+                                                Style="{StaticResource OutlineButton}" Padding="8,4" Margin="8,0,0,0" FontSize="11" />
+                                    </Grid>
+                                    <Grid Margin="16,0,0,0"
+                                          Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
+                                                 VerticalAlignment="Center" Padding="2" />
+                                        <Button Grid.Column="1" Content="Save" Command="{Binding ConfirmRenameCommand}"
+                                                Style="{StaticResource PrimaryButton}" Padding="8,4" Margin="8,0,4,0" FontSize="11" />
+                                        <Button Grid.Column="2" Content="Cancel" Command="{Binding CancelRenameCommand}"
+                                                Style="{StaticResource OutlineButton}" Padding="8,4" FontSize="11" />
+                                    </Grid>
+
+                                    <!-- Template -->
+                                    <TextBlock Text="Template File:" Style="{StaticResource SectionHeader}" Margin="0,12,0,8" />
+                                    <Grid Margin="16,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding SelectedProduct.TemplateFile, TargetNullValue='(not set)'}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Opacity="0.8" />
+                                        <Button Grid.Column="1" Content="Change" Command="{Binding ChangeTemplateCommand}"
+                                                Style="{StaticResource OutlineButton}" Padding="8,4" Margin="8,0,0,0" FontSize="11" />
+                                    </Grid>
+
+                                    <!-- CSV Name -->
+                                    <TextBlock Text="Printer CSV Name:" Style="{StaticResource SectionHeader}" Margin="0,12,0,8" />
+                                    <Grid Margin="16,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding SelectedProduct.PrinterCsvName, UpdateSourceTrigger=LostFocus}"
+                                                 VerticalAlignment="Center" BorderThickness="0,0,0,1" Padding="2" />
+                                        <Button Grid.Column="1" Content="Save" Command="{Binding SaveCsvNameCommand}"
+                                                Style="{StaticResource OutlineButton}" Padding="8,4" Margin="8,0,0,0" FontSize="11" />
+                                    </Grid>
+
+                                    <!-- Danger Zone -->
+                                    <Separator Margin="0,24,0,0" />
+                                    <TextBlock Text="Danger Zone" Foreground="#E53E3E" FontWeight="SemiBold"
+                                               FontSize="13" Margin="0,12,0,8" />
+                                    <Button Content="Delete Product" Command="{Binding DeleteProductCommand}"
+                                            IsEnabled="{Binding CanDeleteSelectedProduct}"
+                                            ToolTip="{Binding DeleteBlockedReason}"
+                                            Style="{StaticResource DangerButton}" Padding="12,6"
+                                            HorizontalAlignment="Left" />
+                                    <TextBlock Text="{Binding DeleteBlockedReason}" Foreground="#E53E3E"
+                                               FontSize="11" Margin="0,4,0,0" Opacity="0.8"
+                                               Visibility="{Binding DeleteBlockedReason, Converter={StaticResource NullToVisibilityConverter}}" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+
+                    <!-- Folder selected (non-leaf): show rename + info -->
+                    <StackPanel Visibility="{Binding SelectedProduct.IsLeaf, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}">
+                        <!-- Folder Rename -->
+                        <TextBlock Text="Name:" Style="{StaticResource SectionHeader}" Margin="0,0,0,8" />
+                        <Grid Margin="16,0,0,0"
+                              Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Template:" Opacity="0.6" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedProduct.TemplateFile, TargetNullValue='(not set)'}"
-                                       FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                            <Button Grid.Column="2" Content="Change" Command="{Binding ChangeTemplateCommand}"
-                                    Style="{StaticResource OutlineButton}" Padding="8,2" Margin="8,0,0,0" FontSize="11" />
+                            <TextBlock Text="{Binding SelectedProduct.Name}" VerticalAlignment="Center"
+                                       FontWeight="SemiBold" />
+                            <Button Grid.Column="1" Content="Rename" Command="{Binding ShowRenameCommand}"
+                                    Style="{StaticResource OutlineButton}" Padding="8,4" Margin="8,0,0,0" FontSize="11" />
                         </Grid>
-                        <Grid Margin="0,0,0,12">
+                        <Grid Margin="16,0,0,0"
+                              Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="CSV Name:" Opacity="0.6" VerticalAlignment="Center" />
-                            <TextBox Grid.Column="1" Text="{Binding SelectedProduct.PrinterCsvName, UpdateSourceTrigger=LostFocus}"
-                                     FontWeight="SemiBold" VerticalAlignment="Center" BorderThickness="0,0,0,1" Padding="2" />
-                            <Button Grid.Column="2" Content="Save" Command="{Binding SaveCsvNameCommand}"
-                                    Style="{StaticResource OutlineButton}" Padding="8,2" Margin="8,0,0,0" FontSize="11" />
+                            <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
+                                     VerticalAlignment="Center" Padding="2" />
+                            <Button Grid.Column="1" Content="Save" Command="{Binding ConfirmRenameCommand}"
+                                    Style="{StaticResource PrimaryButton}" Padding="8,4" Margin="8,0,4,0" FontSize="11" />
+                            <Button Grid.Column="2" Content="Cancel" Command="{Binding CancelRenameCommand}"
+                                    Style="{StaticResource OutlineButton}" Padding="8,4" FontSize="11" />
                         </Grid>
 
-                        <!-- Code Pool -->
-                        <TextBlock Text="Code Pool:" Style="{StaticResource SectionHeader}" Margin="0,4,0,8" />
-                        <Grid Margin="16,0,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="100" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition />
-                                <RowDefinition />
-                                <RowDefinition />
-                                <RowDefinition />
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Available:" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AvailableCodesCount}" FontWeight="Bold" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Printed:" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PrintedCodesCount}" FontWeight="Bold" />
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Burned:" />
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BurnedCodesCount}" FontWeight="Bold" />
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Total:" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TotalCodesCount}" FontWeight="Bold" />
-                        </Grid>
-
-                        <!-- Action buttons -->
-                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                            <Button Content="Import CSV..." Command="{Binding ImportCsvCommand}"
-                                    Style="{StaticResource OutlineButton}" Margin="0,0,8,0" />
-                            <Button Content="+ New Job" Command="{Binding NewJobCommand}"
-                                    Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
-                            <Button Content="Delete" Command="{Binding DeleteProductCommand}"
-                                    IsEnabled="{Binding CanDeleteSelectedProduct}"
-                                    ToolTip="{Binding DeleteBlockedReason}"
-                                    Style="{StaticResource DangerButton}" Padding="10,4" />
-                        </StackPanel>
-
-                        <!-- Import History -->
-                        <TextBlock Text="Import History:" Style="{StaticResource SectionHeader}" />
-                        <ItemsControl ItemsSource="{Binding ImportHistory}" Margin="16,0,0,0">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Margin="0,2" Opacity="0.8">
-                                        <Run Text="{Binding Date, Mode=OneTime}" FontWeight="SemiBold" />
-                                        <Run Text="  " />
-                                        <Run Text="{Binding Details, Mode=OneTime}" />
-                                    </TextBlock>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <Separator Margin="0,12,0,8" />
+                        <TextBlock Text="This is a folder. Select a product to see details." Opacity="0.6" FontStyle="Italic" />
                     </StackPanel>
                 </StackPanel>
-            </ScrollViewer>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>
