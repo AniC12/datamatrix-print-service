@@ -72,48 +72,101 @@
             <!-- Configuration Tab -->
             <TabItem Header="Configuration">
                 <StackPanel Margin="12">
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Name:" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.Name}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="IP Address:" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.IpAddress}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Port:" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.Port}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Adapter:" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.AdapterType}" />
-                    </Grid>
+                    <!-- Read-only view (not editing) -->
+                    <StackPanel Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}">
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Name:" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.Name}" />
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="IP Address:" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.IpAddress}" />
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Port:" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.Port}" />
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Adapter:" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.AdapterType}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Edit view (editing) -->
+                    <StackPanel Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="250" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Name:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding EditPrinterName, UpdateSourceTrigger=PropertyChanged}" />
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="250" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="IP Address:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding EditPrinterIp, UpdateSourceTrigger=PropertyChanged}" />
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="250" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Port:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding EditPrinterPort, UpdateSourceTrigger=PropertyChanged}" />
+                        </Grid>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Adapter:" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.AdapterType}" />
+                        </Grid>
+                    </StackPanel>
 
                     <Separator Margin="0,12" />
 
                     <StackPanel Orientation="Horizontal">
+                        <!-- Normal mode buttons -->
                         <Button Content="Connect" Command="{Binding ConnectPrinterCommand}"
-                                Style="{StaticResource PrimaryButton}" Padding="12,6" Margin="0,0,8,0" />
+                                Style="{StaticResource PrimaryButton}" Padding="12,6" Margin="0,0,8,0"
+                                Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
                         <Button Content="Disconnect" Command="{Binding DisconnectPrinterCommand}"
-                                Style="{StaticResource OutlineButton}" Padding="12,6" Margin="0,0,8,0" />
+                                Style="{StaticResource OutlineButton}" Padding="12,6" Margin="0,0,8,0"
+                                Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
+                        <Button Content="Edit" Command="{Binding EditPrinterCommand}"
+                                Style="{StaticResource OutlineButton}" Padding="12,6" Margin="0,0,8,0"
+                                Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
                         <Button Content="Delete Printer" Command="{Binding DeletePrinterCommand}"
-                                Style="{StaticResource DangerButton}" Padding="12,6" />
+                                Style="{StaticResource DangerButton}" Padding="12,6"
+                                Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
+                        <!-- Edit mode buttons -->
+                        <Button Content="Save" Command="{Binding SaveEditPrinterCommand}"
+                                Style="{StaticResource PrimaryButton}" Padding="12,6" Margin="0,0,8,0"
+                                Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <Button Content="Cancel" Command="{Binding CancelEditPrinterCommand}"
+                                Style="{StaticResource OutlineButton}" Padding="12,6"
+                                Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                 </StackPanel>
             </TabItem>
@@ -137,7 +190,7 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                                      IsEnabled="{Binding IsMapped, Converter={StaticResource InverseBoolConverter}}"
+                                                      IsEnabled="{Binding IsProtected, Converter={StaticResource InverseBoolConverter}}"
                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -157,7 +210,7 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                                      IsEnabled="{Binding IsMapped, Converter={StaticResource InverseBoolConverter}}"
+                                                      IsEnabled="{Binding IsProtected, Converter={StaticResource InverseBoolConverter}}"
                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>

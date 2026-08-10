@@ -24,16 +24,29 @@ public partial class PrintersViewModel : ObservableObject
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectPrinterCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DisconnectPrinterCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshStorageCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(VerifyPrinterCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NewJobCommand))]
     private PrinterEntity? _selectedPrinter;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectPrinterCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DisconnectPrinterCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshStorageCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NewJobCommand))]
     private PrinterStatus _selectedPrinterStatus = PrinterStatus.Offline;
 
     // Configuration fields
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmAddPrinterCommand))]
     private string _newPrinterName = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmAddPrinterCommand))]
     private string _newPrinterIp = string.Empty;
 
     [ObservableProperty]
@@ -46,6 +59,19 @@ public partial class PrintersViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isAddingPrinter;
+
+    // Edit mode fields
+    [ObservableProperty]
+    private bool _isEditingPrinter;
+
+    [ObservableProperty]
+    private string _editPrinterName = string.Empty;
+
+    [ObservableProperty]
+    private string _editPrinterIp = string.Empty;
+
+    [ObservableProperty]
+    private int _editPrinterPort = 9100;
 
     // Storage tab
     public ObservableCollection<PrinterFileItem> TemplateFiles { get; } = new();
@@ -109,12 +135,32 @@ public partial class PrintersViewModel : ObservableObject
     partial void OnSelectedPrinterChanged(PrinterEntity? value)
     {
         if (value == null) return;
-        // Update status from connection manager
-        var adapter = _connectionManager.GetAdapter(value.Id);
-        SelectedPrinterStatus = adapter != null ? PrinterStatus.Idle : PrinterStatus.Offline;
+        _ = OnPrinterSelectedAsync(value);
+    }
+
+    private async Task OnPrinterSelectedAsync(PrinterEntity printer)
+    {
+        // Query actual printer status instead of assuming Idle
+        var adapter = _connectionManager.GetAdapter(printer.Id);
+        if (adapter != null)
+        {
+            try
+            {
+                SelectedPrinterStatus = await adapter.GetStatusAsync();
+            }
+            catch
+            {
+                SelectedPrinterStatus = PrinterStatus.Idle;
+            }
+        }
+        else
+        {
+            SelectedPrinterStatus = PrinterStatus.Offline;
+        }
+
         _logger.LogInformation("Printer selected: '{Name}' (Id={Id}, Status={Status})",
-            value.Name, value.Id, SelectedPrinterStatus);
-        _ = RefreshStorageAsync();
+            printer.Name, printer.Id, SelectedPrinterStatus);
+        await RefreshStorageAsync();
     }
 
     [RelayCommand]
@@ -138,12 +184,12 @@ public partial class PrintersViewModel : ObservableObject
             SelectedPrinter = Printers[0];
     }
 
-    [RelayCommand]
+    private bool CanConfirmAddPrinter()
+        => !string.IsNullOrWhiteSpace(NewPrinterName) && !string.IsNullOrWhiteSpace(NewPrinterIp);
+
+    [RelayCommand(CanExecute = nameof(CanConfirmAddPrinter))]
     private async Task ConfirmAddPrinterAsync()
     {
-        if (string.IsNullOrWhiteSpace(NewPrinterName) || string.IsNullOrWhiteSpace(NewPrinterIp))
-            return;
-
         var printer = new PrinterEntity
         {
             Name = NewPrinterName.Trim(),
@@ -159,9 +205,14 @@ public partial class PrintersViewModel : ObservableObject
         IsAddingPrinter = false;
         await LoadPrintersAsync();
         SelectedPrinter = Printers.FirstOrDefault(p => p.Id == printer.Id);
+
+        // Auto-connect the newly added printer
+        _ = _connectionManager.ConnectAsync(printer);
     }
 
-    [RelayCommand]
+    private bool CanConnectPrinter() => SelectedPrinter != null && SelectedPrinterStatus == PrinterStatus.Offline;
+
+    [RelayCommand(CanExecute = nameof(CanConnectPrinter))]
     private async Task ConnectPrinterAsync()
     {
         if (SelectedPrinter == null) return;
@@ -169,28 +220,119 @@ public partial class PrintersViewModel : ObservableObject
         await _connectionManager.ConnectAsync(SelectedPrinter);
     }
 
-    [RelayCommand]
+    private bool CanDisconnectPrinter() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+
+    [RelayCommand(CanExecute = nameof(CanDisconnectPrinter))]
     private async Task DisconnectPrinterAsync()
     {
         if (SelectedPrinter == null) return;
+
+        // Warn if printer has active jobs
+        var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused };
+        var hasActiveJobs = await _db.PrintJobs
+            .AnyAsync(j => j.PrinterId == SelectedPrinter.Id && activeStatuses.Contains(j.Status));
+        if (hasActiveJobs)
+        {
+            var result = System.Windows.MessageBox.Show(
+                $"Printer \"{SelectedPrinter.Name}\" has active jobs.\n\nDisconnecting may interrupt printing. Continue?",
+                "Active Jobs Warning",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+            if (result != System.Windows.MessageBoxResult.Yes) return;
+        }
+
         _logger.LogInformation("Printers: Disconnect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
         SelectedPrinterStatus = PrinterStatus.Offline;
     }
 
     [RelayCommand]
+    private void EditPrinter()
+    {
+        if (SelectedPrinter == null) return;
+        EditPrinterName = SelectedPrinter.Name;
+        EditPrinterIp = SelectedPrinter.IpAddress;
+        EditPrinterPort = SelectedPrinter.Port;
+        IsEditingPrinter = true;
+        _logger.LogDebug("Printers: Edit mode opened for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
+    }
+
+    [RelayCommand]
+    private void CancelEditPrinter()
+    {
+        IsEditingPrinter = false;
+        _logger.LogDebug("Printers: Edit mode cancelled");
+    }
+
+    [RelayCommand]
+    private async Task SaveEditPrinterAsync()
+    {
+        if (SelectedPrinter == null) return;
+        if (string.IsNullOrWhiteSpace(EditPrinterName) || string.IsNullOrWhiteSpace(EditPrinterIp))
+            return;
+
+        var oldName = SelectedPrinter.Name;
+        SelectedPrinter.Name = EditPrinterName.Trim();
+        SelectedPrinter.IpAddress = EditPrinterIp.Trim();
+        SelectedPrinter.Port = EditPrinterPort;
+        SelectedPrinter.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Printers: Printer updated '{OldName}' → '{NewName}' ({Ip}:{Port})",
+            oldName, SelectedPrinter.Name, SelectedPrinter.IpAddress, SelectedPrinter.Port);
+        await _audit.LogAsync("printer_updated",
+            printerId: SelectedPrinter.Id,
+            details: $"Updated printer: \"{SelectedPrinter.Name}\" ({SelectedPrinter.IpAddress}:{SelectedPrinter.Port})");
+
+        IsEditingPrinter = false;
+
+        // Refresh the list to reflect updated name in the dropdown
+        var selectedId = SelectedPrinter.Id;
+        await LoadPrintersAsync();
+        SelectedPrinter = Printers.FirstOrDefault(p => p.Id == selectedId);
+    }
+
+    [RelayCommand]
     private async Task DeletePrinterAsync()
     {
         if (SelectedPrinter == null) return;
+
+        // Block deletion if printer has active jobs
+        var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused };
+        var hasActiveJobs = await _db.PrintJobs
+            .AnyAsync(j => j.PrinterId == SelectedPrinter.Id && activeStatuses.Contains(j.Status));
+        if (hasActiveJobs)
+        {
+            System.Windows.MessageBox.Show(
+                $"Cannot delete \"{SelectedPrinter.Name}\" because it has active jobs.\n\nCancel or complete all jobs on this printer first.",
+                "Printer In Use",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"Are you sure you want to delete \"{SelectedPrinter.Name}\"?\n\nJob history referencing this printer will be preserved but the printer will no longer be available.",
+            "Confirm Delete",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes) return;
+
         _logger.LogInformation("Printers: Printer deleted '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
         _db.Printers.Remove(SelectedPrinter);
         await _db.SaveChangesAsync();
+        await _audit.LogAsync("printer_deleted",
+            printerId: SelectedPrinter.Id,
+            details: $"Deleted printer \"{SelectedPrinter.Name}\" ({SelectedPrinter.IpAddress}:{SelectedPrinter.Port})");
         SelectedPrinter = null;
         await LoadPrintersAsync();
     }
 
-    [RelayCommand]
+    private bool CanRefreshStorage() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+
+    [RelayCommand(CanExecute = nameof(CanRefreshStorage))]
     private async Task RefreshStorageAsync()
     {
         TemplateFiles.Clear();
@@ -204,8 +346,9 @@ public partial class PrintersViewModel : ObservableObject
 
         try
         {
-            // Get templates from printer
+            // Get templates from printer + the currently active template
             var templates = await adapter.ListTemplatesAsync();
+            var activeTemplateName = await adapter.GetActiveTemplateAsync();
             var products = await _db.ProductNodes.Where(p => p.IsLeaf).ToListAsync();
 
             foreach (var t in templates)
@@ -214,8 +357,10 @@ public partial class PrintersViewModel : ObservableObject
                 var mapped = products.FirstOrDefault(p =>
                     !string.IsNullOrEmpty(p.TemplateFile) &&
                     string.Equals(System.IO.Path.GetFileName(p.TemplateFile), t, StringComparison.OrdinalIgnoreCase));
-                var item = new PrinterFileItem(t, mapped?.Name);
-                if (mapped == null) item.IsSelected = true;
+                var isActive = activeTemplateName != null &&
+                    string.Equals(activeTemplateName, t, StringComparison.OrdinalIgnoreCase);
+                var item = new PrinterFileItem(t, mapped?.Name, isActiveOnPrinter: isActive);
+                if (!item.IsProtected) item.IsSelected = true;
                 item.PropertyChanged += (_, _) => UpdateDeleteCount();
                 TemplateFiles.Add(item);
             }
@@ -247,22 +392,36 @@ public partial class PrintersViewModel : ObservableObject
         SelectedDeleteCount = TemplateFiles.Count(f => f.IsSelected) + CsvFiles.Count(f => f.IsSelected);
     }
 
-    [RelayCommand]
+    private bool CanDeleteSelectedFiles() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+
+    [RelayCommand(CanExecute = nameof(CanDeleteSelectedFiles))]
     private async Task DeleteSelectedFilesAsync()
     {
         if (SelectedPrinter == null) return;
         var adapter = _connectionManager.GetAdapter(SelectedPrinter.Id);
         if (adapter == null) return;
 
+        var deleteCount = TemplateFiles.Count(f => f.IsSelected && !f.IsProtected)
+                        + CsvFiles.Count(f => f.IsSelected && !f.IsProtected);
+        if (deleteCount == 0) return;
+
+        var result = System.Windows.MessageBox.Show(
+            $"Delete {deleteCount} file(s) from \"{SelectedPrinter.Name}\"?\n\nThis cannot be undone.",
+            "Confirm Delete",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes) return;
+
         var deletedFiles = new List<string>();
 
-        foreach (var f in TemplateFiles.Where(f => f.IsSelected && !f.IsMapped).ToList())
+        foreach (var f in TemplateFiles.Where(f => f.IsSelected && !f.IsProtected).ToList())
         {
             if (await adapter.DeleteTemplateAsync(f.FileName))
                 deletedFiles.Add($"template:{f.FileName}");
         }
 
-        foreach (var f in CsvFiles.Where(f => f.IsSelected && !f.IsMapped).ToList())
+        foreach (var f in CsvFiles.Where(f => f.IsSelected && !f.IsProtected).ToList())
         {
             if (await adapter.DeleteCsvAsync(f.FileName))
                 deletedFiles.Add($"csv:{f.FileName}");
@@ -280,7 +439,9 @@ public partial class PrintersViewModel : ObservableObject
         await RefreshStorageAsync();
     }
 
-    [RelayCommand]
+    private bool CanVerifyPrinter() => SelectedPrinter != null;
+
+    [RelayCommand(CanExecute = nameof(CanVerifyPrinter))]
     private async Task VerifyPrinterAsync()
     {
         if (SelectedPrinter == null) return;
@@ -335,9 +496,9 @@ public partial class PrintersViewModel : ObservableObject
             var activeTemplate = await adapter.GetActiveTemplateAsync();
             if (activeJob?.Product?.TemplateFile != null)
             {
-                var expectedName = System.IO.Path.GetFileNameWithoutExtension(activeJob.Product.TemplateFile);
+                var expectedName = System.IO.Path.GetFileName(activeJob.Product.TemplateFile);
                 var matches = activeTemplate != null &&
-                    (activeTemplate.Contains(expectedName, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(activeTemplate, expectedName, StringComparison.OrdinalIgnoreCase);
                 VerifyResults.Add(matches
                     ? new VerifyResultItem("Active Template", VerifyStatus.Pass,
                         $"\"{activeTemplate}\" matches expected")
@@ -424,7 +585,9 @@ public partial class PrintersViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    private bool CanNewJob() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+
+    [RelayCommand(CanExecute = nameof(CanNewJob))]
     private void NewJob()
     {
         if (SelectedPrinter != null)
@@ -436,16 +599,21 @@ public partial class PrinterFileItem : ObservableObject
 {
     public string FileName { get; }
     public string? MappedProduct { get; }
+    public bool IsActiveOnPrinter { get; }
     public bool IsMapped => MappedProduct != null;
-    public string StatusText => IsMapped ? $"Used ({MappedProduct})" : "Not mapped to any product";
+    public bool IsProtected => IsMapped || IsActiveOnPrinter;
+    public string StatusText => IsActiveOnPrinter
+        ? "Active on printer"
+        : IsMapped ? $"Used ({MappedProduct})" : "Not mapped to any product";
 
     [ObservableProperty]
     private bool _isSelected;
 
-    public PrinterFileItem(string fileName, string? mappedProduct)
+    public PrinterFileItem(string fileName, string? mappedProduct, bool isActiveOnPrinter = false)
     {
         FileName = fileName;
         MappedProduct = mappedProduct;
+        IsActiveOnPrinter = isActiveOnPrinter;
     }
 }
 
