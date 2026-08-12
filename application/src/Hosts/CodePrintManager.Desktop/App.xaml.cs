@@ -70,6 +70,9 @@ public partial class App : System.Windows.Application
                     services.AddSingleton<IPrinterAdapterFactory, SavemaAdapterFactory>();
                 }
 
+                // Services
+                services.AddSingleton<IDialogService, WpfDialogService>();
+
                 // ViewModels
                 services.AddTransient<MainViewModel>();
                 services.AddTransient<DashboardViewModel>();

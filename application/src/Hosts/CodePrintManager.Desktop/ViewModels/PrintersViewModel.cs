@@ -19,6 +19,7 @@ public partial class PrintersViewModel : ObservableObject
     private readonly PrinterConnectionManager _connectionManager;
     private readonly IAuditService _audit;
     private readonly IPrinterAdapterFactory _adapterFactory;
+    private readonly IDialogService _dialog;
     private readonly ILogger<PrintersViewModel> _logger;
 
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
@@ -95,12 +96,13 @@ public partial class PrintersViewModel : ObservableObject
     public event EventHandler<int>? NavigateToNewJobRequested;
 
     public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit,
-        IPrinterAdapterFactory adapterFactory, ILogger<PrintersViewModel> logger)
+        IPrinterAdapterFactory adapterFactory, IDialogService dialog, ILogger<PrintersViewModel> logger)
     {
         _db = db;
         _connectionManager = connectionManager;
         _audit = audit;
         _adapterFactory = adapterFactory;
+        _dialog = dialog;
         _logger = logger;
 
         // Build available adapter types from registered factory
@@ -110,11 +112,20 @@ public partial class PrintersViewModel : ObservableObject
 
         _connectionManager.PrinterStatusChanged += (_, e) =>
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            var app = System.Windows.Application.Current;
+            if (app != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    if (SelectedPrinter?.Id == e.PrinterId)
+                        SelectedPrinterStatus = e.NewStatus;
+                });
+            }
+            else
             {
                 if (SelectedPrinter?.Id == e.PrinterId)
                     SelectedPrinterStatus = e.NewStatus;
-            });
+            }
         };
     }
 
@@ -233,12 +244,10 @@ public partial class PrintersViewModel : ObservableObject
             .AnyAsync(j => j.PrinterId == SelectedPrinter.Id && activeStatuses.Contains(j.Status));
         if (hasActiveJobs)
         {
-            var result = System.Windows.MessageBox.Show(
+            if (!_dialog.Confirm(
                 $"Printer \"{SelectedPrinter.Name}\" has active jobs.\n\nDisconnecting may interrupt printing. Continue?",
-                "Active Jobs Warning",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning);
-            if (result != System.Windows.MessageBoxResult.Yes) return;
+                "Active Jobs Warning"))
+                return;
         }
 
         _logger.LogInformation("Printers: Disconnect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
@@ -303,21 +312,16 @@ public partial class PrintersViewModel : ObservableObject
             .AnyAsync(j => j.PrinterId == SelectedPrinter.Id && activeStatuses.Contains(j.Status));
         if (hasActiveJobs)
         {
-            System.Windows.MessageBox.Show(
+            _dialog.ShowWarning(
                 $"Cannot delete \"{SelectedPrinter.Name}\" because it has active jobs.\n\nCancel or complete all jobs on this printer first.",
-                "Printer In Use",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning);
+                "Printer In Use");
             return;
         }
 
-        var result = System.Windows.MessageBox.Show(
+        if (!_dialog.Confirm(
             $"Are you sure you want to delete \"{SelectedPrinter.Name}\"?\n\nJob history referencing this printer will be preserved but the printer will no longer be available.",
-            "Confirm Delete",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Warning);
-
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+            "Confirm Delete"))
+            return;
 
         _logger.LogInformation("Printers: Printer deleted '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
@@ -405,13 +409,10 @@ public partial class PrintersViewModel : ObservableObject
                         + CsvFiles.Count(f => f.IsSelected && !f.IsProtected);
         if (deleteCount == 0) return;
 
-        var result = System.Windows.MessageBox.Show(
+        if (!_dialog.Confirm(
             $"Delete {deleteCount} file(s) from \"{SelectedPrinter.Name}\"?\n\nThis cannot be undone.",
-            "Confirm Delete",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Warning);
-
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+            "Confirm Delete"))
+            return;
 
         var deletedFiles = new List<string>();
 
