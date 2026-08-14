@@ -188,9 +188,14 @@ public partial class DashboardViewModel : ObservableObject
     private void OnJobCompleted(object? sender, JobCompletedEvent e)
     {
         _logger.LogInformation("Dashboard: Job {JobId} completed", e.JobId);
-        System.Windows.Application.Current.Dispatcher.Invoke(async () =>
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            await RefreshAsync();
+            var card = PrinterCards.FirstOrDefault(c => c.JobId == e.JobId);
+            if (card != null)
+            {
+                card.JobStatus = e.FinalStatus;
+                card.Status = PrinterStatus.Idle;
+            }
         });
     }
 }

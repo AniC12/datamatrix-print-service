@@ -32,6 +32,52 @@ logger = logging.getLogger("simulator")
 # SPPL command pattern: ~COMMAND{params}^ or ~COMMAND^
 CMD_PATTERN = re.compile(r"~\s*([A-Z0-9]+)(?:\{([^}]*)\})?\^")
 
+# Human-readable command descriptions for log output
+CMD_DESCRIPTIONS: dict[str, str] = {
+    "SPPSTA": "query status",
+    "SPLLTF": "load/activate template",
+    "SPLGAT": "get active template",
+    "SPLGST": "list stored templates",
+    "SPLGFN": "get field names",
+    "SPLGFV": "get field value",
+    "SPLRTF": "upload template (.rox)",
+    "SPLTDS": "upload template (XML)",
+    "SPLDTF": "delete template",
+    "SPLDTA": "delete all templates",
+    "SPMC2D": "modify 2D barcode",
+    "SPMCTV": "modify text value",
+    "SPMCBV": "modify 1D barcode",
+    "SPMCSV": "modify multiple values",
+    "SPLAQD": "append queue data",
+    "SPLGQC": "get queue count",
+    "SPLCQD": "clear queue",
+    "SPLCDB": "clear data buffer",
+    "SPPSAP": "start auto print",
+    "SPPSTP": "stop print",
+    "SPPOTP": "one test print",
+    "SPPSLQ": "set print quantity",
+    "SPPGLQ": "get remaining quantity",
+    "SPLCDF": "upload CSV data",
+    "SPLGSD": "list stored data files",
+    "SPLDDF": "delete data file",
+    "SPLDDA": "delete all data files",
+    "SPGGCP": "get current counter",
+    "SPGGTP": "get total/lifetime counter",
+    "SPGGFV": "get firmware version",
+    "SPGGSN": "get serial number",
+    "SPGGRR": "get remaining ribbon",
+    "SPCGNC": "get network config",
+    "SPGSUM": "send user message",
+    "SPGSLI": "lock interface",
+    "SPGGLI": "get lock state",
+}
+
+
+def cmd_label(cmd: str) -> str:
+    """Return 'COMMAND (description)' for log readability."""
+    desc = CMD_DESCRIPTIONS.get(cmd)
+    return f"{cmd} ({desc})" if desc else cmd
+
 
 def build_response(cmd: str, result: str) -> str:
     """Build an SPGRES response string."""
@@ -75,6 +121,41 @@ class PrinterState:
     output_dir: Path | None = None
     label_count: int = 0
 
+    # Auto-print simulation
+    auto_print_speed: float = 0.5    # seconds per label when RUNNING
+    _print_thread: threading.Thread | None = field(default=None, repr=False)
+    _stop_print: threading.Event = field(default_factory=threading.Event, repr=False)
+
+    def start_auto_print(self) -> None:
+        """Start a background thread that increments counters while RUNNING."""
+        self._stop_print.clear()
+        self._print_thread = threading.Thread(target=self._auto_print_loop, daemon=True)
+        self._print_thread.start()
+
+    def stop_auto_print(self) -> None:
+        """Stop the auto-print thread."""
+        self._stop_print.set()
+        if self._print_thread:
+            self._print_thread.join(timeout=2)
+            self._print_thread = None
+
+    def _auto_print_loop(self) -> None:
+        """Background loop: increment counter until limited_print_count is reached."""
+        while not self._stop_print.is_set():
+            if self.status != "RUNNING":
+                break
+            if self.limited_print_count > 0 and self.current_print_count >= self.limited_print_count:
+                self.status = "WAITING"
+                logger.info("Auto-print finished: %d/%d", self.current_print_count, self.limited_print_count)
+                break
+            self._stop_print.wait(self.auto_print_speed)
+            if self._stop_print.is_set():
+                break
+            self.current_print_count += 1
+            self.total_print_count += 1
+            self.label_count += 1
+            logger.debug("Auto-print: counter=%d/%d", self.current_print_count, self.limited_print_count)
+
     def get_status_response(self) -> str:
         """Build SPPSTA response based on current state."""
         if self.blocked:
@@ -93,41 +174,35 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         server: SPPLSimulator = self.server  # type: ignore[assignment]
         state = server.state
+        logger.info("Client connected: %s", self.client_address[0])
 
         try:
-            data = b""
             while True:
-                chunk = self.request.recv(4096)
-                if not chunk:
-                    break
-                data += chunk
-                # SPPL commands end with ^, check if we have at least one
-                if b"^" in data:
-                    break
+                data = b""
+                while True:
+                    chunk = self.request.recv(4096)
+                    if not chunk:
+                        logger.info("Client disconnected: %s", self.client_address[0])
+                        return
+                    data += chunk
+                    if b"^" in data:
+                        break
+
+                raw = data.decode("utf-8", errors="replace")
+
+                responses = []
+                commands = CMD_PATTERN.findall(raw)
+
+                for cmd_name, params in commands:
+                    resp = self._handle_command(cmd_name, params, state, server)
+                    if resp:
+                        responses.append(resp)
+
+                if responses:
+                    full_response = "".join(responses)
+                    self.request.sendall(full_response.encode("utf-8"))
         except OSError:
-            return
-
-        if not data:
-            return
-
-        raw = data.decode("utf-8", errors="replace")
-        logger.info("Received from %s: %s", self.client_address[0], raw[:200])
-
-        # Find all SPPL commands in the data (supports chained commands with |)
-        # First, normalize: the raw string may use | to separate commands
-        # but they share ~ and ^ framing
-        responses = []
-        commands = CMD_PATTERN.findall(raw)
-
-        for cmd_name, params in commands:
-            resp = self._handle_command(cmd_name, params, state, server)
-            if resp:
-                responses.append(resp)
-
-        if responses:
-            full_response = "".join(responses)
-            self.request.sendall(full_response.encode("utf-8"))
-            logger.info("Sent: %s", full_response[:200])
+            logger.info("Connection closed: %s", self.client_address[0])
 
     def _handle_command(
         self,
@@ -137,21 +212,49 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
         server: SPPLSimulator,
     ) -> str:
         """Process a single SPPL command and return the response string."""
+        label = cmd_label(cmd)
+        param_summary = f" {{{params[:80]}}}" if params else ""
+        logger.info("← RX  %s%s", label, param_summary)
+
+        result = self._dispatch(cmd, params, state, server)
+
+        # Log the response with the same label
+        # Extract just the result payload from the SPGRES wrapper for readability
+        logger.info("→ TX  %s  ⇒  %s", label, result.split(":", 1)[-1].rstrip("}^") if ":" in result else result[:80])
+        return result
+
+    def _dispatch(
+        self,
+        cmd: str,
+        params: str,
+        state: PrinterState,
+        server: SPPLSimulator,
+    ) -> str:
+        """Route a single SPPL command to its handler."""
+
+        # ---- BLOCKED CHECK ----
+        # Per §5.2: when BLOCKED, all commands except SPPSTA return FAIL
+        if state.blocked and cmd != "SPPSTA":
+            logger.warning("  BLOCKED — rejecting")
+            return build_response(cmd, "FAIL")
 
         # ---- STATUS ----
         if cmd == "SPPSTA":
-            logger.info("Status query received")
             return build_response("SPPSTA", state.get_status_response())
 
         # ---- TEMPLATE MANAGEMENT ----
         if cmd == "SPLLTF":
+            # Stop Position only (§5.2)
+            if state.status != "WAITING":
+                logger.warning("  rejected: not in WAITING state (is %s)", state.status)
+                return build_response("SPLLTF", "FAIL")
             template = params.strip()
             if template in state.stored_templates:
                 state.active_template = template
                 state.current_print_count = 0
-                logger.info("Template loaded: %s", template)
+                logger.info("  counter reset to 0, active='%s'", template)
                 return build_response("SPLLTF", "OK")
-            logger.warning("Template not found: %s", template)
+            logger.warning("  template not found: %s", template)
             return build_response("SPLLTF", "FAIL")
 
         if cmd == "SPLGAT":
@@ -176,7 +279,6 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
             if len(parts) == 2:
                 field_name, value = parts[0].strip(), parts[1].strip()
                 state.field_values[field_name] = value
-                logger.info("2D barcode '%s' set to: %s", field_name, value[:60])
                 return build_response("SPMC2D", "OK")
             return build_response("SPMC2D", "FAIL")
 
@@ -185,7 +287,6 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
             if len(parts) == 2:
                 field_name, value = parts[0].strip(), parts[1].strip()
                 state.field_values[field_name] = value
-                logger.info("Text '%s' set to: %s", field_name, value[:60])
                 return build_response("SPMCTV", "OK")
             return build_response("SPMCTV", "FAIL")
 
@@ -194,7 +295,6 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
             if len(parts) == 2:
                 field_name, value = parts[0].strip(), parts[1].strip()
                 state.field_values[field_name] = value
-                logger.info("Barcode '%s' set to: %s", field_name, value[:60])
                 return build_response("SPMCBV", "OK")
             return build_response("SPMCBV", "FAIL")
 
@@ -206,7 +306,6 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
                     fname = parts[i].strip()
                     fval = parts[i + 1].strip()
                     state.field_values[fname] = fval
-                    logger.info("Field '%s' set to: %s", fname, fval[:60])
                 return build_response("SPMCSV", "OK")
             return build_response("SPMCSV", "FAIL")
 
@@ -219,10 +318,8 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
                 if field_name not in state.queues:
                     state.queues[field_name] = []
                 state.queues[field_name].extend(values)
-                logger.info(
-                    "Queued %d values for '%s' (total: %d)",
-                    len(values), field_name, len(state.queues[field_name]),
-                )
+                logger.info("  queued %d values for '%s' (total: %d)",
+                    len(values), field_name, len(state.queues[field_name]))
                 return build_response("SPLAQD", "OK")
             return build_response("SPLAQD", "FAIL")
 
@@ -234,27 +331,27 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
         if cmd == "SPLCQD":
             field_name = params.strip()
             state.queues.pop(field_name, None)
-            logger.info("Queue cleared for '%s'", field_name)
             return build_response("SPLCQD", "OK")
 
         if cmd == "SPLCDB":
             state.queues.clear()
             state.field_values.clear()
-            logger.info("Data buffer cleared")
             return build_response("SPLCDB", "OK")
 
         # ---- PRINT ----
         if cmd == "SPPSAP":
             if state.status == "WAITING":
                 state.status = "RUNNING"
-                logger.info("Automatic printing started")
+                state.start_auto_print()
+                logger.info("  printing started (qty=%d)", state.limited_print_count)
                 return build_response("SPPSAP", "OK")
             return build_response("SPPSAP", "FAIL")
 
         if cmd == "SPPSTP":
             if state.status == "RUNNING":
+                state.stop_auto_print()
                 state.status = "WAITING"
-                logger.info("Printing stopped")
+                logger.info("  stopped at counter=%d", state.current_print_count)
                 return build_response("SPPSTP", "OK")
             return build_response("SPPSTP", "FAIL")
 
@@ -262,11 +359,6 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
             state.label_count += 1
             state.current_print_count += 1
             state.total_print_count += 1
-            logger.info(
-                "Test print #%d (fields: %s)",
-                state.label_count,
-                {k: v[:30] for k, v in state.field_values.items()},
-            )
             # Save label data to file if output dir is set
             if state.output_dir:
                 filepath = state.output_dir / f"label_{state.label_count:04d}.txt"
@@ -278,21 +370,27 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
         if cmd == "SPPSLQ":
             try:
                 state.limited_print_count = int(params.strip())
-                logger.info("Limited print count set to %d", state.limited_print_count)
                 return build_response("SPPSLQ", "OK")
             except ValueError:
                 return build_response("SPPSLQ", "FAIL")
 
         if cmd == "SPPGLQ":
-            return build_response("SPPGLQ", str(state.limited_print_count))
+            # Return remaining quantity (§5.3: quantity - SPPGLQ == SPGGCP)
+            remaining = max(0, state.limited_print_count - state.current_print_count)
+            return build_response("SPPGLQ", str(remaining))
 
         # ---- DATA FILES ----
         if cmd == "SPLCDF":
+            # Stop Position only (§5.2)
+            if state.status != "WAITING":
+                logger.warning("  rejected: not in WAITING state")
+                return build_response("SPLCDF", "FAIL")
             parts = params.split("~gt~", 1)
             if len(parts) == 2:
                 filename = parts[0].strip()
-                state.data_files.append(filename)
-                logger.info("Data file created: %s", filename)
+                # Overwrite if already exists (prevent duplicates in list)
+                if filename not in state.data_files:
+                    state.data_files.append(filename)
                 return build_response("SPLCDF", "OK")
             return build_response("SPLCDF", "FAIL")
 
@@ -310,6 +408,22 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
             state.data_files.clear()
             return build_response("SPLDDA", "OK")
 
+        # ---- TEMPLATE UPLOAD (binary .rox via base64) ----
+        if cmd == "SPLRTF":
+            # Stop Position only (§5.2)
+            if state.status != "WAITING":
+                logger.warning("  rejected: not in WAITING state")
+                return build_response("SPLRTF", "FAIL")
+            # Format: name>base64data
+            parts = params.split(">", 1)
+            if len(parts) == 2:
+                tname = parts[0].strip()
+                if tname not in state.stored_templates:
+                    state.stored_templates.append(tname)
+                logger.info("  uploaded '%s' (%d bytes)", tname, len(parts[1]))
+                return build_response("SPLRTF", "OK")
+            return build_response("SPLRTF", "FAIL")
+
         # ---- TEMPLATE DESIGN ----
         if cmd == "SPLTDS":
             # Extract template name from XML
@@ -320,7 +434,6 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
                     state.stored_templates.append(tname)
                 state.active_template = tname
                 state.current_print_count = 0
-                logger.info("Template created and loaded: %s", tname)
                 return build_response("SPLTDS", "OK")
             return build_response("SPLTDS", "FAIL")
 
@@ -359,7 +472,6 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
             return build_response("SPCGNC", nc)
 
         if cmd == "SPGSUM":
-            logger.info("User message: %s", params)
             return build_response("SPGSUM", "OK")
 
         if cmd == "SPGSLI":
@@ -369,7 +481,7 @@ class SPPLRequestHandler(socketserver.BaseRequestHandler):
             return build_response("SPGGLI", "0")
 
         # ---- UNKNOWN ----
-        logger.warning("Unknown command: %s", cmd)
+        logger.warning("  unknown command")
         return build_response(cmd, "FAIL")
 
 
