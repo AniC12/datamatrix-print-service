@@ -268,37 +268,26 @@ public partial class JobsViewModel : ObservableObject
     private void OnJobCompleted(object? sender, JobCompletedEvent e)
     {
         _logger.LogInformation("Jobs: Job {JobId} completed (live)", e.JobId);
-        System.Windows.Application.Current.Dispatcher.Invoke(async () =>
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            // Update the completed job in-place so it stays displayed
-            var index = -1;
+            // Update the completed job in-place (no async DB query — avoids
+            // DbContext concurrency issues and the async-void Dispatcher pitfall)
             for (int i = 0; i < ActiveJobs.Count; i++)
             {
                 if (ActiveJobs[i].Id == e.JobId)
                 {
-                    index = i;
+                    var job = ActiveJobs[i];
+                    job.Status = e.FinalStatus;
+                    job.CompletedAt = DateTime.UtcNow;
+                    ActiveJobs[i] = job; // triggers CollectionChanged → re-binds list item
+
+                    if (SelectedJob?.Id == e.JobId)
+                    {
+                        SelectedJob = job; // triggers OnSelectedJobChanged → updates detail pane
+                    }
                     break;
                 }
             }
-            if (index >= 0)
-            {
-                // Reload the job from DB to get final status and timestamps
-                var freshJob = await _db.PrintJobs
-                    .Include(j => j.Product)
-                    .Include(j => j.Printer)
-                    .FirstOrDefaultAsync(j => j.Id == e.JobId);
-                if (freshJob != null)
-                {
-                    ActiveJobs[index] = freshJob;
-                    if (SelectedJob?.Id == e.JobId)
-                    {
-                        SelectedJob = freshJob;
-                    }
-                }
-            }
-
-            // Also refresh the history tab
-            await LoadHistoryAsync();
         });
     }
 }
