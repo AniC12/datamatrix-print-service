@@ -19,18 +19,26 @@ application/
       CodePrintManager.Data/                # EF Core + SQLite persistence
     Printers/
       CodePrintManager.Printer.Savema/      # Savema TTO adapter (SPPL protocol)
+      CodePrintManager.Printer.Mock/        # In-memory mock adapter for testing without hardware
     Hosts/
       CodePrintManager.Desktop/             # WPF shell (thin host)
+      CodePrintManager.TestHost/            # ASP.NET Core minimal API host for integration tests
   tests/
     CodePrintManager.Domain.Tests/
     CodePrintManager.Data.Tests/
     CodePrintManager.Printer.Savema.Tests/
     CodePrintManager.Application.Tests/
+    CodePrintManager.Integration.Tests/     # End-to-end integration tests via TestHost
   tools/
     PrinterTestHarness/                     # Interactive console for adapter engineers
+demo/
+  savema_simulator.py                       # Python-based Savema SPPL simulator for development
+  sample_data.csv                           # Sample GS1 codes
+  test_50_codes.csv                         # 50 sample codes for testing
+  apple_05_53.rox                           # Dummy .rox template for testing
 ```
 
-**Total:** 10 projects (5 source, 4 test, 1 tool), ~50 source files.
+**Total:** 13 projects (7 source, 5 test, 1 tool), ~60 source files.
 
 ---
 
@@ -40,10 +48,12 @@ application/
    Domain  (zero deps)
    ↗      ↖
 Data    Printer.Savema      ← both only reference Domain
-  ↖      ↗
+   ↖    Printer.Mock        ← also only references Domain
+    ↖    ↗
 Application                 ← orchestrates both; no UI dependencies
      ↑
   Desktop                   ← thin WPF host; wires DI, adapts events to UI
+  TestHost                  ← ASP.NET Core host; uses Printer.Mock for integration tests
 ```
 
 | Project | References | NuGet Packages |
@@ -51,8 +61,10 @@ Application                 ← orchestrates both; no UI dependencies
 | **Domain** | (none) | (none) |
 | **Data** | Domain | EF Core SQLite, EF Core Design |
 | **Printer.Savema** | Domain | Logging.Abstractions |
+| **Printer.Mock** | Domain | Logging.Abstractions |
 | **Application** | Domain, Data | DI Abstractions, Logging Abstractions, Serilog |
-| **Desktop** | Application, Printer.Savema | CommunityToolkit.Mvvm, Hosting, Serilog.Extensions.Hosting |
+| **Desktop** | Application, Printer.Savema, Printer.Mock | CommunityToolkit.Mvvm, Hosting, Serilog.Extensions.Hosting |
+| **TestHost** | Application, Domain, Data, Printer.Mock | ASP.NET Core (minimal API) |
 | **PrinterTestHarness** | Printer.Savema | Logging, Logging.Console |
 
 Key rules enforced by the project references:
@@ -301,6 +313,56 @@ Counter: 3
 
 It only references `Domain` and `Printer.Savema`. An engineer can clone the repo, open only these three projects, and validate adapter behavior months before the full application is complete.
 
+### 3.7 CodePrintManager.Printer.Mock
+
+An in-memory mock implementation of `IPrinterAdapter` for testing without physical hardware.
+
+```
+Printer.Mock/
+  MockPrinterAdapter.cs        # Full IPrinterAdapter: in-memory state, simulated print delay
+  MockPrinterAdapterFactory.cs # IPrinterAdapterFactory: maps "mock*" → MockPrinterAdapter
+```
+
+`MockPrinterAdapter` maintains internal state (counter, templates, CSV files, status) and simulates print progress with a configurable delay (`PrintSpeedMs`, default 500ms). It supports error injection (`InjectError`) and power cycle simulation for testing recovery flows.
+
+**Usage:** Pass `--mock` on the command line or set `UseMockPrinter: true` in `appsettings.json`. `App.xaml.cs` checks this and registers `MockPrinterAdapterFactory` instead of `SavemaAdapterFactory`.
+
+### 3.8 CodePrintManager.TestHost
+
+An ASP.NET Core minimal API host that exposes the application's services as HTTP endpoints. Used by `Integration.Tests` via `WebApplicationFactory`.
+
+```
+TestHost/
+  Program.cs                   # Wires DI (AddCodePrintManager + MockPrinterAdapterFactory)
+  Endpoints/
+    PrinterEndpoints.cs        # CRUD + connect/disconnect
+    ProductEndpoints.cs        # CRUD + tree operations
+    JobEndpoints.cs            # Create, prepare, start, cancel
+    DashboardEndpoints.cs      # Summary stats
+    MockControlEndpoints.cs    # Inject errors, set print speed, power cycle
+    EventEndpoints.cs          # SSE stream for real-time events
+```
+
+Uses a temp SQLite database per test run (`cpm_test_{guid}.db`). The `MockControlEndpoints` allow tests to simulate printer failures, adjust speed, and trigger power cycles.
+
+### 3.9 Savema Simulator (`demo/savema_simulator.py`)
+
+A Python TCP server that simulates a Savema printer on port 9100. Used for manual testing and development without physical hardware. Unlike `Printer.Mock` (which lives inside the .NET process), the simulator is an external process that the .NET app connects to over TCP — testing the full network path including `SavemaTtoAdapter`.
+
+**Capabilities:**
+- Handles all SPPL commands the .NET app sends (SPPSTA, SPLGST, SPLLTF, SPLRTF, SPLCDF, SPPSAP, SPPSTP, SPGGCP, SPGGTP, SPPSLQ, SPPGLQ, SPLGSD, SPLDDF, SPLDTF, SPLGAT)
+- Auto-increments counter when in RUNNING state (simulates physical printing)
+- Enforces BLOCKED mode (rejects non-SPPSTA commands) and Stop Position rules
+- Maintains persistent TCP connections (matches real adapter behavior)
+- Logs all commands with human-readable descriptions (e.g., `← RX SPLGST (list stored templates)`)
+
+**Running:**
+```bash
+python demo/savema_simulator.py --port 9100
+```
+
+Then configure a printer in the .NET app pointing to `127.0.0.1:9100`.
+
 ---
 
 ## 4. Data Flow: How a Print Job Executes
@@ -541,3 +603,4 @@ dotnet publish src/Hosts/CodePrintManager.Desktop -c Release -r win-x64 --self-c
 | EF Core migrations not yet created | Run `dotnet ef migrations add InitialCreate -p src/Infrastructure/CodePrintManager.Data -s src/Hosts/CodePrintManager.Desktop` to generate the first migration |
 | Test projects have placeholder `UnitTest1.cs` | Replace with real tests before implementation work begins |
 | `RecoveryItem` model defined but unused | Will be used when the startup recovery flow is fully implemented |
+| `Dispatcher.Invoke(async () => ...)` pitfall | Wrapping an async lambda in `Dispatcher.Invoke` creates an async void delegate — exceptions are silently swallowed. Use synchronous updates from event data instead of async DB queries inside Dispatcher callbacks. Fixed in `JobsViewModel.OnJobCompleted` and `DashboardViewModel.OnJobCompleted`. |

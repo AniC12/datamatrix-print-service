@@ -53,7 +53,7 @@ Scanner / verification, recycler, E-Mark API, aggregation, authentication, cloud
 ## Project Layout
 
 - `application/` — Application source code (multi-project .NET solution)
-- `demo/` — Demo / sample assets
+- `demo/` — Savema simulator, sample data, dummy templates for development
 - `docs/` — Project documentation
 
 ### Solution Structure (`application/CodePrintManager.sln`)
@@ -67,13 +67,16 @@ src/
     CodePrintManager.Data            — EF Core + SQLite. References Domain.
   Printers/
     CodePrintManager.Printer.Savema  — Savema TTO adapter. Only references Domain.
+    CodePrintManager.Printer.Mock    — In-memory mock adapter for testing without hardware.
   Hosts/
     CodePrintManager.Desktop         — WPF app. References Application + Printer.Savema.
+    CodePrintManager.TestHost        — ASP.NET Core minimal API host for integration tests.
 tests/
   CodePrintManager.Domain.Tests
   CodePrintManager.Data.Tests
   CodePrintManager.Printer.Savema.Tests
   CodePrintManager.Application.Tests
+  CodePrintManager.Integration.Tests — End-to-end tests via TestHost + MockPrinterAdapter.
 tools/
   PrinterTestHarness                 — Interactive console for adapter engineers.
 ```
@@ -83,6 +86,7 @@ tools/
 ```
 Domain (zero deps)  ←  Data           ←  Application  ←  Desktop
                     ←  Printer.Savema                  ←  PrinterTestHarness
+                    ←  Printer.Mock                    ←  TestHost
 ```
 
 ## Running the Application
@@ -103,6 +107,22 @@ dotnet run --project src/Hosts/CodePrintManager.Desktop
 ```
 
 The app will create `codeprintmanager.db` and `logs/` in the output directory on first run.
+
+**With mock printer (no hardware needed):**
+```bash
+cd application/
+dotnet run --project src/Hosts/CodePrintManager.Desktop -- --mock
+```
+
+**With Savema simulator (tests full TCP path):**
+```bash
+# Terminal 1: start the simulator
+python demo/savema_simulator.py --port 9100
+
+# Terminal 2: start the app (add printer pointing to 127.0.0.1:9100)
+cd application/
+dotnet run --project src/Hosts/CodePrintManager.Desktop
+```
 
 ## Build & Test Commands
 
@@ -125,3 +145,4 @@ dotnet publish src/Hosts/CodePrintManager.Desktop -c Release -r win-x64 --self-c
 - **Events over UI bindings**: Application services raise plain C# events (in Domain/Events/). Hosts adapt them to their UI framework (WPF dispatches to UI thread, future web host pushes via SignalR).
 - **IPrinterAdapterFactory**: Each printer brand registers its own factory via DI. Application never directly references printer-specific projects.
 - **Printer engineers**: Only need `Domain` + their `Printer.X` project + `PrinterTestHarness`. No DB, no UI, no services.
+- **Dispatcher.Invoke pitfall**: Never use `Dispatcher.Invoke(async () => ...)` — it creates `async void` and silently swallows exceptions. Use synchronous updates from event data inside Dispatcher callbacks.

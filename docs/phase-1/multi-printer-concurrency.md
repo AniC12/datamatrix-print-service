@@ -621,19 +621,24 @@ Key behaviors:
 
 ### Thread marshaling
 
-All background → UI updates use `IProgress<T>`. It auto-marshals to the UI thread via `SynchronizationContext` — no manual `Dispatcher.Invoke` calls anywhere.
+Application services raise plain C# events from background threads. Desktop ViewModels subscribe to these events and marshal updates to the UI thread via `Application.Current.Dispatcher.Invoke`:
 
 ```csharp
-// Created on UI thread, captures SynchronizationContext
-var progress = new Progress<JobProgressUpdate>(update => {
-    printerCard.Progress = update.Confirmed;  // already on UI thread
-    printerCard.Total = update.Total;
-    printerCard.Percent = (double)update.Confirmed / update.Total * 100;
-});
-
-// Passed to JobExecutor at construction, called from polling loop
-_progress.Report(new JobProgressUpdate(counter, quantity));
+// ViewModel subscribes to service event, dispatches to UI thread
+_jobEventBus.ProgressChanged += (_, e) =>
+    Application.Current.Dispatcher.Invoke(() =>
+    {
+        // Update observable properties on UI thread
+        var card = PrinterCards.FirstOrDefault(c => c.PrinterId == e.PrinterId);
+        if (card != null)
+        {
+            card.CurrentJobProgress = e.Confirmed;
+            card.CurrentJobTotal = e.Total;
+        }
+    });
 ```
+
+> **Pitfall: `Dispatcher.Invoke(async () => ...)`** — Wrapping an async lambda in `Dispatcher.Invoke` creates an `async void` delegate. Any exception inside (e.g., a failed DB query) is silently swallowed, and the UI never updates. This caused a bug where job status stayed stuck on "Printing" after completion. **Fix:** Use synchronous updates from event data inside Dispatcher callbacks. Never `await` inside `Dispatcher.Invoke`. If async work is needed, use `Dispatcher.InvokeAsync` and properly await/handle the result.
 
 ---
 

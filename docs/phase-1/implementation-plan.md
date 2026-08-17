@@ -6,9 +6,14 @@
 
 ## Current State Assessment
 
-> **Last updated: 2025-08-10**
+> **Last updated: 2026-08-17**
 
-The codebase compiles (0 errors, 0 warnings), all 4 test suites pass, and the application starts correctly. **18 of 32 stories complete (75 SP / 133 SP = 56%).** The critical path (end-to-end flow) and minimum viable demo are fully functional. Epics 0–5 are complete. Remaining work: E4-2 (Verify flow), E6-3 (Pause/Resume), E7 (testing), and E8 (polish/deployment).
+The codebase compiles (0 errors, 0 warnings), all 5 test suites pass, and the application starts correctly. **18 of 32 stories complete (75 SP / 133 SP = 56%).** The critical path (end-to-end flow) and minimum viable demo are fully functional. Epics 0–5 are complete. Remaining work: E4-2 (Verify flow), E6-3 (Pause/Resume), E7 (testing), and E8 (polish/deployment).
+
+**Recent fixes (not tied to a story):**
+- **Job completion UI bug** — `JobsViewModel.OnJobCompleted` and `DashboardViewModel.OnJobCompleted` used `Dispatcher.Invoke(async () => ...)`, which silently became `async void` and swallowed DB query exceptions. Jobs stayed stuck on "Printing" status after the simulator reported completion. Fixed by using synchronous in-place updates from `JobCompletedEvent.FinalStatus` instead of re-querying the DB.
+- **Savema simulator** — `demo/savema_simulator.py` enhanced: persistent TCP connections, BLOCKED/Stop-Position enforcement, auto-print counter simulation, duplicate CSV prevention, human-readable command logging.
+- **New projects added** — `Printer.Mock` (in-memory mock adapter, `--mock` flag), `TestHost` (ASP.NET Core minimal API for integration tests), `Integration.Tests`. See `codebase-architecture.md` §3.7–3.9.
 
 ### What works today
 
@@ -691,6 +696,15 @@ Current implementation status of every feature area in the design spec.
 | `CodePrintManager.Data.Tests` | Placeholder | 1 empty test |
 | `CodePrintManager.Printer.Savema.Tests` | Placeholder | 1 empty test |
 | `CodePrintManager.Application.Tests` | Placeholder | 1 empty test |
+| `CodePrintManager.Integration.Tests` | Placeholder | End-to-end tests via TestHost + MockPrinterAdapter |
+
+### Development Tooling
+
+| Tool | Status | Notes |
+|------|--------|-------|
+| `Printer.Mock` adapter | Done | Full `IPrinterAdapter` in-memory implementation, `--mock` CLI flag |
+| `TestHost` (ASP.NET Core) | Done | Minimal API host with mock printer for integration tests |
+| `demo/savema_simulator.py` | Done | External SPPL simulator over TCP for full-stack manual testing |
 
 ---
 
@@ -702,7 +716,7 @@ Current implementation status of every feature area in the design spec.
 | Partial | 5 |
 | Bug | 0 |
 | Not Started | 7 |
-| Placeholder | 4 |
+| Placeholder | 5 |
 | **Total line items** | **115** |
 
 ### What's Next (recommended priority order)
