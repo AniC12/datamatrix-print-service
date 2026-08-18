@@ -11,15 +11,16 @@
         WindowStartupLocation="CenterScreen"
         d:DataContext="{d:DesignInstance vm:MainViewModel}">
 
-    <!-- Zoom keyboard shortcuts disabled — feature hidden pending UX rework
     <Window.InputBindings>
         <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ZoomInCommand}" />
         <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomOutCommand}" />
         <KeyBinding Gesture="Ctrl+D0" Command="{Binding ZoomResetCommand}" />
     </Window.InputBindings>
-    -->
 
     <Grid>
+        <Grid.LayoutTransform>
+            <ScaleTransform ScaleX="{Binding ZoomLevel}" ScaleY="{Binding ZoomLevel}" />
+        </Grid.LayoutTransform>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
             <ColumnDefinition Width="*" />
@@ -44,6 +45,23 @@
                             Style="{StaticResource NavButton}" />
                     <Button Content="{loc:Loc Nav_Jobs}" Command="{Binding NavigateToCommand}" CommandParameter="Jobs"
                             Style="{StaticResource NavButton}" />
+                </StackPanel>
+
+                <!-- Zoom controls -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="16,0,16,8">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="−" Command="{Binding ZoomOutCommand}"
+                                Width="28" Height="28" FontSize="16" FontWeight="Bold" Padding="0"
+                                Foreground="{StaticResource SidebarForeground}" Background="Transparent"
+                                BorderBrush="#4A5568" BorderThickness="1" Cursor="Hand" />
+                        <TextBlock Text="{Binding ZoomPercent}" VerticalAlignment="Center"
+                                   Foreground="{StaticResource SidebarForeground}" Margin="10,0"
+                                   FontSize="12" Opacity="0.8" MinWidth="36" TextAlignment="Center" />
+                        <Button Content="+" Command="{Binding ZoomInCommand}"
+                                Width="28" Height="28" FontSize="16" FontWeight="Bold" Padding="0"
+                                Foreground="{StaticResource SidebarForeground}" Background="Transparent"
+                                BorderBrush="#4A5568" BorderThickness="1" Cursor="Hand" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Language selector at bottom of sidebar -->

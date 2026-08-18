@@ -110,7 +110,23 @@
                     </TreeView.ItemContainerStyle>
                     <TreeView.ItemTemplate>
                         <HierarchicalDataTemplate ItemsSource="{Binding Children}">
-                            <TextBlock Text="{Binding Name}" />
+                            <StackPanel Orientation="Horizontal">
+                                <Path Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,6,0">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Setter Property="Data" Value="{StaticResource FolderIconGeometry}" />
+                                            <Setter Property="Fill" Value="{StaticResource FolderIconBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsLeaf}" Value="True">
+                                                    <Setter Property="Data" Value="{StaticResource ProductIconGeometry}" />
+                                                    <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                            </StackPanel>
                         </HierarchicalDataTemplate>
                     </TreeView.ItemTemplate>
                 </TreeView>
@@ -120,9 +136,9 @@
             <Grid Grid.Column="1">
 
                 <!-- Unassigned Codes mode -->
-                <StackPanel Visibility="{Binding IsShowingUnassigned, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock Text="{loc:Loc Products_UnassignedCodes}" FontSize="18" FontWeight="Bold" />
-                    <Separator Margin="0,8,0,12" />
+                <DockPanel Visibility="{Binding IsShowingUnassigned, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock DockPanel.Dock="Top" Text="{loc:Loc Products_UnassignedCodes}" FontSize="18" FontWeight="Bold" />
+                    <Separator DockPanel.Dock="Top" Margin="0,8,0,12" />
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   DataContext="{Binding CodesTab}">
@@ -261,12 +277,12 @@
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
-                </StackPanel>
+                </DockPanel>
 
                 <!-- Product selected -->
-                <StackPanel Visibility="{Binding SelectedProduct, Converter={StaticResource NullToVisibilityConverter}}">
-                    <TextBlock Text="{Binding SelectedProduct.Name}" FontSize="18" FontWeight="Bold" />
-                    <Separator Margin="0,8,0,12" />
+                <DockPanel Visibility="{Binding SelectedProduct, Converter={StaticResource NullToVisibilityConverter}}">
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding SelectedProduct.Name}" FontSize="18" FontWeight="Bold" />
+                    <Separator DockPanel.Dock="Top" Margin="0,8,0,12" />
 
                     <!-- Leaf product: show tabs -->
                     <TabControl Visibility="{Binding SelectedProduct.IsLeaf, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -614,7 +630,7 @@
                         <Separator Margin="0,12,0,8" />
                         <TextBlock Text="{loc:Loc Products_FolderInfo}" Opacity="0.6" FontStyle="Italic" />
                     </StackPanel>
-                </StackPanel>
+                </DockPanel>
             </Grid>
         </Grid>
     </Grid>

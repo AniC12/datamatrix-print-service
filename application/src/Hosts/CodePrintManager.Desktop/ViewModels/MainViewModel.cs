@@ -14,6 +14,7 @@ namespace CodePrintManager.Desktop.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    private const double ZoomDefault = 1.2;
     private const double ZoomMin = 0.7;
     private const double ZoomMax = 1.5;
     private const double ZoomStep = 0.1;
@@ -31,7 +32,7 @@ public partial class MainViewModel : ObservableObject
     private string _currentViewName = "Dashboard";
 
     [ObservableProperty]
-    private double _zoomLevel = 1.0;
+    private double _zoomLevel = ZoomDefault;
 
     public string ZoomPercent => $"{ZoomLevel * 100:0}%";
 
@@ -167,7 +168,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ZoomReset()
     {
-        ZoomLevel = 1.0;
+        ZoomLevel = ZoomDefault;
         OnPropertyChanged(nameof(ZoomPercent));
         _ = SaveZoomLevelAsync();
     }
