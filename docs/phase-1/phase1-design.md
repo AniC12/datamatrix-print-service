@@ -316,7 +316,14 @@ audit_log (
   details       TEXT,            -- JSON blob with event-specific info
   created_at    DATETIME NOT NULL
 )
+
+app_config (
+  key           TEXT PRIMARY KEY,  -- e.g. 'ZoomLevel'
+  value         TEXT NOT NULL      -- string-encoded value
+)
 ```
+
+> **Note:** The `app_config` table stores user preferences as key-value pairs. Currently used for zoom level (feature implemented but UI hidden pending UX rework). The table is extensible for future preferences.
 
 ### Indexes
 ```sql

@@ -45,7 +45,8 @@ Every task required to go from "compiles" to "production-ready Phase 1 matching 
 | E7: Testing | 0/7 | 7 | 0 | 33 |
 | E8: Polish & Deployment | 0/5 | 5 | 0 | 12 |
 | E9: Codes Management | 6/6 | 0 | 26 | 0 |
-| **Total** | **24/38** | **14** | **101** | **58** |
+| E10: UI Preferences | 2/2 | 0 | 5 | 0 |
+| **Total** | **26/40** | **14** | **106** | **58** |
 
 ---
 
@@ -469,6 +470,27 @@ Current `MainWindow.xaml` has an alert bar but may not implement collapse or max
 
 - `dotnet build` — 0 errors, 0 warnings.
 - `dotnet test` — all 198 tests pass (165 Application + 30 Integration + 1 Domain + 1 Data + 1 Savema).
+
+## Epic 10: UI Preferences (AppConfig)
+
+### E10-1. AppConfig entity + app_config table — DONE
+
+**Points: 2** | **Depends on: E0-1** | **Blocks: E10-2** | **Status: DONE**
+
+- `AppConfig.cs` entity (Key/Value strings).
+- `AppConfigConfiguration.cs` — maps to `app_config` table, Key as PK.
+- `DbSet<AppConfig>` on `AppDbContext`.
+- EF Core migration `AddAppConfigTable`.
+
+### E10-2. Zoom control (ScaleTransform) — DONE (HIDDEN)
+
+**Points: 3** | **Depends on: E10-1** | **Blocks: nothing** | **Status: DONE — UI hidden**
+
+- `ZoomLevel` property, `ZoomIn`/`ZoomOut`/`ZoomReset` commands in `MainViewModel`.
+- Persists to `app_config` table via `AppDbContext`.
+- `ScaleTransform` on content area + sidebar +/− buttons + `Ctrl+Plus`/`Ctrl+Minus`/`Ctrl+0` shortcuts — **all commented out / removed from MainWindow.xaml**.
+- Hidden because the ScaleTransform approach scales everything (padding, margins, hit areas), causing layout issues at non-100% zoom. Needs UX rework (e.g., DynamicResource font-size scaling) before re-enabling.
+- The `app_config` table and persistence code remain functional for future use.
 
 ---
 

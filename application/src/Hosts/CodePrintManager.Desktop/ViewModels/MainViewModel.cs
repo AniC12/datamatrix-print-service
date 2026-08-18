@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows;
+using CodePrintManager.Data;
+using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Events;
 using CodePrintManager.Domain.Interfaces;
@@ -11,7 +14,13 @@ namespace CodePrintManager.Desktop.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    private const double ZoomMin = 0.7;
+    private const double ZoomMax = 1.5;
+    private const double ZoomStep = 0.1;
+    private const string ZoomConfigKey = "ZoomLevel";
+
     private readonly IAlertService _alertService;
+    private readonly AppDbContext _db;
     private readonly ILogger<MainViewModel> _logger;
 
     [ObservableProperty]
@@ -19,6 +28,11 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string _currentViewName = "Dashboard";
+
+    [ObservableProperty]
+    private double _zoomLevel = 1.0;
+
+    public string ZoomPercent => $"{ZoomLevel * 100:0}%";
 
     public ObservableCollection<AlertItemViewModel> Alerts { get; } = new();
 
@@ -30,6 +44,7 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel(
         IAlertService alertService,
+        AppDbContext db,
         DashboardViewModel dashboard,
         ProductsViewModel products,
         PrintersViewModel printers,
@@ -38,12 +53,15 @@ public partial class MainViewModel : ObservableObject
         ILogger<MainViewModel> logger)
     {
         _alertService = alertService;
+        _db = db;
         _logger = logger;
         _dashboard = dashboard;
         _products = products;
         _printers = printers;
         _jobs = jobs;
         _newJob = newJob;
+
+        LoadZoomLevel();
 
         _alertService.AlertRaised += OnAlertRaised;
         _alertService.AlertDismissed += OnAlertDismissed;
@@ -117,6 +135,71 @@ public partial class MainViewModel : ObservableObject
         _logger.LogDebug("Alert dismissed: {AlertId}", alert.Event.Id);
         Alerts.Remove(alert);
         _alertService.Dismiss(alert.Event.Id);
+    }
+
+    // Zoom commands
+    [RelayCommand]
+    private void ZoomIn()
+    {
+        ZoomLevel = Math.Min(Math.Round(ZoomLevel + ZoomStep, 1), ZoomMax);
+        OnPropertyChanged(nameof(ZoomPercent));
+        _ = SaveZoomLevelAsync();
+    }
+
+    [RelayCommand]
+    private void ZoomOut()
+    {
+        ZoomLevel = Math.Max(Math.Round(ZoomLevel - ZoomStep, 1), ZoomMin);
+        OnPropertyChanged(nameof(ZoomPercent));
+        _ = SaveZoomLevelAsync();
+    }
+
+    [RelayCommand]
+    private void ZoomReset()
+    {
+        ZoomLevel = 1.0;
+        OnPropertyChanged(nameof(ZoomPercent));
+        _ = SaveZoomLevelAsync();
+    }
+
+    private void LoadZoomLevel()
+    {
+        try
+        {
+            var config = _db.AppConfig.Find(ZoomConfigKey);
+            if (config != null
+                && double.TryParse(config.Value, CultureInfo.InvariantCulture, out var saved)
+                && saved >= ZoomMin && saved <= ZoomMax)
+            {
+                ZoomLevel = Math.Round(saved, 1);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load zoom level from config");
+        }
+    }
+
+    private async Task SaveZoomLevelAsync()
+    {
+        try
+        {
+            var config = await _db.AppConfig.FindAsync(ZoomConfigKey);
+            if (config == null)
+            {
+                config = new AppConfig { Key = ZoomConfigKey, Value = ZoomLevel.ToString(CultureInfo.InvariantCulture) };
+                _db.AppConfig.Add(config);
+            }
+            else
+            {
+                config.Value = ZoomLevel.ToString(CultureInfo.InvariantCulture);
+            }
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save zoom level to config");
+        }
     }
 }
 

@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<PrintJob> PrintJobs => Set<PrintJob>();
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
     public DbSet<ArchivedCode> ArchivedCodes => Set<ArchivedCode>();
+    public DbSet<AppConfig> AppConfig => Set<AppConfig>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {

@@ -90,6 +90,7 @@ Domain/
     Printer.cs          # Printer config record: name, IP, port, adapter type string
     PrintJob.cs         # Job lifecycle: Preparing → Ready → Printing → Completed/Cancelled/Error
     AuditEntry.cs       # Persistent event log row
+    AppConfig.cs        # Key-value user preferences (e.g., ZoomLevel). Stored in app_config table.
   Enums/
     CodeStatus.cs       # Available, Reserved, Printed, Returned, Burned, Quarantined
     JobStatus.cs        # Preparing, Ready, Printing, Completed, Cancelled, Error
@@ -131,6 +132,7 @@ Data/
     PrinterConfiguration.cs
     PrintJobConfiguration.cs       # Partial unique indexes (see below)
     AuditEntryConfiguration.cs
+    AppConfigConfiguration.cs       # Maps to app_config table, Key as PK (max 100), Value (max 500)
   Migrations/                      # EF Core auto-generated
 ```
 
@@ -259,7 +261,7 @@ Desktop/
   appsettings.json                 # Configurable: poll interval, reconnect backoff, thresholds
   MainWindow.xaml / .xaml.cs       # Shell: sidebar nav + content area + alert bar
   ViewModels/
-    MainViewModel.cs               # Navigation state, alert collection (subscribes to AlertRaised)
+    MainViewModel.cs               # Navigation state, alert collection, zoom commands (hidden). Persists to app_config.
     DashboardViewModel.cs          # Printer cards, summary stats
     ProductsViewModel.cs           # Tree + detail + CSV import + codes tab + unassigned + safe delete
     CodesTabViewModel.cs           # Admin code management: paginated grid, filter, status change, move, archive, undo
