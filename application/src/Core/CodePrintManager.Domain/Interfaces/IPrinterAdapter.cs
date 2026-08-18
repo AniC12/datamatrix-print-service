@@ -9,6 +9,9 @@ public interface IPrinterAdapter : IDisposable
     Task DisconnectAsync();
     bool IsConnected { get; }
 
+    // Identity
+    Task<string?> GetSerialNumberAsync(CancellationToken ct = default);
+
     // Status
     Task<PrinterStatus> GetStatusAsync(CancellationToken ct = default);
     Task<int> GetCurrentCounterAsync(CancellationToken ct = default);

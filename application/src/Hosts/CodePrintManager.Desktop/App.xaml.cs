@@ -4,6 +4,7 @@ using CodePrintManager.Application;
 using CodePrintManager.Application.Models;
 using CodePrintManager.Application.Services;
 using CodePrintManager.Data;
+using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
 using CodePrintManager.Desktop.Localization;
@@ -164,41 +165,22 @@ public partial class App : System.Windows.Application
 
             foreach (var job in staleJobs)
             {
-                if (job.Status is JobStatus.Preparing or JobStatus.Ready)
+                if (job.Status == JobStatus.Preparing)
                 {
-                    // Auto-cancel preparing/ready jobs — return reserved codes
+                    // Only Preparing jobs are auto-cancelled — preparation may be incomplete.
                     await jobService.CancelJobAsync(job.Id);
-                    Log.Information("Recovery: auto-cancelled stale {Status} job #{JobId}", job.Status, job.Id);
+                    Log.Information("Recovery: auto-cancelled stale Preparing job #{JobId}", job.Id);
+                    continue;
                 }
-                else if (job.Status == JobStatus.Printing)
-                {
-                    // Try to read SPGGTP from printer to detect discrepancy
-                    int printerConfirmed = -1; // -1 = offline
-                    try
-                    {
-                        var adapter = connMgr.GetAdapter(job.PrinterId);
-                        if (adapter != null)
-                        {
-                            var lifetime = await adapter.GetTotalCounterAsync();
-                            printerConfirmed = job.TotalBaseline.HasValue
-                                ? lifetime - job.TotalBaseline.Value
-                                : job.CodesConfirmed;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Warning(ex, "Recovery: could not read counter for printer {PrinterId}", job.PrinterId);
-                    }
 
-                    var discrepancy = printerConfirmed >= 0
-                        ? printerConfirmed - job.CodesConfirmed
-                        : 0;
-
-                    recoveryItems.Add(new RecoveryItem(job, job.CodesConfirmed, printerConfirmed, discrepancy));
-                }
+                // Ready, Printing, Paused → inspect the printer and present in Recovery Dialog.
+                // Ready jobs have TotalBaseline (recorded during Prepare) and a loaded data
+                // buffer. Someone may have pressed Print on the touchscreen — we cannot
+                // safely auto-cancel without checking SPGGTP first.
+                var item = await InspectJobForRecoveryAsync(job, connMgr);
+                recoveryItems.Add(item);
             }
 
-            // Show recovery dialog if there are printing jobs to resolve
             if (recoveryItems.Count > 0)
             {
                 var recoveryVm = scope.ServiceProvider.GetRequiredService<RecoveryViewModel>();
@@ -211,6 +193,114 @@ public partial class App : System.Windows.Application
         catch (Exception ex)
         {
             Log.Error(ex, "Error during startup recovery");
+        }
+    }
+
+    /// <summary>
+    /// Inspect a stale job (Ready, Printing, or Paused) against the printer's current state.
+    /// Reads SPGGTP, SPGGCP, SPPSTA, SPLGAT, and SPLGSD to build a full RecoveryItem.
+    /// </summary>
+    private static async Task<RecoveryItem> InspectJobForRecoveryAsync(
+        PrintJob job, PrinterConnectionManager connMgr)
+    {
+        var adapter = connMgr.GetAdapter(job.PrinterId);
+        if (adapter == null || !adapter.IsConnected)
+        {
+            Log.Warning("Recovery: printer {PrinterId} is offline for job #{JobId}", job.PrinterId, job.Id);
+            return new RecoveryItem(job, job.CodesConfirmed, -1, 0)
+            {
+                PrinterOffline = true,
+                RecommendedAction = "Connect printer to inspect"
+            };
+        }
+
+        // Read all inspection values. If any read fails, treat as offline.
+        try
+        {
+            var status = await adapter.GetStatusAsync();
+            var currentCounter = await adapter.GetCurrentCounterAsync();
+            var lifetimeCounter = await adapter.GetTotalCounterAsync();
+            var activeTemplate = await adapter.GetActiveTemplateAsync();
+            var csvFiles = await adapter.ListCsvFilesAsync();
+            var serialNumber = await adapter.GetSerialNumberAsync();
+
+            // Serial number mismatch detection
+            var serialMismatch = !string.IsNullOrEmpty(job.Printer?.SerialNumber)
+                && !string.IsNullOrEmpty(serialNumber)
+                && !string.Equals(job.Printer.SerialNumber, serialNumber, StringComparison.Ordinal);
+
+            // Compute lifetime delta
+            int printerConfirmed;
+            if (job.TotalBaseline.HasValue)
+                printerConfirmed = lifetimeCounter - job.TotalBaseline.Value;
+            else
+                printerConfirmed = job.CodesConfirmed; // No baseline → can't compute
+
+            var discrepancy = printerConfirmed - job.CodesConfirmed;
+
+            // Template match check
+            var expectedTemplate = job.Product?.TemplateFile;
+            var expectedTemplateName = expectedTemplate != null
+                ? Path.GetFileName(expectedTemplate)
+                : null;
+            var templateMatch = expectedTemplateName == null
+                || string.Equals(expectedTemplateName, activeTemplate, StringComparison.OrdinalIgnoreCase);
+
+            // CSV presence check
+            var expectedCsv = job.Product?.PrinterCsvName;
+            var csvPresent = expectedCsv == null || csvFiles.Contains(expectedCsv);
+
+            // Power cycle detection: SPGGCP == 0 but lifetime shows prints happened
+            var powerCycled = currentCounter == 0
+                && job.TotalBaseline.HasValue
+                && printerConfirmed > 0;
+
+            // Build recommendation
+            string recommendation;
+            if (serialMismatch)
+                recommendation = "Hardware swap detected — Abort recommended";
+            else if (!templateMatch)
+                recommendation = "Template mismatch — Abort recommended";
+            else if (printerConfirmed < 0)
+                recommendation = "Counter rollback — Abort recommended";
+            else if (powerCycled && discrepancy > 0)
+                recommendation = "Power cycle + unrecorded prints — Resume with caution";
+            else if (powerCycled)
+                recommendation = "Power cycle detected — Resume will re-upload CSV";
+            else if (discrepancy > 0)
+                recommendation = $"{discrepancy} unrecorded print(s) — Resume to continue";
+            else if (discrepancy == 0 && job.Status == JobStatus.Ready)
+                recommendation = "No printing detected — safe to Resume or Abort";
+            else
+                recommendation = "Resume to continue";
+
+            Log.Information(
+                "Recovery: Job #{JobId} ({Status}): status={PrinterStatus}, SPGGCP={Counter}, " +
+                "SPGGTP delta={Delta}, template={Template} (match={Match}), CSV={Csv}, " +
+                "powerCycle={PowerCycle}, serialMismatch={SerialMismatch}",
+                job.Id, job.Status, status, currentCounter, printerConfirmed,
+                activeTemplate, templateMatch, csvPresent, powerCycled, serialMismatch);
+
+            return new RecoveryItem(job, job.CodesConfirmed, printerConfirmed, discrepancy)
+            {
+                PrinterStatus = status,
+                PowerCycleDetected = powerCycled,
+                TemplateMatch = templateMatch,
+                ActiveTemplate = activeTemplate,
+                CsvPresent = csvPresent,
+                SerialMismatch = serialMismatch,
+                RecommendedAction = recommendation
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Recovery: inspection failed for printer {PrinterId}, job #{JobId}",
+                job.PrinterId, job.Id);
+            return new RecoveryItem(job, job.CodesConfirmed, -1, 0)
+            {
+                PrinterOffline = true,
+                RecommendedAction = "Inspection failed — retry after reconnect"
+            };
         }
     }
 

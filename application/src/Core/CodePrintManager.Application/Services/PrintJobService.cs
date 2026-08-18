@@ -99,6 +99,9 @@ public class PrintJobService : IPrintJobService
             var adapter = _connectionManager.GetAdapter(job.PrinterId)
                 ?? throw new InvalidOperationException(_loc.Format("Error_PrinterNotConnected", job.Printer.Name));
 
+            if (_connectionManager.HasSerialMismatch(job.PrinterId))
+                throw new InvalidOperationException(_loc["Error_SerialMismatch"]);
+
             // Step 1: Check printer state
             progress?.Report("checking_printer");
             var status = await adapter.GetStatusAsync(ct);
@@ -180,10 +183,21 @@ public class PrintJobService : IPrintJobService
 
             progress?.Report("template_loaded");
 
+            // Record TotalBaseline during Prepare so Ready jobs have a
+            // SPGGTP anchor for recovery inspection. The lifetime counter
+            // won't change until actual printing occurs.
+            job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
+            _logger.LogDebug("Job {JobId}: TotalBaseline recorded during Prepare = {Baseline}",
+                jobId, job.TotalBaseline);
+
             job.Status = JobStatus.Ready;
             await _db.SaveChangesAsync();
-            _logger.LogInformation("Job {JobId} prepared → Ready", jobId);
+            _logger.LogInformation("Job {JobId} prepared → Ready (baseline={Baseline})",
+                jobId, job.TotalBaseline);
             progress?.Report("complete");
+
+            // Start a ReadyWatcher to detect external print starts
+            SpawnReadyWatcher(job, adapter);
         }
         catch (OperationCanceledException)
         {
@@ -218,10 +232,18 @@ public class PrintJobService : IPrintJobService
         if (job.Status != JobStatus.Ready)
             throw new InvalidOperationException(_loc.Format("Error_JobNotReady", job.Status));
 
+        // Stop the ReadyWatcher before transitioning to Printing
+        await StopReadyWatcherAsync(jobId);
+
         var adapter = _connectionManager.GetAdapter(job.PrinterId)
             ?? throw new InvalidOperationException(_loc["Error_PrinterNotConnectedShort"]);
 
-        // Record lifetime counter baseline
+        if (_connectionManager.HasSerialMismatch(job.PrinterId))
+            throw new InvalidOperationException(_loc["Error_SerialMismatch"]);
+
+        // Record fresh lifetime counter baseline for the active Printing session.
+        // (Prepare already recorded a baseline for Ready-job recovery, but the
+        // printer may have been used between Prepare and Start, so we refresh.)
         job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
 
         // Set quantity and start
@@ -309,13 +331,14 @@ public class PrintJobService : IPrintJobService
                     if (finalCounter > job.CodesConfirmed)
                         await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, finalCounter);
 
-                    // Burn the code at finalCounter ONLY because there is genuine uncertainty:
+                    // Quarantine the code at finalCounter because there is genuine uncertainty:
                     // the printer may have printed it between the counter read and the stop command.
+                    // The operator can verify via the Codes tab and move it to Available or Printed.
                     if (finalCounter < job.Quantity)
-                        await _codePool.BurnCodeAsync(jobId, finalCounter);
+                        await _codePool.QuarantineCodeAsync(jobId, finalCounter);
 
                     // Return remaining codes (no uncertainty — they were never sent to the printer).
-                    // startIndex=0 because MarkCodesPrintedAsync and BurnCodeAsync already moved
+                    // startIndex=0 because MarkCodesPrintedAsync and QuarantineCodeAsync already moved
                     // codes out of Reserved status; the remaining Reserved set IS the unprinted codes.
                     var remaining = job.Quantity - finalCounter - 1;
                     if (remaining > 0)
@@ -333,6 +356,8 @@ public class PrintJobService : IPrintJobService
             }
             else if (job.Status is JobStatus.Preparing or JobStatus.Ready)
             {
+                // Stop ReadyWatcher if one is running for this job
+                await StopReadyWatcherAsync(jobId);
                 await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity);
             }
 
@@ -439,6 +464,7 @@ public class PrintJobService : IPrintJobService
     public async Task ResumeJobAsync(int jobId, CancellationToken ct = default)
     {
         var job = await _db.PrintJobs
+            .Include(j => j.Product)
             .Include(j => j.Printer)
             .FirstAsync(j => j.Id == jobId);
 
@@ -459,17 +485,100 @@ public class PrintJobService : IPrintJobService
             var adapter = _connectionManager.GetAdapter(job.PrinterId)
                 ?? throw new InvalidOperationException(_loc["Error_PrinterNotConnectedShort"]);
 
-            // Set remaining quantity and restart printer
-            var remaining = job.Quantity - job.CodesConfirmed;
-            _logger.LogInformation("Job {JobId} resuming (confirmed={Confirmed}, remaining={Remaining})",
+            if (_connectionManager.HasSerialMismatch(job.PrinterId))
+                throw new InvalidOperationException(_loc["Error_SerialMismatch"]);
+
+            // --- Full Resume Procedure (Section 10 of connection-recovery-deep-dive.md) ---
+
+            // Step 1: Determine remaining codes
+            var remainingCodes = await _db.Codes
+                .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
+                .OrderBy(c => c.ImportOrder)
+                .Select(c => c.CodeText)
+                .ToListAsync(ct);
+
+            var remaining = remainingCodes.Count;
+            if (remaining == 0)
+                throw new InvalidOperationException(
+                    _loc.Format("Error_NoRemainingCodes", jobId));
+
+            _logger.LogInformation(
+                "Job {JobId} resuming: confirmed={Confirmed}, remaining={Remaining}",
                 jobId, job.CodesConfirmed, remaining);
+
+            // Step 2: Delete old CSV from printer
+            var csvFilename = job.Product.PrinterCsvName
+                ?? throw new InvalidOperationException(_loc["Error_NoCsvFilename"]);
+            await adapter.DeleteCsvAsync(csvFilename, ct);
+            _logger.LogDebug("Job {JobId}: old CSV '{Csv}' deleted (or not found)", jobId, csvFilename);
+
+            ct.ThrowIfCancellationRequested();
+
+            // Step 3: Upload NEW CSV with ONLY remaining codes
+            var uploadOk = await adapter.UploadCsvAsync(csvFilename, remainingCodes, ct);
+            if (!uploadOk)
+                throw new InvalidOperationException(_loc["Error_CsvUploadFailed"]);
+            _logger.LogDebug("Job {JobId}: new CSV uploaded ({Count} remaining codes)", jobId, remaining);
+
+            ct.ThrowIfCancellationRequested();
+
+            // Step 4: Verify upload
+            var exists = await adapter.VerifyCsvExistsAsync(csvFilename, ct);
+            if (!exists)
+                throw new InvalidOperationException(_loc["Error_CsvVerificationFailed"]);
+
+            // Step 5: Check template is still in storage
+            var templateName = job.Product.TemplateFile
+                ?? throw new InvalidOperationException(_loc["Error_NoTemplateConfigured"]);
+            // Use filename only (template may be stored as full path)
+            var templateFileName = Path.GetFileName(templateName);
+            var templates = await adapter.ListTemplatesAsync(ct);
+            if (!templates.Contains(templateFileName))
+            {
+                // Re-upload from disk if available
+                if (File.Exists(templateName))
+                {
+                    var roxBytes = await File.ReadAllBytesAsync(templateName, ct);
+                    var uploadTemplateOk = await adapter.UploadTemplateAsync(templateFileName, roxBytes, ct);
+                    if (!uploadTemplateOk)
+                        throw new InvalidOperationException(_loc["Error_TemplateUploadFailed"]);
+                    _logger.LogInformation("Job {JobId}: template '{Template}' re-uploaded from disk",
+                        jobId, templateFileName);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        _loc.Format("Error_TemplateNotFound", templateFileName));
+                }
+            }
+
+            ct.ThrowIfCancellationRequested();
+
+            // Step 6: Reload template (resets SPGGCP to 0, reloads data buffer from new CSV)
+            var activateOk = await adapter.ActivateTemplateAsync(templateFileName, ct);
+            if (!activateOk)
+                throw new InvalidOperationException(_loc["Error_TemplateActivationFailed"]);
+            _logger.LogDebug("Job {JobId}: template reloaded, SPGGCP reset to 0", jobId);
+
+            // Step 7: Record fresh lifetime baseline
+            job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
+            _logger.LogDebug("Job {JobId}: fresh TotalBaseline = {Baseline}", jobId, job.TotalBaseline);
+
+            // Step 8: Set print quantity
             await adapter.SetPrintQuantityAsync(remaining, ct);
+
+            // Step 9: Start printing
             await adapter.StartPrintAsync(ct);
 
             job.Status = JobStatus.Printing;
             await _db.SaveChangesAsync();
 
-            // Spawn a new executor with its own scope
+            // Step 10: Spawn new JobExecutor with counter offset.
+            // After the full Resume Procedure, SPGGCP was reset to 0 by template reload.
+            // The executor needs to add this offset to raw counter values to map back to
+            // the job-level CodesConfirmed/Quantity space.
+            var counterOffset = job.CodesConfirmed;
+
             IServiceScope? executorScope = null;
             AppDbContext executorDb;
             ICodePoolService executorCodePool;
@@ -487,7 +596,8 @@ public class PrintJobService : IPrintJobService
                 executorCodePool = _codePool;
             }
 
-            var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc);
+            var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
+                counterOffset: counterOffset);
             executor.ProgressChanged += (_, e) =>
             {
                 _eventBus.RaiseProgressChanged(this, e);
@@ -503,12 +613,62 @@ public class PrintJobService : IPrintJobService
             _jobRegistry.Register(jobId, executor);
             executor.Start();
 
-            await _audit.LogAsync("job_resumed", jobId: jobId, printerId: job.PrinterId);
-            _logger.LogInformation("Job {JobId} resumed at {Confirmed}/{Total}", jobId, job.CodesConfirmed, job.Quantity);
+            await _audit.LogAsync("job_resumed", jobId: jobId, printerId: job.PrinterId,
+                details: new { remaining, newBaseline = job.TotalBaseline });
+            _logger.LogInformation(
+                "Job {JobId} resumed via full Resume Procedure at {Confirmed}/{Total} (new baseline={Baseline})",
+                jobId, job.CodesConfirmed, job.Quantity, job.TotalBaseline);
         }
         finally
         {
             printerLock.Release();
+        }
+    }
+
+    // --- ReadyWatcher helpers ---
+
+    private void SpawnReadyWatcher(PrintJob job, IPrinterAdapter adapter)
+    {
+        var watcher = new ReadyWatcher(job, adapter, _alerts, _logger);
+        watcher.ExternalPrintDetected += (_, jobId) =>
+        {
+            _jobRegistry.TryRemoveWatcher(jobId);
+            _ = HandleExternalPrintDetectedAsync(jobId);
+        };
+        _jobRegistry.RegisterWatcher(job.Id, watcher);
+        watcher.Start();
+        _logger.LogDebug("ReadyWatcher spawned for Job {JobId}", job.Id);
+    }
+
+    private async Task StopReadyWatcherAsync(int jobId)
+    {
+        if (_jobRegistry.TryGetWatcher(jobId, out var watcher) && watcher != null)
+        {
+            await watcher.StopAsync();
+            _jobRegistry.TryRemoveWatcher(jobId);
+            _logger.LogDebug("ReadyWatcher stopped for Job {JobId}", jobId);
+        }
+    }
+
+    /// <summary>
+    /// Called when a ReadyWatcher detects external printing.
+    /// Transitions the job from Ready to Printing and spawns a JobExecutor.
+    /// </summary>
+    private async Task HandleExternalPrintDetectedAsync(int jobId)
+    {
+        try
+        {
+            _logger.LogWarning(
+                "External print detected for Job {JobId} — transitioning to Printing", jobId);
+            await StartJobAsync(jobId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to transition Job {JobId} to Printing after external print detection", jobId);
+            _alerts.Raise(AlertSeverity.Error, "System",
+                $"External printing detected on Job #{jobId} but failed to start tracking: {ex.Message}",
+                jobId: jobId);
         }
     }
 }

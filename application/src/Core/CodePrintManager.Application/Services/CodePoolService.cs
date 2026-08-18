@@ -186,6 +186,42 @@ public class CodePoolService : ICodePoolService
         }
     }
 
+    public async Task QuarantineCodeAsync(int jobId, int index)
+    {
+        _logger.LogWarning("Code quarantined: Job {JobId} index={Index}", jobId, index);
+        var code = await _db.Codes
+            .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
+            .OrderBy(c => c.ImportOrder)
+            .FirstOrDefaultAsync();
+
+        if (code != null)
+        {
+            code.Status = CodeStatus.Quarantined;
+            code.StatusChangedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+    }
+
+    public async Task QuarantineCodesAsync(int jobId, int fromIndex, int count)
+    {
+        if (count <= 0) return;
+        _logger.LogWarning("Codes quarantined: Job {JobId} fromIndex={From} count={Count}", jobId, fromIndex, count);
+
+        var codes = await _db.Codes
+            .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
+            .OrderBy(c => c.ImportOrder)
+            .Take(count)
+            .ToListAsync();
+
+        foreach (var code in codes)
+        {
+            code.Status = CodeStatus.Quarantined;
+            code.StatusChangedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<int> GetAvailableCountAsync(int productId)
     {
         return await _db.Codes

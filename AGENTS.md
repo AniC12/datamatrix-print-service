@@ -39,6 +39,14 @@ From `docs/phase-1/phase1-design.md` §8:
 - SQLite partial unique indexes enforce one active job per printer/product
 - `AlertService` (ephemeral UI) + `AuditService` (persistent DB)
 
+## Safety Rules
+
+- **Never auto-cancel Ready jobs.** A Ready job has a loaded data buffer and a `TotalBaseline`. Someone may have pressed Print on the touchscreen. Auto-cancelling risks returning printed codes to Available. Always inspect using `TotalBaseline` first. Only Preparing jobs may be auto-cancelled on startup.
+- **Record `TotalBaseline` during Prepare, not Start.** Read `SPGGTP` right after `SPLLTF` during the Prepare step. This ensures Ready jobs have a valid lifetime counter anchor for recovery inspection.
+- **Quarantine uncertain codes, don't auto-burn.** When a code's print status is ambiguous (power cycle boundary, template mismatch, counter anomaly), mark it as `Quarantined` — not `Burned`. Quarantined codes are frozen (cannot be auto-reused) but the operator can recover them via the Codes tab after investigation.
+- **Never auto-stop a running printer.** If the app detects an anomaly (template reload, external print start), warn the operator but do not send `SPPSTP`. The operator or another system may have intentionally started the printer.
+- See `docs/phase-1/connection-recovery-deep-dive.md` for the full recovery design and all 14 safety invariants.
+
 ## Phase 1 Scope
 
 - Import CSV codes
@@ -163,7 +171,7 @@ The application supports multi-language UI (English, Russian, Armenian). All use
 ### Rules for new UI components
 
 1. **Never hardcode user-facing text.** Use localization keys for all labels, buttons, messages, dialog titles, error messages, and status text.
-2. **Add keys to all 3 language files** (`en.json`, `ru.json`, `hy.json`). If you don't know the translation, add the English text as a placeholder — it will be corrected later.
+2. **Add keys to `en.json` and `ru.json` only.** Do NOT touch `hy.json` (Armenian) — the user will handle Armenian translations separately when ready.
 3. **XAML**: Add `xmlns:loc="clr-namespace:CodePrintManager.Desktop.Localization"` and use `{loc:Loc KeyName}`.
 4. **ViewModels/Services**: Inject `ILocalizationService` via constructor and use `_loc["Key"]` or `_loc.Format("Key", args)`.
 5. **Do NOT translate**: user-entered data (product names, printer names, imported codes), diagnostic log messages, enum values, structural punctuation.

@@ -65,8 +65,26 @@ public static class MockControlEndpoints
             adapter.SimulatePowerCycle();
             return Results.Ok(new { Status = "Power cycle simulated", CurrentCounter = 0 });
         });
+
+        group.MapPost("/{id:int}/set-serial", (int id, SetSerialRequest req, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SerialNumber = req.Serial;
+            return Results.Ok(new { SerialNumber = adapter.SerialNumber });
+        });
+
+        // Set the serial number that the NEXT created adapter will use.
+        // Useful for simulating hardware swaps across disconnect/reconnect cycles.
+        group.MapPost("/factory/set-next-serial", (SetSerialRequest req, MockPrinterAdapterFactory factory) =>
+        {
+            factory.NextSerialNumber = req.Serial;
+            return Results.Ok(new { NextSerialNumber = factory.NextSerialNumber });
+        });
     }
 }
 
 public record InjectErrorRequest(string Status);
 public record SetSpeedRequest(int Ms);
+public record SetSerialRequest(string Serial);

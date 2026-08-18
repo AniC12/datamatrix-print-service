@@ -2,6 +2,7 @@ namespace CodePrintManager.Printer.Savema.Protocol;
 
 public static class SpplCommandBuilder
 {
+    public static string GetSerialNumber() => Wrap("SPGGSN");
     public static string GetStatus() => Wrap("SPPSTA");
     public static string GetCurrentCounter() => Wrap("SPGGCP");
     public static string GetTotalCounter() => Wrap("SPGGTP");

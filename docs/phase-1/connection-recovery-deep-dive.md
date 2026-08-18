@@ -261,7 +261,7 @@ The safety invariant changes from:
 
 Different causes lead to different printer states upon reconnection. Here's every way we can lose the connection:
 
-### 5A. Network Failure (Cable/Switch/Infrastructure)
+### 6A. Network Failure (Cable/Switch/Infrastructure)
 
 **What happens to the printer:** Nothing. The printer continues whatever it was doing — if it was printing, it keeps printing. The TCP connection drops on our side, but the printer doesn't even know we disconnected (TCP has no "the other side went away" notification unless keepalive is configured).
 
@@ -271,7 +271,7 @@ Different causes lead to different printer states upon reconnection. Here's ever
 
 **Data buffer:** Intact. Row pointer has advanced normally.
 
-### 5B. Printer Power Cycle (Power Outage, Manual Off/On)
+### 6B. Printer Power Cycle (Power Outage, Manual Off/On)
 
 **What happens to the printer:** Full reboot. SPGGCP resets to 0. Data buffer is lost. Active template may be auto-reloaded by firmware (going from INIT to WAITING), but the data buffer associated with the CSV is lost.
 
@@ -283,27 +283,27 @@ Different causes lead to different printer states upon reconnection. Here's ever
 
 **Data buffer:** GONE. Even if the CSV file is still in storage, the data buffer must be reloaded via `SPLLTF`.
 
-### 5C. App Crash / Force Close
+### 6C. App Crash / Force Close
 
 **What happens to the printer:** Nothing — same as network failure from the printer's perspective. The TCP connection eventually times out on the printer's side (if it even notices).
 
-**State on reconnect:** Same as 5A (printer keeps doing whatever it was doing).
+**State on reconnect:** Same as 6A (printer keeps doing whatever it was doing).
 
 **App state:** The critical difference is that the app loses its in-memory state (active `JobExecutor`, in-flight counter readings). On restart, it must reconstruct state from the database only.
 
-### 5D. App Intentional Shutdown (User Closes App)
+### 6D. App Intentional Shutdown (User Closes App)
 
 **What happens:** Same as crash, but the app has a chance to clean up. Currently, jobs in "Printing" status stay in the DB — the app does NOT pause or cancel them on shutdown.
 
-**State on reconnect:** Same as 5A. The printer may have finished the entire job while the app was closed.
+**State on reconnect:** Same as 6A. The printer may have finished the entire job while the app was closed.
 
-### 5E. Printer Firmware Crash / Hang
+### 6E. Printer Firmware Crash / Hang
 
-**What happens:** The printer's internal software crashes or hangs. It may reboot automatically (same as 5B) or stay in a non-responsive state. The TCP connection may or may not drop depending on whether the network stack is affected.
+**What happens:** The printer's internal software crashes or hangs. It may reboot automatically (same as 6B) or stay in a non-responsive state. The TCP connection may or may not drop depending on whether the network stack is affected.
 
 **State on reconnect:** Unpredictable. Could be INIT (rebooted), WAITING (recovered), or ERROR. SPGGTP should be reliable (it's in non-volatile storage).
 
-### 5F. Printer Enters BLOCKED State
+### 6F. Printer Enters BLOCKED State
 
 **What happens:** The operator navigates away from the main screen on the printer's touchscreen. All SPPL commands except SPPSTA return FAIL. The printer may still be physically printing (RUNNING + BLOCKED).
 
@@ -365,7 +365,19 @@ Step 7: Read remaining quantity (if RUNNING)
   → Does it make sense? (quantity - SPPGLQ should ≈ SPGGCP)
   → If it doesn't match, the limited-quantity context was lost (power cycle).
 
-Step 8: Classify the scenario (see Section 7)
+Step 8: Classify the scenario (see Section 8)
+
+ERROR HANDLING:
+  If ANY step (1–7) throws IOException or returns FAIL:
+    → Abort the ENTIRE inspection. Do NOT commit partial state changes.
+    → Log: "Inspection failed at step {N}: {error}. Will retry on next reconnect."
+    → Wait for the next reconnect cycle (exponential backoff).
+    → On reconnect, re-run the full inspection from Step 1.
+  
+  The inspection is atomic: either ALL steps complete and we classify the 
+  scenario, or NONE of the inspection results are used. Partial reads 
+  (e.g., SPGGTP succeeded but SPGGCP failed) must not be acted on — the
+  combination of readings is required for correct classification.
 ```
 
 ---
@@ -442,10 +454,10 @@ Each scenario is defined by the combination of answers from the inspection proce
 3. Set `job.Status = Paused` (or Error).
 4. Alert: "Printer error: {message}. {delta}/{quantity} codes printed. Resolve the error, then resume or abort."
 5. Operator fixes the hardware issue.
-6. On Resume: use the standard resume procedure (Section 9).
-7. On Abort: burn code at position `delta`, return remaining to pool.
+6. On Resume: use the standard Resume Procedure (Section 10).
+7. On Abort: **quarantine** code at position `delta` (boundary — the printer stopped here, but the error may have occurred mid-print), return remaining to pool.
 
-**Safety:** SPGGTP gives us the exact count. Template match confirms our codes. Error state means the printer stopped cleanly at a known position.
+**Safety:** SPGGTP gives us the exact count. Template match confirms our codes. Error state means the printer stopped at a known position. The boundary code is quarantined (not burned) because the operator can inspect the last product on the line to determine whether the code was applied.
 
 ---
 
@@ -531,6 +543,40 @@ The only difference from Scenario 4 is the number of unrecorded prints. The proc
 3. Set `job.Status = Completed`.
 
 **Safety:** SPGGTP confirms the full quantity was printed. Even though SPGGCP is 0 (power cycle), the lifetime counter tells the whole story.
+
+---
+
+### Scenario 7B: Template Matches but SPGGCP Reset (Template Was Reloaded)
+
+**Trigger:** While we were disconnected, someone (or the printer firmware after a power cycle) reloaded OUR template. This reset SPGGCP to 0 and re-initialized the data buffer from the stored CSV — starting from row 1. If the printer is RUNNING, it is printing codes from the BEGINNING of the CSV, which includes codes we already marked as Printed.
+
+**Inspection results:**
+- SPPSTA: **RUNNING** (actively printing)
+- SPLGAT: **matches** our template
+- SPGGCP: **small number or 0** (recently reloaded)
+- SPGGTP delta: **> confirmed** (includes prints from original session AND the re-started session)
+- `SPGGCP != delta` (SPGGCP is much smaller than delta — the mismatch proves a reload happened)
+
+**This is one of the most dangerous scenarios.** Duplicates may be actively being created right now. The printer is printing from row 1 of the original CSV, which contains codes already confirmed as Printed.
+
+**Action: WARNING ALERT — Do NOT auto-stop the printer. Quarantine affected codes.**
+
+> **Why not stop the printer?** The operator or another system may have intentionally reloaded the template for a valid reason. The app cannot know whether this is an accidental duplicate situation or an intentional re-run. Stopping the printer could disrupt legitimate production. Instead, we warn loudly and let the operator decide.
+
+1. **Critical alert:** "WARNING: Template '{template}' was reloaded on printer '{printer}'. SPGGCP reset detected (SPGGCP={spggcp}, expected ~{delta}). The printer may be re-printing codes from the beginning of the CSV. Potential duplicate codes! Operator: investigate immediately."
+2. Compute how many prints happened in the re-started session: `restarted_prints = SPGGCP` (since SPGGCP counts from the template reload).
+3. **Quarantine** codes at positions `[0 .. restarted_prints - 1]` from the original CSV — these are the codes the printer is re-printing. They were already marked Printed, but now a second copy may exist on a product. Quarantining flags them for investigation.
+4. Mark codes `[confirmed .. delta - SPGGCP - 1]` as Printed (prints from the original session that we missed).
+5. **Quarantine** the boundary code at the original session's end (position `delta - SPGGCP`).
+6. Set `job.Status = Error` — this job's integrity is compromised.
+7. **Do NOT resume or create a new executor for this job.** The operator must investigate via Admin page.
+
+**Operator resolution via Admin page:**
+- If the reload was accidental: the re-printed codes are duplicates. Move them to Printed (they're on products). The damage is done — the duplicate products must be handled physically.
+- If the reload was intentional (e.g., different product run with same template): the codes were used legitimately on a second set of products. Still mark as Printed.
+- In both cases, the job cannot be resumed — it must be cancelled and remaining codes returned or reassigned.
+
+**Detection heuristic:** `SPLGAT matches AND SPGGCP < (delta - confirmed)` — this means SPGGCP has been reset since our last poll. A template reload occurred.
 
 ---
 
@@ -680,14 +726,25 @@ Read `SPGGSN` (serial number) on reconnect and compare with a stored value. If t
 
 **This is a composite scenario** — for each stale job, we classify it using the scenarios above.
 
-**Preparing or Ready jobs:**
-- These never started printing. No codes were sent to the printer's data buffer (Preparing) or the template was loaded but printing never began (Ready).
-- **Action:** Auto-cancel. Return all reserved codes to Available. No burn needed.
-- **Why no burn?** Nothing was printed. The codes never left the app's control.
+**Preparing jobs:**
+- The job was mid-preparation (uploading CSV, uploading template). No printing could have started — `SPLLTF` may not have been called, and `SPPSAP` was definitely not called.
+- **Action:** Auto-cancel. Return all reserved codes to Available. No quarantine needed.
+- **Why safe?** The printer can't print without `SPLLTF` + `SPPSAP` (or manual touchscreen action, but the template wasn't even loaded yet).
+
+**Ready jobs:**
+- The template was loaded (`SPLLTF` was called, which reset `SPGGCP` to 0 and loaded the CSV into the data buffer). `TotalBaseline` was recorded during Prepare. Printing was NOT started by the app (`SPPSAP` was not called) — but someone could have pressed Print on the printer's touchscreen, or the printer could have been power-cycled and auto-started.
+- **Action: DO NOT auto-cancel.** Run the inspection procedure using the `TotalBaseline` recorded during Prepare.
+  1. Connect to the printer (wait for INIT → WAITING if needed).
+  2. Read `SPGGTP`, compute `delta = SPGGTP_now - job.TotalBaseline`.
+  3. If `delta == 0`: no printing happened. Safe to present in Recovery Dialog as Resume/Abort with no quarantine.
+  4. If `delta > 0`: printing happened (externally — someone pressed Print on the touchscreen). Mark codes `[0 .. delta-1]` as Printed. **Quarantine** code at position `delta` (+1 boundary). Present in Recovery Dialog.
+  5. If printer is offline: present in Recovery Dialog as "Offline — connect printer to verify."
+- **Why not auto-cancel?** A Ready job has a loaded data buffer and a populated CSV. If someone pressed Print on the touchscreen, codes may have been physically printed. Auto-cancelling would return those codes to Available → potential duplicates.
+- **Why TotalBaseline is available:** We record `SPGGTP` during the Prepare step, right after `SPLLTF`. The lifetime counter doesn't change until actual printing occurs, so the baseline is valid from Prepare through Ready and into Printing.
 
 **Printing jobs:**
 1. Attempt to connect to the printer.
-2. If connected: run the full inspection procedure (Section 6), classify into scenarios 1–13.
+2. If connected: run the full inspection procedure (Section 7), classify into scenarios 1–15.
 3. If NOT connected: mark for manual recovery. Show in Recovery Dialog as "Offline — connect printer to continue."
 4. Present Recovery Dialog with per-job Resume/Abort options.
 
@@ -728,7 +785,7 @@ Read `SPGGSN` (serial number) on reconnect and compare with a stored value. If t
               ▼             ▼             ▼              ▼
            INIT          BLOCKED      ERROR         WAITING/RUNNING
               │             │             │              │
-         Wait & retry  Alert operator  Go to §7.3      Continue
+         Wait & retry  Alert operator  Go to Scenario 3 Continue
               │         Wait & retry       │              │
               └──────►──────┘              │              │
                                            ▼              ▼
@@ -755,7 +812,7 @@ Read `SPGGSN` (serial number) on reconnect and compare with a stored value. If t
                                │                       │
                     ┌──────────┼──────────┐      Scenario 8:
                     ▼                     ▼      Conservative abort
-              SPGGCP consistent    SPGGCP == 0   Burn unrecorded codes
+              SPGGCP consistent    SPGGCP == 0   Quarantine unrecorded
               with delta           (power cycle)
                     │                     │
               No power cycle        Power cycle
@@ -985,6 +1042,42 @@ Safe approach:
 
 **Likelihood:** Extremely low. A printer doing 10,000 prints/day would take 588 years to reach 2^31 = 2,147,483,648. Not a practical concern.
 
+### 11.9 External Print Start While Job is Ready (Ready Watch Loop)
+
+**Scenario:** A job is in `Ready` status (template loaded, CSV in data buffer, `TotalBaseline` recorded). The operator has not yet clicked "Start" in the app. But someone presses the physical Print button on the printer's touchscreen — the printer starts printing codes from our CSV.
+
+**Risk:** The app has no active poll loop for Ready jobs. It doesn't know printing has started. Codes are being consumed without tracking. If the app is closed or crashes before the operator clicks Start, the startup recovery might not detect these prints.
+
+**Detection requirement — Ready Watch Loop:**
+Once a job enters `Ready` status, start a lightweight periodic check (every 2–5 seconds):
+1. Read `SPPSTA` — if `RUNNING`, printing has started externally.
+2. Read `SPGGCP` — if `> 0`, prints have occurred since template load.
+
+**Action when external print is detected:**
+1. Alert: "WARNING: Printing started on printer '{printer}' without app command. Job #{id} will transition to Printing status for tracking."
+2. Transition job to `Printing` status.
+3. Spawn a full `JobExecutor` to begin the standard 500ms poll loop.
+4. The poll loop will catch up on prints and track normally from here.
+
+**Why not stop the printer?** Same reasoning as Scenario 7B — the operator may have intentionally started printing from the touchscreen. We track, we don't interfere.
+
+**Startup recovery for Ready jobs (TotalBaseline available):**
+Because `TotalBaseline` is recorded during Prepare (not during Start), Ready jobs on startup can be inspected:
+- Read `SPGGTP`, compute `delta = SPGGTP_now - TotalBaseline`.
+- If `delta == 0`: no printing happened. Safe to Resume or Abort.
+- If `delta > 0`: printing happened externally. Mark printed codes, quarantine boundary, present in Recovery Dialog.
+- If printer is offline: present as "Offline — connect printer to verify."
+
+### 11.10 Connection Lost During Cancel
+
+**Scenario:** The operator clicks Cancel on a running job. The cancel flow starts its network calls (`SPPSTP` to stop, then counter reads), but the TCP connection drops before the flow completes.
+
+**Why this is NOT a separate scenario:** In every case, the job remains in `Printing` status in the DB — cancel doesn't commit any DB changes until all network calls succeed. On reconnect or startup, the recovery flow finds a stale Printing job and classifies it using the existing scenarios (1–7B). `SPGGTP` tells us exactly what happened regardless of whether a cancel was in progress.
+
+**Implementation rule:** The cancel flow's DB mutations (mark codes Printed, quarantine boundary, return remaining, set job Cancelled) must execute in a **single transaction**. No DB state is changed until all network calls have completed or definitively failed. This guarantees that a connection drop during cancel leaves the DB in a clean pre-cancel state, and standard recovery handles the rest.
+
+**UX note:** The operator clicked Cancel but the job is still `Printing` in the DB after the connection drop. On reconnect, the recovery dialog shows Resume/Abort — which may confuse the operator ("I already cancelled this"). Mitigation: store a lightweight `CancelRequested` flag in the DB before starting the network calls. The recovery dialog can then default to Abort and display: "A cancel was in progress when the connection was lost."
+
 ---
 
 ## 12. Current Implementation vs Recommended Implementation
@@ -995,7 +1088,7 @@ Safe approach:
 |------|----------------------|-----------|
 | **Poll loop disconnect** | `IOException` caught, alert raised, waits 2s, retries. But just retries the same poll command — doesn't run a full inspection procedure. | `JobExecutor.PollLoopAsync` |
 | **Reconnection** | `PrinterConnectionManager` detects `IsConnected == false`, runs exponential backoff reconnect. On success, raises `PrinterStatusChanged` event. | `PrinterConnectionManager.StartReconnectLoop` |
-| **Startup recovery** | Finds stale jobs, auto-cancels Preparing/Ready, reads SPGGTP for Printing jobs, shows Recovery Dialog with Resume/Abort. | `App.xaml.cs:RunStartupRecoveryAsync` |
+| **Startup recovery** | Finds stale jobs, auto-cancels Preparing (**but NOT Ready** — Ready jobs have TotalBaseline and must be inspected), reads SPGGTP for Printing/Ready jobs, shows Recovery Dialog with Resume/Abort. | `App.xaml.cs:RunStartupRecoveryAsync` |
 | **Resume** | Reads remaining count, sets quantity, starts printer, spawns new executor. **Does NOT re-upload CSV or reload template.** | `PrintJobService.ResumeJobAsync` |
 | **Template match check** | Not done on reconnect. Only done during Verify flow (manual action). | `PrintersViewModel.VerifyPrinterAsync` |
 | **Serial number tracking** | Not implemented. No hardware swap detection. | — |
@@ -1015,7 +1108,7 @@ This is the most critical gap. The current `ResumeJobAsync` calls `adapter.SetPr
 - Print from whatever data is in the buffer (undefined behavior), or
 - Use the stored CSV from the beginning (row pointer reset → DUPLICATES)
 
-**Fix:** `ResumeJobAsync` must follow the full Resume Procedure (Section 9).
+**Fix:** `ResumeJobAsync` must follow the full Resume Procedure (Section 10).
 
 **Gap 2: No post-reconnect inspection during live jobs**
 
@@ -1047,6 +1140,18 @@ The current Recovery Dialog shows: Job #, Product, Printer, App Says, Printer Sa
 
 **Fix:** Add inspection results to each `RecoveryItem`.
 
+**Gap 5: Ready jobs are auto-cancelled on startup**
+
+The current startup recovery auto-cancels both Preparing AND Ready jobs. Ready jobs have a loaded data buffer and a `TotalBaseline` (recorded during Prepare). If someone pressed Print on the touchscreen, codes may have been printed. Auto-cancelling returns those codes to Available → potential duplicates.
+
+**Fix:** Only auto-cancel Preparing jobs. Ready jobs must be inspected using `TotalBaseline` before any decision. Present them in the Recovery Dialog like Printing jobs.
+
+**Gap 6: No Ready Watch Loop**
+
+While a job is in Ready status, the app has no active monitoring of the printer. If someone presses Print on the printer's touchscreen, the app won't know until the operator clicks Start (or the app restarts and runs recovery). This blind spot could allow untracked printing.
+
+**Fix:** Start a lightweight periodic check (every 2-5 seconds) once a job enters Ready. Read `SPPSTA` and `SPGGCP`. If printing is detected, alert the operator and transition to Printing with a full poll loop. See §11.9 for details.
+
 ---
 
 ## 13. Summary: Safety Invariants
@@ -1065,3 +1170,63 @@ These rules must NEVER be violated, regardless of the scenario:
 | 8 | **Counter going backward means stop everything, quarantine, and alert.** | This indicates hardware swap, counter reset, or corruption. No automated response is safe. |
 | 9 | **The inspection procedure must complete atomically.** | Don't commit partial state changes. If any inspection command fails, abort and retry from scratch. |
 | 10 | **Quarantined codes are excluded from the Available pool count.** | When creating new jobs, the system counts only Available codes. Quarantined codes are invisible to job creation. |
+| 11 | **Ready jobs must NOT be auto-cancelled on startup.** | A Ready job has a loaded data buffer. Someone may have pressed Print on the touchscreen. Auto-cancel risks returning printed codes to Available. Inspect using TotalBaseline first. |
+| 12 | **TotalBaseline is recorded during Prepare (not Start).** | This ensures Ready jobs have a valid SPGGTP anchor for recovery inspection, closing the gap where Ready jobs previously had no baseline. |
+
+---
+
+## 14. Implementation Tasks
+
+Five tasks to close all gaps identified in this document. Execute in order.
+
+### Task 1: Fix ResumeJobAsync + Move TotalBaseline to Prepare *(Gaps 1, 5)*
+
+**Status: DONE**
+
+The most critical safety fix. Three parts:
+
+**A) Resume Procedure.** Rewrite `ResumeJobAsync` to follow the full Resume Procedure (Section 10). Current implementation just calls `SetPrintQuantityAsync(remaining)` + `StartPrintAsync()` — after a power cycle this causes duplicates because the row pointer resets to row 1. Fix: delete old CSV, build new CSV with only remaining Reserved codes, re-upload, reload template, record fresh TotalBaseline, then start.
+
+**B) TotalBaseline during Prepare.** Move `SPGGTP` read from `StartJobAsync` (line 225) to `PrepareJobAsync` right after `ActivateTemplateAsync`. This gives Ready jobs a baseline for recovery. `StartJobAsync` records a fresh baseline for the active Printing session.
+
+**C) Cancel boundary → Quarantine.** `CancelJobAsync` currently calls `BurnCodeAsync` at the boundary. Change to a new `QuarantineCodeAsync` method on `ICodePoolService`.
+
+**Files:** `PrintJobService.cs`, `ICodePoolService.cs`, `CodePoolService.cs`, `MockPrinterAdapter.cs`
+
+### Task 2: Post-Reconnect Inspection in JobExecutor *(Gap 2)*
+
+**Status: DONE**
+
+The poll loop catches `IOException`, waits 2s, and retries the same `GetCurrentCounterAsync`. It doesn't detect power cycles, template changes, or external printing.
+
+Fix: after `IOException` + successful reconnect, run a mini-inspection before resuming the poll loop: read `SPPSTA` (errors), `SPGGTP` (delta), `SPGGCP` (power cycle if 0), `SPLGAT` (template mismatch). Classify into scenarios and raise appropriate events for quarantine/abort/pause.
+
+**Files:** `JobExecutor.cs`, possibly `PrintJobService.cs` (new events/callbacks)
+
+### Task 3: Startup Recovery Overhaul + Ready Watch Loop *(Gaps 4, 5, 6)*
+
+**Status: DONE**
+
+**A) Ready jobs: no auto-cancel.** `App.xaml.cs` line 167-171 auto-cancels both Preparing AND Ready. Fix: only auto-cancel Preparing. Ready jobs get inspected like Printing jobs using TotalBaseline.
+
+**B) RecoveryItem enrichment.** Add: power-cycle flag, template match, CSV presence, serial number, recommended action, quarantined count. Update Recovery Dialog UI.
+
+**C) Ready Watch Loop.** New `ReadyWatcher` class — lightweight 2-5s periodic check of `SPPSTA`/`SPGGCP` while job is in Ready status. If printing detected externally, alert and auto-transition to Printing with full `JobExecutor`.
+
+**Files:** `App.xaml.cs`, `RecoveryItem.cs`, `RecoveryViewModel.cs`, `RecoveryDialog.xaml`, new `ReadyWatcher.cs`, `PrintJobService.cs`
+
+### Task 4: Serial Number Tracking + Hardware Swap Detection *(Gap 3)*
+
+**Status: DONE**
+
+Add `GetSerialNumberAsync` to `IPrinterAdapter` (SPGGSN). Implement in `SavemaTtoAdapter` and `MockPrinterAdapter`. Add `SerialNumber` column to `Printer` entity. Read serial on connect/reconnect in `PrinterConnectionManager`, compare with stored value. Mismatch → critical alert, block job operations.
+
+**Files:** `IPrinterAdapter.cs`, `SavemaTtoAdapter.cs`, `MockPrinterAdapter.cs`, `Printer.cs`, `PrinterConfiguration.cs`, `PrinterConnectionManager.cs`, new migration
+
+### Task 5: Tests for All Recovery Scenarios
+
+**Status: DONE**
+
+Integration/unit tests covering: resume with/without power cycle, boundary quarantine on cancel, boundary quarantine on power cycle, template mismatch quarantine, counter backward quarantine, Scenario 7B (template reload while RUNNING), Ready job startup recovery, Ready Watch Loop external print detection, connection lost during cancel, serial number mismatch.
+
+**Files:** New test files in `CodePrintManager.Application.Tests` and/or `CodePrintManager.Integration.Tests`

@@ -353,6 +353,7 @@
   "Error_PrinterNotConnectedShort": "Տպիչը միացված չէ",
   "Error_PrinterNotIdle": "Տպիչը պարապ չէ։ Ներկա վիճակ։ {0}",
   "Error_NoCsvFilename": "Արտադրանքի համար CSV ֆայլի անուն կարգավորված չէ",
+  "Error_NoRemainingCodes": "No remaining reserved codes for job #{0}",
   "Error_JobNotPrinting": "Առաջադրանք #{0}-ը Տպող վիճակում չէ",
   "Error_JobNotPaused": "Առաջադրանք #{0}-ը Դադարեցված վիճակում չէ",
   "Error_JobNotPreparing": "Առաջադրանք #{0}-ը Նախապատրաստման վիճակում չէ",

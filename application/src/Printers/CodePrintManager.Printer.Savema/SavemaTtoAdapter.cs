@@ -54,6 +54,12 @@ public class SavemaTtoAdapter : IPrinterAdapter
         finally { _lock.Release(); }
     }
 
+    public async Task<string?> GetSerialNumberAsync(CancellationToken ct = default)
+    {
+        var response = await SendCommandAsync(SpplCommandBuilder.GetSerialNumber(), ct);
+        return response.IsFail ? null : response.Payload;
+    }
+
     public async Task<PrinterStatus> GetStatusAsync(CancellationToken ct = default)
     {
         var response = await SendCommandAsync(SpplCommandBuilder.GetStatus(), ct);

@@ -6,7 +6,7 @@
         xmlns:vm="clr-namespace:CodePrintManager.Desktop.ViewModels"
         xmlns:loc="clr-namespace:CodePrintManager.Desktop.Localization"
         mc:Ignorable="d"
-        Title="{loc:Loc Recovery_Title}" Height="420" Width="700"
+        Title="{loc:Loc Recovery_Title}" Height="480" Width="1000"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         d:DataContext="{d:DesignInstance vm:RecoveryViewModel}">
     <Grid Margin="20">
@@ -25,12 +25,15 @@
                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                   BorderBrush="#E0E0E0" BorderThickness="1">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Job}" Binding="{Binding JobId}" Width="60" />
-                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Product}" Binding="{Binding ProductName}" Width="*" />
-                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Printer}" Binding="{Binding PrinterName}" Width="120" />
-                <DataGridTextColumn Header="{loc:Loc Recovery_Col_AppSays}" Binding="{Binding AppConfirmed}" Width="80" />
-                <DataGridTextColumn Header="{loc:Loc Recovery_Col_PrinterSays}" Binding="{Binding PrinterConfirmed}" Width="90" />
-                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Delta}" Binding="{Binding DeltaDisplay}" Width="70" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Job}" Binding="{Binding JobId}" Width="50" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Status}" Binding="{Binding JobStatus}" Width="70" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Product}" Binding="{Binding ProductName}" Width="120" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Printer}" Binding="{Binding PrinterName}" Width="100" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_AppSays}" Binding="{Binding AppConfirmed}" Width="60" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_PrinterSays}" Binding="{Binding PrinterConfirmed}" Width="70" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Delta}" Binding="{Binding DeltaDisplay}" Width="50" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Flags}" Binding="{Binding Flags}" Width="120" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Action}" Binding="{Binding Recommendation}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>
 

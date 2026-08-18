@@ -627,12 +627,13 @@ public class FullE2ETests : IntegrationTestBase
         var available = stats.PoolStats.GetValueOrDefault("Available", 0);
         var printed = stats.PoolStats.GetValueOrDefault("Printed", 0);
         var burned = stats.PoolStats.GetValueOrDefault("Burned", 0);
+        var quarantined = stats.PoolStats.GetValueOrDefault("Quarantined", 0);
         var reserved = stats.PoolStats.GetValueOrDefault("Reserved", 0);
 
-        // After cancel: some codes were printed, some burned, rest returned to available
+        // After cancel: some codes were printed, boundary code quarantined, rest returned to available
         Assert.True(printed >= 1, $"Expected at least 1 printed, got {printed}");
         // Total accounted for must equal 20
-        var total = available + printed + burned + reserved;
+        var total = available + printed + burned + quarantined + reserved;
         Assert.Equal(20, total);
         // Available should be > 10 (10 from the untouched pool + some returned)
         Assert.True(available >= 10, $"Expected available >= 10, got {available}");

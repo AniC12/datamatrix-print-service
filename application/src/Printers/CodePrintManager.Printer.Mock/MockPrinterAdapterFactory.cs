@@ -8,12 +8,19 @@ public class MockPrinterAdapterFactory : IPrinterAdapterFactory
     private readonly ConcurrentDictionary<int, MockPrinterAdapter> _registry = new();
     private int _nextId;
 
+    /// <summary>
+    /// When set, newly created adapters inherit this serial number instead of the default.
+    /// </summary>
+    public string? NextSerialNumber { get; set; }
+
     public bool CanHandle(string adapterType)
         => adapterType.StartsWith("mock", StringComparison.OrdinalIgnoreCase);
 
     public IPrinterAdapter Create(string adapterType)
     {
         var adapter = new MockPrinterAdapter();
+        if (NextSerialNumber != null)
+            adapter.SerialNumber = NextSerialNumber;
         var id = Interlocked.Increment(ref _nextId);
         _registry[id] = adapter;
         return adapter;

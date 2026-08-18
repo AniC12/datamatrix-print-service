@@ -7,6 +7,7 @@ using CodePrintManager.Domain.Interfaces;
 using CodePrintManager.Printer.Mock;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using PrinterEntity = CodePrintManager.Domain.Entities.Printer;
@@ -53,8 +54,10 @@ public class PrintersViewModelTests : IDisposable
         _logger = Substitute.For<ILogger<PrintersViewModel>>();
 
         var connLogger = Substitute.For<ILogger<PrinterConnectionManager>>();
+        var scopeFactory = Substitute.For<IServiceScopeFactory>();
+        var alerts = Substitute.For<IAlertService>();
         _connectionManager = new PrinterConnectionManager(
-            new IPrinterAdapterFactory[] { _mockFactory }, connLogger);
+            new IPrinterAdapterFactory[] { _mockFactory }, scopeFactory, alerts, connLogger);
 
         // Default: dialogs confirm (return true) unless overridden in specific tests
         _dialog.Confirm(Arg.Any<string>(), Arg.Any<string>()).Returns(true);

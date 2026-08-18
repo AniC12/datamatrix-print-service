@@ -18,14 +18,22 @@ public class JobExecutor
     private readonly ILogger _logger;
     private readonly ILocalizationService _loc;
 
+    private readonly int _counterOffset;
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
     private int _previousCounter;
     private int _crossCheckTick;
+    private bool _needsInspection;
 
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
     public event EventHandler<JobCompletedEvent>? Completed;
 
+    /// <param name="counterOffset">
+    /// Offset to add to the raw SPGGCP counter to get the effective job-level counter.
+    /// Set to job.CodesConfirmed when resuming after a full Resume Procedure (template
+    /// reload resets SPGGCP to 0, but the job already has confirmed codes).
+    /// Default 0 for fresh starts.
+    /// </param>
     public JobExecutor(
         PrintJob job,
         IPrinterAdapter adapter,
@@ -33,7 +41,8 @@ public class JobExecutor
         IAlertService alerts,
         AppDbContext db,
         ILogger logger,
-        ILocalizationService loc)
+        ILocalizationService loc,
+        int counterOffset = 0)
     {
         _job = job;
         _adapter = adapter;
@@ -42,6 +51,7 @@ public class JobExecutor
         _db = db;
         _logger = logger;
         _loc = loc;
+        _counterOffset = counterOffset;
     }
 
     public void Start()
@@ -66,15 +76,25 @@ public class JobExecutor
         {
             try
             {
+                // After an IOException, run a full inspection before resuming normal polling.
+                if (_needsInspection)
+                {
+                    _needsInspection = false;
+                    var shouldContinue = await RunPostReconnectInspectionAsync(ct);
+                    if (!shouldContinue)
+                        return; // Inspection escalated — executor is done
+                }
+
                 var snapshot = await ReadCountersAsync(ct);
-                _logger.LogDebug("Job {JobId} poll: counter={Counter} (prev={Previous})",
-                    _job.Id, snapshot.Counter, _previousCounter);
+                var effectiveCounter = snapshot.Counter + _counterOffset;
+                _logger.LogDebug("Job {JobId} poll: counter={Counter} offset={Offset} effective={Effective} (prev={Previous})",
+                    _job.Id, snapshot.Counter, _counterOffset, effectiveCounter, _previousCounter);
                 DetectAnomalies(snapshot);
 
-                if (snapshot.Counter > _job.CodesConfirmed)
-                    await CommitProgressAsync(snapshot);
+                if (effectiveCounter > _job.CodesConfirmed)
+                    await CommitProgressAsync(effectiveCounter);
 
-                if (snapshot.Counter >= _job.Quantity)
+                if (effectiveCounter >= _job.Quantity)
                 {
                     await CompleteJobAsync();
                     return;
@@ -90,6 +110,7 @@ public class JobExecutor
                 _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
                     _loc.Format("Alert_ConnectionLost", _job.Id),
                     printerId: _job.PrinterId, jobId: _job.Id);
+                _needsInspection = true;
                 await Task.Delay(2000, ct);
             }
             catch (Exception ex)
@@ -98,6 +119,229 @@ public class JobExecutor
                 await Task.Delay(2000, ct);
             }
         }
+    }
+
+    /// <summary>
+    /// Mini-inspection after reconnection. Reads printer status, counters, and template
+    /// to detect power cycles, template mismatches, or printer errors that occurred
+    /// while we were disconnected.
+    /// 
+    /// Returns true if polling should continue normally, false if the executor should stop
+    /// (job was escalated to Error status).
+    /// </summary>
+    private async Task<bool> RunPostReconnectInspectionAsync(CancellationToken ct)
+    {
+        _logger.LogInformation("Job {JobId}: running post-reconnect inspection", _job.Id);
+
+        // --- Read all inspection data atomically ---
+        // If any read fails, we abort the inspection and wait for the next reconnect.
+        PrinterStatus status;
+        int currentCounter;
+        int lifetimeCounter;
+        string? activeTemplate;
+        string? serialNumber;
+
+        try
+        {
+            status = await _adapter.GetStatusAsync(ct);
+            currentCounter = await _adapter.GetCurrentCounterAsync(ct);
+            lifetimeCounter = await _adapter.GetTotalCounterAsync(ct);
+            activeTemplate = await _adapter.GetActiveTemplateAsync(ct);
+            serialNumber = await _adapter.GetSerialNumberAsync(ct);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex,
+                "Job {JobId}: inspection failed (connection lost again). Will retry on next reconnect.",
+                _job.Id);
+            _needsInspection = true;
+            return true; // Keep polling — the next IOException will trigger another retry
+        }
+
+        _logger.LogInformation(
+            "Job {JobId} inspection: status={Status}, SPGGCP={Counter}, SPGGTP={Lifetime}, template={Template}, serial={Serial}",
+            _job.Id, status, currentCounter, lifetimeCounter, activeTemplate, serialNumber);
+
+        // --- Check 0: Serial number mismatch (hardware swap) ---
+        var storedSerial = _job.Printer?.SerialNumber;
+        if (!string.IsNullOrEmpty(storedSerial) && !string.IsNullOrEmpty(serialNumber)
+            && !string.Equals(storedSerial, serialNumber, StringComparison.Ordinal))
+        {
+            _logger.LogError(
+                "Job {JobId}: SERIAL MISMATCH after reconnect! Expected={Expected}, Got={Actual}",
+                _job.Id, storedSerial, serialNumber);
+            _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                $"Hardware swap detected! Serial changed from {storedSerial} to {serialNumber}. " +
+                $"Job #{_job.Id} stopped — codes quarantined.",
+                printerId: _job.PrinterId, jobId: _job.Id);
+
+            await QuarantineRemainingCodesAsync();
+            await SetJobErrorAsync($"Serial mismatch: expected '{storedSerial}', found '{serialNumber}'");
+            return false;
+        }
+
+        // --- Check 1: Printer in error state ---
+        if (status is PrinterStatus.Error or PrinterStatus.Blocked)
+        {
+            _logger.LogError("Job {JobId}: printer is in {Status} state after reconnect", _job.Id, status);
+            _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                $"Printer is in {status} state. Job #{_job.Id} requires attention.",
+                printerId: _job.PrinterId, jobId: _job.Id);
+            await SetJobErrorAsync($"Printer {status} after reconnect");
+            return false;
+        }
+
+        // --- Check 2: Template mismatch ---
+        // The product's template name may be stored as a full path; compare filenames.
+        var expectedTemplate = _job.Product?.TemplateFile;
+        if (expectedTemplate != null && activeTemplate != null)
+        {
+            var expectedName = Path.GetFileName(expectedTemplate);
+            if (!string.Equals(expectedName, activeTemplate, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogError(
+                    "Job {JobId}: template mismatch after reconnect. Expected='{Expected}', Active='{Active}'",
+                    _job.Id, expectedName, activeTemplate);
+                _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                    $"Template mismatch! Expected '{expectedName}', found '{activeTemplate}'. " +
+                    $"Job #{_job.Id} stopped — codes quarantined.",
+                    printerId: _job.PrinterId, jobId: _job.Id);
+
+                // Quarantine all remaining reserved codes — we can't trust what printed
+                await QuarantineRemainingCodesAsync();
+                await SetJobErrorAsync($"Template mismatch: expected '{expectedName}', found '{activeTemplate}'");
+                return false;
+            }
+        }
+
+        // --- Check 3: Compute lifetime delta ---
+        int? lifetimeDelta = null;
+        if (_job.TotalBaseline.HasValue)
+        {
+            lifetimeDelta = lifetimeCounter - _job.TotalBaseline.Value;
+
+            // Counter went backward — hardware swap or counter reset
+            if (lifetimeDelta < 0)
+            {
+                _logger.LogError(
+                    "Job {JobId}: SPGGTP went backward! baseline={Baseline}, now={Now}. Possible hardware swap.",
+                    _job.Id, _job.TotalBaseline, lifetimeCounter);
+                _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                    $"Lifetime counter went backward (was {_job.TotalBaseline}, now {lifetimeCounter}). " +
+                    $"Possible hardware swap. Job #{_job.Id} stopped — codes quarantined.",
+                    printerId: _job.PrinterId, jobId: _job.Id);
+
+                await QuarantineRemainingCodesAsync();
+                await SetJobErrorAsync("SPGGTP counter went backward — possible hardware swap");
+                return false;
+            }
+        }
+
+        var effectiveDelta = lifetimeDelta ?? (currentCounter + _counterOffset);
+
+        // --- Check 4: Power cycle / template reload detection ---
+        // SPGGCP == 0 means the current-session counter was reset (power cycle or template reload).
+        // If lifetime delta > confirmed, prints happened but the row pointer is lost.
+        if (currentCounter == 0 && _previousCounter > 0)
+        {
+            _logger.LogWarning(
+                "Job {JobId}: SPGGCP reset to 0 (was {Previous}). Power cycle or template reload detected.",
+                _job.Id, _previousCounter);
+
+            // Reconcile via lifetime delta: mark any unrecorded prints
+            if (lifetimeDelta.HasValue && lifetimeDelta.Value > _job.CodesConfirmed)
+            {
+                var unrecorded = lifetimeDelta.Value - _job.CodesConfirmed;
+                _logger.LogWarning(
+                    "Job {JobId}: {Unrecorded} unrecorded prints detected via SPGGTP delta",
+                    _job.Id, unrecorded);
+
+                // Mark the unrecorded prints, then quarantine the boundary
+                if (unrecorded > 1)
+                    await _codePool.MarkCodesPrintedAsync(_job.Id, _job.CodesConfirmed,
+                        _job.CodesConfirmed + unrecorded - 1);
+                // Quarantine the boundary code (might or might not have printed)
+                await _codePool.QuarantineCodeAsync(_job.Id, _job.CodesConfirmed + unrecorded - 1);
+                _job.CodesConfirmed = _job.CodesConfirmed + unrecorded;
+            }
+            else if (lifetimeDelta.HasValue && lifetimeDelta.Value == _job.CodesConfirmed)
+            {
+                // No additional prints, but row pointer is still lost
+                _logger.LogWarning(
+                    "Job {JobId}: no additional prints during disconnect, but SPGGCP was reset. " +
+                    "Row pointer lost — full Resume Procedure required.", _job.Id);
+            }
+
+            _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                $"Power cycle detected. SPGGCP reset to 0. Job #{_job.Id} requires Resume Procedure.",
+                printerId: _job.PrinterId, jobId: _job.Id);
+            await SetJobErrorAsync("Power cycle detected — SPGGCP reset, row pointer lost");
+            return false;
+        }
+
+        // --- Check 5: Scenario 7B — RUNNING + template match + SPGGCP reset ---
+        // Printer is running but counter seems inconsistent with our tracking.
+        // This is a warning-only scenario (do NOT stop the printer).
+        if (status == PrinterStatus.Printing && lifetimeDelta.HasValue)
+        {
+            var effectiveCounter = currentCounter + _counterOffset;
+            if (lifetimeDelta.Value > effectiveCounter)
+            {
+                var discrepancy = lifetimeDelta.Value - effectiveCounter;
+                _logger.LogWarning(
+                    "Job {JobId}: printer RUNNING but lifetime delta ({Delta}) exceeds counter ({Counter}). " +
+                    "Possible external prints or template reload while running.",
+                    _job.Id, lifetimeDelta, effectiveCounter);
+                _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
+                    $"WARNING: Lifetime counter discrepancy while printing. " +
+                    $"SPGGTP delta={lifetimeDelta}, SPGGCP={currentCounter}. " +
+                    $"Possible external prints (+{discrepancy}). Job #{_job.Id} requires attention.",
+                    printerId: _job.PrinterId, jobId: _job.Id);
+                // Warning only — do NOT stop the printer (per design doc Scenario 7B)
+            }
+        }
+
+        // --- All checks passed: reconcile any missed progress ---
+        if (lifetimeDelta.HasValue && lifetimeDelta.Value > _job.CodesConfirmed)
+        {
+            var catchUp = lifetimeDelta.Value - _job.CodesConfirmed;
+            _logger.LogInformation(
+                "Job {JobId}: catching up {CatchUp} missed prints after reconnect (lifetime delta={Delta})",
+                _job.Id, catchUp, lifetimeDelta);
+            await CommitProgressAsync(lifetimeDelta.Value);
+        }
+
+        _logger.LogInformation("Job {JobId}: post-reconnect inspection passed. Resuming normal polling.", _job.Id);
+        _previousCounter = currentCounter;
+        return true;
+    }
+
+    /// <summary>
+    /// Quarantine all remaining reserved codes for this job.
+    /// Used when the state is too uncertain to continue (template mismatch, counter rollback).
+    /// </summary>
+    private async Task QuarantineRemainingCodesAsync()
+    {
+        var remainingCount = _job.Quantity - _job.CodesConfirmed;
+        if (remainingCount > 0)
+        {
+            _logger.LogWarning("Job {JobId}: quarantining {Count} remaining reserved codes",
+                _job.Id, remainingCount);
+            await _codePool.QuarantineCodesAsync(_job.Id, _job.CodesConfirmed, remainingCount);
+        }
+    }
+
+    /// <summary>
+    /// Set the job to Error status and fire the Completed event to clean up.
+    /// </summary>
+    private async Task SetJobErrorAsync(string reason)
+    {
+        _job.Status = JobStatus.Error;
+        _job.CompletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        _logger.LogError("Job {JobId} set to Error: {Reason}", _job.Id, reason);
+        Completed?.Invoke(this, new JobCompletedEvent(_job.Id, JobStatus.Error));
     }
 
     private async Task<PollSnapshot> ReadCountersAsync(CancellationToken ct)
@@ -138,18 +382,18 @@ public class JobExecutor
         }
     }
 
-    private async Task CommitProgressAsync(PollSnapshot snapshot)
+    private async Task CommitProgressAsync(int effectiveCounter)
     {
-        await _codePool.MarkCodesPrintedAsync(_job.Id, _job.CodesConfirmed, snapshot.Counter);
-        _job.CodesConfirmed = snapshot.Counter;
+        await _codePool.MarkCodesPrintedAsync(_job.Id, _job.CodesConfirmed, effectiveCounter);
+        _job.CodesConfirmed = effectiveCounter;
         await _db.SaveChangesAsync();
 
-        var pct = _job.Quantity > 0 ? (int)(100.0 * snapshot.Counter / _job.Quantity) : 0;
+        var pct = _job.Quantity > 0 ? (int)(100.0 * effectiveCounter / _job.Quantity) : 0;
         _logger.LogInformation("Job {JobId} progress: {Confirmed}/{Total} ({Pct}%)",
-            _job.Id, snapshot.Counter, _job.Quantity, pct);
+            _job.Id, effectiveCounter, _job.Quantity, pct);
 
         ProgressChanged?.Invoke(this,
-            new JobProgressChangedEvent(_job.Id, snapshot.Counter, _job.Quantity));
+            new JobProgressChangedEvent(_job.Id, effectiveCounter, _job.Quantity));
     }
 
     private async Task CompleteJobAsync()

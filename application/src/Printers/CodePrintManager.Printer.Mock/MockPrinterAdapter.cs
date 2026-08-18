@@ -27,6 +27,7 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     // Configuration
     public int PrintSpeedMs { get; set; } = 500;
+    public string SerialNumber { get; set; } = "MOCK-001";
 
     public MockPrinterAdapter(ILogger? logger = null)
     {
@@ -57,6 +58,11 @@ public class MockPrinterAdapter : IPrinterAdapter
         _status = PrinterStatus.Offline;
         StopPrintInternal();
         return Task.CompletedTask;
+    }
+
+    public Task<string?> GetSerialNumberAsync(CancellationToken ct = default)
+    {
+        return Task.FromResult<string?>(SerialNumber);
     }
 
     public Task<PrinterStatus> GetStatusAsync(CancellationToken ct = default)

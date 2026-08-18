@@ -89,6 +89,7 @@ public partial class RecoveryItemViewModel : ObservableObject
     public RecoveryItem Item { get; }
 
     public int JobId => Item.Job.Id;
+    public string JobStatus => Item.Job.Status.ToString();
     public string ProductName => Item.Job.Product?.Name ?? _loc["Common_Unknown"];
     public string PrinterName => Item.Job.Printer?.Name ?? _loc["Common_Unknown"];
     public int AppConfirmed => Item.ConfirmedByApp;
@@ -97,6 +98,28 @@ public partial class RecoveryItemViewModel : ObservableObject
     public string DeltaDisplay => Item.ConfirmedByPrinter >= 0
         ? $"{Item.Discrepancy:+#;-#;0}"
         : _loc["Status_Offline"];
+
+    public string Recommendation => Item.RecommendedAction ?? "";
+    public bool PowerCycled => Item.PowerCycleDetected;
+    public bool TemplateMismatch => !Item.TemplateMatch;
+    public bool CsvMissing => !Item.CsvPresent;
+    public bool PrinterOffline => Item.PrinterOffline;
+    public bool SerialMismatch => Item.SerialMismatch;
+
+    /// <summary>Summary of warnings for this item (shown in the Flags column).</summary>
+    public string Flags
+    {
+        get
+        {
+            var flags = new List<string>();
+            if (Item.PrinterOffline) flags.Add(_loc["Recovery_Flag_Offline"]);
+            if (Item.SerialMismatch) flags.Add(_loc["Recovery_Flag_SerialMismatch"]);
+            if (Item.PowerCycleDetected) flags.Add(_loc["Recovery_Flag_PowerCycle"]);
+            if (!Item.TemplateMatch) flags.Add(_loc["Recovery_Flag_TemplateMismatch"]);
+            if (!Item.CsvPresent) flags.Add(_loc["Recovery_Flag_CsvMissing"]);
+            return flags.Count > 0 ? string.Join(", ", flags) : "OK";
+        }
+    }
 
     [ObservableProperty]
     private string _status;

@@ -9,6 +9,11 @@ public class Printer
     public string? Model { get; set; }
     public string AdapterType { get; set; } = "savema_tto";
     public bool IsActive { get; set; } = true;
+    /// <summary>
+    /// Last known serial number read from the printer (SPGGSN).
+    /// Used to detect hardware swaps at the same IP/port.
+    /// </summary>
+    public string? SerialNumber { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

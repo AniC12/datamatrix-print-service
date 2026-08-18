@@ -10,6 +10,8 @@ public interface ICodePoolService
     Task ReturnCodesToPoolAsync(int jobId, int startIndex, int count);
     Task MarkCodesPrintedAsync(int jobId, int fromIndex, int toIndex);
     Task BurnCodeAsync(int jobId, int index);
+    Task QuarantineCodeAsync(int jobId, int index);
+    Task QuarantineCodesAsync(int jobId, int fromIndex, int count);
     Task<int> GetAvailableCountAsync(int productId);
     Task<(int Available, int Total)> GetCodeCountsAsync(int productId);
     Task<Dictionary<CodeStatus, int>> GetPoolStatsAsync(int productId);
