@@ -1,0 +1,28 @@
+# Auto-detect text files and normalize line endings to LF in the repo,
+# CRLF in the working tree on Windows.
+* text=auto
+
+# Explicitly declare file types
+*.cs        text diff=csharp
+*.xaml      text
+*.xml       text
+*.json      text
+*.md        text
+*.yml       text
+*.yaml      text
+*.txt       text
+*.sln       text eol=crlf
+*.csproj    text
+*.props     text
+*.targets   text
+*.py        text
+*.sh        text eol=lf
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+
+# Binary files
+*.rox       binary
+*.db        binary
+*.png       binary
+*.jpg       binary
+*.ico       binary
