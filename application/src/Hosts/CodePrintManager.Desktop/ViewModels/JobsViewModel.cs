@@ -19,6 +19,7 @@ public partial class JobsViewModel : ObservableObject
     private readonly IPrintJobService _printJobService;
     private readonly JobEventBus _eventBus;
     private readonly ILogger<JobsViewModel> _logger;
+    private readonly ILocalizationService _loc;
 
     public ObservableCollection<PrintJob> ActiveJobs { get; } = new();
     public ObservableCollection<PrintJob> JobHistory { get; } = new();
@@ -81,12 +82,13 @@ public partial class JobsViewModel : ObservableObject
     public event EventHandler? NavigateToNewJobRequested;
 
     public JobsViewModel(AppDbContext db, IPrintJobService printJobService, JobEventBus eventBus,
-        ILogger<JobsViewModel> logger)
+        ILogger<JobsViewModel> logger, ILocalizationService loc)
     {
         _db = db;
         _printJobService = printJobService;
         _eventBus = eventBus;
         _logger = logger;
+        _loc = loc;
 
         _eventBus.ProgressChanged += OnJobProgressChanged;
         _eventBus.Completed += OnJobCompleted;
@@ -152,16 +154,16 @@ public partial class JobsViewModel : ObservableObject
             return;
         }
 
-        JobDetailProduct = value.Product?.Name ?? "Unknown";
+        JobDetailProduct = value.Product?.Name ?? _loc["Common_Unknown"];
         JobDetailPrinter = value.Printer != null
-            ? $"{value.Printer.Name} ({value.Printer.IpAddress})"
-            : "Unknown";
+            ? _loc.Format("Status_PrinterDisplay", value.Printer.Name, value.Printer.IpAddress)
+            : _loc["Common_Unknown"];
         JobDetailQuantity = value.Quantity;
         JobDetailProgress = value.CodesConfirmed;
         JobDetailStatus = value.Status;
 
         var pct = value.Quantity > 0 ? (int)(100.0 * value.CodesConfirmed / value.Quantity) : 0;
-        JobDetailProgressText = $"{value.CodesConfirmed} / {value.Quantity}  ({pct}%)";
+        JobDetailProgressText = _loc.Format("Status_ProgressDisplay", value.CodesConfirmed, value.Quantity, pct);
 
         // Preparation checklist — if job is past Preparing, all prep steps were completed
         var prepared = value.Status is not JobStatus.Preparing;
@@ -260,7 +262,7 @@ public partial class JobsViewModel : ObservableObject
             {
                 JobDetailProgress = e.Confirmed;
                 var pct = e.Total > 0 ? (int)(100.0 * e.Confirmed / e.Total) : 0;
-                JobDetailProgressText = $"{e.Confirmed} / {e.Total}  ({pct}%)";
+                JobDetailProgressText = _loc.Format("Status_ProgressDisplay", e.Confirmed, e.Total, pct);
             }
         });
     }

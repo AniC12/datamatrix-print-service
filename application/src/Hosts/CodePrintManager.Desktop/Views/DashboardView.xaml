@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CodePrintManager.Desktop.ViewModels"
+             xmlns:loc="clr-namespace:CodePrintManager.Desktop.Localization"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:DashboardViewModel}"
              Loaded="OnLoaded">
@@ -15,10 +16,10 @@
 
         <!-- Header -->
         <DockPanel Grid.Row="0" Margin="0,0,0,16">
-            <Button DockPanel.Dock="Right" Content="+ New Job"
+            <Button DockPanel.Dock="Right" Content="{loc:Loc Common_NewJob}"
                     Command="{Binding NewJobCommand}"
                     Style="{StaticResource PrimaryButton}" Padding="16,8" />
-            <TextBlock Text="DASHBOARD" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Loc Dashboard_Title}" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
         </DockPanel>
 
         <!-- Main content: scrollable -->
@@ -58,7 +59,7 @@
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}"
                                                    Opacity="0.7" VerticalAlignment="Center" />
                                         <TextBlock>
-                                            <Run Text="Job #" /><Run Text="{Binding JobId, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding JobProductName, Mode=OneWay}" />
+                                            <Run Text="{loc:Loc Dashboard_JobPrefix}" /><Run Text="{Binding JobId, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding JobProductName, Mode=OneWay}" />
                                         </TextBlock>
                                     </DockPanel>
 
@@ -67,16 +68,16 @@
                                                Visibility="{Binding HasJob, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <!-- Action buttons (right-aligned) -->
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
-                                            <Button Content="Start Print" Command="{Binding StartPrintCommand}"
+                                            <Button Content="{loc:Loc Dashboard_StartPrint}" Command="{Binding StartPrintCommand}"
                                                     Style="{StaticResource PrimaryButton}" Padding="10,4" Margin="0,0,4,0"
                                                     Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=StartPrint}" />
-                                            <Button Content="Pause" Command="{Binding PauseJobCommand}"
+                                            <Button Content="{loc:Loc Dashboard_Pause}" Command="{Binding PauseJobCommand}"
                                                     Style="{StaticResource OutlineButton}" Padding="10,4" Margin="0,0,4,0"
                                                     Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Pause}" />
-                                            <Button Content="Resume" Command="{Binding ResumeJobCommand}"
+                                            <Button Content="{loc:Loc Dashboard_Resume}" Command="{Binding ResumeJobCommand}"
                                                     Style="{StaticResource PrimaryButton}" Padding="10,4" Margin="0,0,4,0"
                                                     Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Resume}" />
-                                            <Button Content="Cancel" Command="{Binding CancelJobCommand}"
+                                            <Button Content="{loc:Loc Dashboard_Cancel}" Command="{Binding CancelJobCommand}"
                                                     Style="{StaticResource DangerButton}" Padding="10,4"
                                                     Visibility="{Binding JobStatus, Converter={StaticResource JobStatusToActionVisibilityConverter}, ConverterParameter=Cancel}" />
                                         </StackPanel>
@@ -98,7 +99,7 @@
                 </ItemsControl>
 
                 <!-- Recent Activity -->
-                <TextBlock Text="RECENT ACTIVITY" Style="{StaticResource SectionHeader}" Margin="0,24,0,8" />
+                <TextBlock Text="{loc:Loc Dashboard_RecentActivity}" Style="{StaticResource SectionHeader}" Margin="0,24,0,8" />
                 <ItemsControl ItemsSource="{Binding RecentActivity}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>

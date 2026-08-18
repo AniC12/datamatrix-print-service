@@ -59,7 +59,12 @@ public class PrintersViewModelTests : IDisposable
         // Default: dialogs confirm (return true) unless overridden in specific tests
         _dialog.Confirm(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
 
-        _vm = new PrintersViewModel(_db, _connectionManager, _audit, _mockFactory, _dialog, _logger);
+        var loc = Substitute.For<ILocalizationService>();
+        loc[Arg.Any<string>()].Returns(ci => ci.Arg<string>());
+        loc.Format(Arg.Any<string>(), Arg.Any<object[]>())
+            .Returns(ci => string.Format(ci.Arg<string>(), ci.Arg<object[]>()));
+
+        _vm = new PrintersViewModel(_db, _connectionManager, _audit, _mockFactory, _dialog, _logger, loc);
     }
 
     public void Dispose()
@@ -457,7 +462,7 @@ public class PrintersViewModelTests : IDisposable
 
         var exists = await _db.Printers.AnyAsync(p => p.Id == printer.Id);
         exists.Should().BeTrue("printer with active Printing job should not be deleted");
-        _dialog.Received(1).ShowWarning(Arg.Is<string>(s => s.Contains("active jobs")), Arg.Any<string>());
+        _dialog.Received(1).ShowWarning(Arg.Is<string>(s => s.Contains("PrinterHasActiveJobs")), Arg.Any<string>());
     }
 
     [Fact]
@@ -638,7 +643,7 @@ public class PrintersViewModelTests : IDisposable
         var activeFile = _vm.TemplateFiles.First(f => f.FileName == "active.rox");
         activeFile.IsActiveOnPrinter.Should().BeTrue();
         activeFile.IsProtected.Should().BeTrue();
-        activeFile.StatusText.Should().Be("Active on printer");
+        activeFile.StatusText.Should().Be("Storage_ActiveOnPrinter");
         activeFile.IsSelected.Should().BeFalse("active template should not be pre-selected");
 
         var otherFile = _vm.TemplateFiles.First(f => f.FileName == "other.rox");
@@ -827,10 +832,10 @@ public class PrintersViewModelTests : IDisposable
 
         _vm.HasVerifyResults.Should().BeTrue();
         _vm.VerifyResults.Should().HaveCount(1);
-        _vm.VerifyResults[0].CheckName.Should().Be("Connection");
+        _vm.VerifyResults[0].CheckName.Should().Be("Verify_Connection");
         _vm.VerifyResults[0].Status.Should().Be(VerifyStatus.Fail);
-        _vm.VerifyResults[0].Details.Should().Contain("not connected");
-        _vm.VerifyOverallStatus.Should().Be("FAILED");
+        _vm.VerifyResults[0].Details.Should().Contain("PrinterNotConnected");
+        _vm.VerifyOverallStatus.Should().Be("Verify_Failed");
     }
 
     [Fact]
@@ -846,7 +851,7 @@ public class PrintersViewModelTests : IDisposable
         _vm.HasVerifyResults.Should().BeTrue();
         _vm.VerifyResults.Should().HaveCount(4);
         _vm.VerifyResults.All(r => r.Status == VerifyStatus.Pass).Should().BeTrue();
-        _vm.VerifyOverallStatus.Should().Be("ALL OK");
+        _vm.VerifyOverallStatus.Should().Be("Verify_AllOk");
     }
 
     [Fact]
@@ -887,7 +892,7 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var csvResult = _vm.VerifyResults.First(r => r.CheckName == "CSV File");
+        var csvResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_CsvFile");
         csvResult.Status.Should().Be(VerifyStatus.Pass);
     }
 
@@ -923,9 +928,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var csvResult = _vm.VerifyResults.First(r => r.CheckName == "CSV File");
+        var csvResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_CsvFile");
         csvResult.Status.Should().Be(VerifyStatus.Warning);
-        csvResult.Details.Should().Contain("NOT found");
+        csvResult.Details.Should().Contain("CsvNotFound");
     }
 
     [Fact]
@@ -963,9 +968,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Counter (SPGGTP)");
+        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_Counter");
         counterResult.Status.Should().Be(VerifyStatus.Pass);
-        counterResult.Details.Should().Contain("consistent");
+        counterResult.Details.Should().Contain("CounterConsistent");
     }
 
     [Fact]
@@ -981,9 +986,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var statusResult = _vm.VerifyResults.First(r => r.CheckName == "Printer Status");
+        var statusResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_PrinterStatus");
         statusResult.Status.Should().Be(VerifyStatus.Fail);
-        statusResult.Details.Should().Contain("ERROR");
+        statusResult.Details.Should().Contain("PrinterError");
     }
 
     [Fact]
@@ -999,9 +1004,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var statusResult = _vm.VerifyResults.First(r => r.CheckName == "Printer Status");
+        var statusResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_PrinterStatus");
         statusResult.Status.Should().Be(VerifyStatus.Warning);
-        statusResult.Details.Should().Contain("BLOCKED");
+        statusResult.Details.Should().Contain("PrinterBlocked");
     }
 
     [Fact]
@@ -1017,7 +1022,7 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        _vm.VerifyOverallStatus.Should().Be("WARNINGS");
+        _vm.VerifyOverallStatus.Should().Be("Verify_Warnings");
     }
 
     [Fact]
@@ -1033,7 +1038,7 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        _vm.VerifyOverallStatus.Should().Be("ISSUES FOUND");
+        _vm.VerifyOverallStatus.Should().Be("Verify_IssuesFound");
     }
 
     [Fact]
@@ -1512,9 +1517,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var csvResult = _vm.VerifyResults.First(r => r.CheckName == "CSV File");
+        var csvResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_CsvFile");
         csvResult.Status.Should().Be(VerifyStatus.Warning);
-        csvResult.Details.Should().Contain("No CSV name configured");
+        csvResult.Details.Should().Contain("NoCsvConfigured");
     }
 
     [Fact]
@@ -1552,9 +1557,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var templateResult = _vm.VerifyResults.First(r => r.CheckName == "Active Template");
+        var templateResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_ActiveTemplate");
         templateResult.Status.Should().Be(VerifyStatus.Pass);
-        templateResult.Details.Should().Contain("matches expected");
+        templateResult.Details.Should().Contain("TemplateMatches");
     }
 
     [Fact]
@@ -1592,10 +1597,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var templateResult = _vm.VerifyResults.First(r => r.CheckName == "Active Template");
+        var templateResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_ActiveTemplate");
         templateResult.Status.Should().Be(VerifyStatus.Warning);
-        templateResult.Details.Should().Contain("wrong_template.rox");
-        templateResult.Details.Should().Contain("apple_05.rox");
+        templateResult.Details.Should().Contain("TemplateMismatch");
     }
 
     [Fact]
@@ -1640,9 +1644,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Counter (SPGGTP)");
+        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_Counter");
         counterResult.Status.Should().Be(VerifyStatus.Warning);
-        counterResult.Details.Should().Contain("ahead");
+        counterResult.Details.Should().Contain("CounterAhead");
     }
 
     [Fact]
@@ -1675,9 +1679,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Counter (SPGGTP)");
+        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_Counter");
         counterResult.Status.Should().Be(VerifyStatus.Fail);
-        counterResult.Details.Should().Contain("behind");
+        counterResult.Details.Should().Contain("CounterBehind");
     }
 
     [Fact]
@@ -1709,9 +1713,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Counter (SPGGTP)");
+        var counterResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_Counter");
         counterResult.Status.Should().Be(VerifyStatus.Warning);
-        counterResult.Details.Should().Contain("not started");
+        counterResult.Details.Should().Contain("NoBaseline");
     }
 
     [Fact]
@@ -1725,9 +1729,9 @@ public class PrintersViewModelTests : IDisposable
         _vm.SelectedPrinter = _vm.Printers.First();
         await _vm.VerifyPrinterCommand.ExecuteAsync(null);
 
-        var statusResult = _vm.VerifyResults.First(r => r.CheckName == "Printer Status");
+        var statusResult = _vm.VerifyResults.First(r => r.CheckName == "Verify_PrinterStatus");
         statusResult.Status.Should().Be(VerifyStatus.Pass);
-        statusResult.Details.Should().Contain("Idle");
+        statusResult.Details.Should().Contain("PrinterState");
     }
 
     [Fact]
@@ -1785,7 +1789,7 @@ public class PrintersViewModelTests : IDisposable
 
         await _vm.DeletePrinterCommand.ExecuteAsync(null);
 
-        _dialog.Received(1).ShowWarning(Arg.Is<string>(s => s.Contains("active jobs")), Arg.Any<string>());
+        _dialog.Received(1).ShowWarning(Arg.Is<string>(s => s.Contains("PrinterHasActiveJobs")), Arg.Any<string>());
         var exists = await _db.Printers.AnyAsync(p => p.Id == printer.Id);
         exists.Should().BeTrue("should be blocked due to the Printing job");
     }
@@ -1821,7 +1825,7 @@ public class PrintersViewModelTests : IDisposable
 
         await _vm.DeletePrinterCommand.ExecuteAsync(null);
 
-        _dialog.Received(1).ShowWarning(Arg.Is<string>(s => s.Contains("active jobs")), Arg.Any<string>());
+        _dialog.Received(1).ShowWarning(Arg.Is<string>(s => s.Contains("PrinterHasActiveJobs")), Arg.Any<string>());
         _dialog.DidNotReceive().Confirm(Arg.Any<string>(), Arg.Any<string>());
     }
 
@@ -1840,7 +1844,7 @@ public class PrintersViewModelTests : IDisposable
         await _vm.DisconnectPrinterCommand.ExecuteAsync(null);
 
         _dialog.Received(1).Confirm(
-            Arg.Is<string>(s => s.Contains("active jobs")),
+            Arg.Is<string>(s => s.Contains("DisconnectActiveJobs")),
             Arg.Any<string>());
         _vm.SelectedPrinterStatus.Should().Be(PrinterStatus.Offline);
     }

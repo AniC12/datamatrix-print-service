@@ -12,6 +12,7 @@ public partial class RecoveryViewModel : ObservableObject
 {
     private readonly IPrintJobService _printJobService;
     private readonly ILogger<RecoveryViewModel> _logger;
+    private readonly ILocalizationService _loc;
 
     public ObservableCollection<RecoveryItemViewModel> Items { get; } = new();
 
@@ -28,17 +29,19 @@ public partial class RecoveryViewModel : ObservableObject
     [ObservableProperty]
     private bool _allResolved;
 
-    public RecoveryViewModel(IPrintJobService printJobService, ILogger<RecoveryViewModel> logger)
+    public RecoveryViewModel(IPrintJobService printJobService, ILogger<RecoveryViewModel> logger,
+        ILocalizationService loc)
     {
         _printJobService = printJobService;
         _logger = logger;
+        _loc = loc;
     }
 
     public void LoadItems(IEnumerable<RecoveryItem> recoveryItems)
     {
         Items.Clear();
         foreach (var item in recoveryItems)
-            Items.Add(new RecoveryItemViewModel(item));
+            Items.Add(new RecoveryItemViewModel(item, _loc));
         HasItems = Items.Count > 0;
         AllResolved = !HasItems;
 
@@ -57,7 +60,7 @@ public partial class RecoveryViewModel : ObservableObject
         if (SelectedItem == null) return;
         _logger.LogInformation("Recovery: Resuming Job #{JobId}", SelectedItem.Item.Job.Id);
         await _printJobService.ResumeJobAsync(SelectedItem.Item.Job.Id);
-        SelectedItem.Status = "Resumed";
+        SelectedItem.Status = _loc["Status_Resumed"];
         Items.Remove(SelectedItem);
         SelectedItem = null;
         HasItems = Items.Count > 0;
@@ -71,7 +74,7 @@ public partial class RecoveryViewModel : ObservableObject
         if (SelectedItem == null) return;
         _logger.LogInformation("Recovery: Aborting Job #{JobId}", SelectedItem.Item.Job.Id);
         await _printJobService.CancelJobAsync(SelectedItem.Item.Job.Id);
-        SelectedItem.Status = "Aborted";
+        SelectedItem.Status = _loc["Status_Aborted"];
         Items.Remove(SelectedItem);
         SelectedItem = null;
         HasItems = Items.Count > 0;
@@ -82,23 +85,26 @@ public partial class RecoveryViewModel : ObservableObject
 
 public partial class RecoveryItemViewModel : ObservableObject
 {
+    private readonly ILocalizationService _loc;
     public RecoveryItem Item { get; }
 
     public int JobId => Item.Job.Id;
-    public string ProductName => Item.Job.Product?.Name ?? "Unknown";
-    public string PrinterName => Item.Job.Printer?.Name ?? "Unknown";
+    public string ProductName => Item.Job.Product?.Name ?? _loc["Common_Unknown"];
+    public string PrinterName => Item.Job.Printer?.Name ?? _loc["Common_Unknown"];
     public int AppConfirmed => Item.ConfirmedByApp;
     public int PrinterConfirmed => Item.ConfirmedByPrinter;
     public int Delta => Item.Discrepancy;
     public string DeltaDisplay => Item.ConfirmedByPrinter >= 0
         ? $"{Item.Discrepancy:+#;-#;0}"
-        : "Offline";
+        : _loc["Status_Offline"];
 
     [ObservableProperty]
-    private string _status = "Pending";
+    private string _status;
 
-    public RecoveryItemViewModel(RecoveryItem item)
+    public RecoveryItemViewModel(RecoveryItem item, ILocalizationService loc)
     {
+        _loc = loc;
         Item = item;
+        _status = _loc["Status_Pending"];
     }
 }

@@ -6,6 +6,7 @@ using CodePrintManager.Application.Services;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Interfaces;
+using CodePrintManager.Desktop.Localization;
 using CodePrintManager.Desktop.ViewModels;
 using CodePrintManager.Desktop.Views;
 using CodePrintManager.Printer.Mock;
@@ -53,6 +54,13 @@ public partial class App : System.Windows.Application
             })
             .ConfigureServices((context, services) =>
             {
+                // Localization — register before AddCodePrintManager so TryAddSingleton defers
+                var locDir = Path.Combine(appDir, "Localization");
+                services.AddSingleton<LocalizationService>(sp =>
+                    new LocalizationService(locDir, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LocalizationService>>()));
+                services.AddSingleton<ILocalizationService>(sp =>
+                    sp.GetRequiredService<LocalizationService>());
+
                 services.AddCodePrintManager(dbPath);
 
                 // Register printer adapter factory: mock or real Savema
@@ -96,6 +104,10 @@ public partial class App : System.Windows.Application
             var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
             await DbInitializer.InitializeAsync(db);
         }
+
+        // Initialize localization bridge for WPF bindings
+        var locService = _host.Services.GetRequiredService<ILocalizationService>();
+        TranslationSource.Instance.Initialize(locService);
 
         // Auto-connect configured printers (fire-and-forget, non-blocking)
         _ = Task.Run(async () =>

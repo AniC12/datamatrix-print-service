@@ -3,6 +3,7 @@ using CodePrintManager.Data;
 using CodePrintManager.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CodePrintManager.Application;
 
@@ -13,6 +14,10 @@ public static class ServiceCollectionExtensions
         // Database
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
+
+        // Localization — register a default if not already added by the host
+        services.TryAddSingleton<ILocalizationService>(sp =>
+            new LocalizationService("", sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LocalizationService>>()));
 
         // Singletons (survive scope disposal)
         services.AddSingleton<PrinterConnectionManager>();

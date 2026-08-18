@@ -11,11 +11,13 @@ public class ProductService : IProductService
 {
     private readonly AppDbContext _db;
     private readonly ILogger<ProductService> _logger;
+    private readonly ILocalizationService _loc;
 
-    public ProductService(AppDbContext db, ILogger<ProductService> logger)
+    public ProductService(AppDbContext db, ILogger<ProductService> logger, ILocalizationService loc)
     {
         _db = db;
         _logger = logger;
+        _loc = loc;
     }
 
     public async Task<List<ProductNode>> GetTreeAsync()
@@ -116,7 +118,7 @@ public class ProductService : IProductService
     public async Task DeleteAsync(int id)
     {
         if (!await CanDeleteAsync(id))
-            throw new InvalidOperationException("Cannot delete product with active jobs or reserved codes.");
+            throw new InvalidOperationException(_loc["Error_CannotDeleteProduct"]);
 
         var node = await _db.ProductNodes.FindAsync(id);
         if (node != null)

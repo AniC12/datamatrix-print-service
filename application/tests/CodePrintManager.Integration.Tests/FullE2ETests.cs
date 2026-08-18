@@ -163,7 +163,7 @@ public class FullE2ETests : IntegrationTestBase
 
         Assert.Equal(HttpStatusCode.BadRequest, jobResp.StatusCode);
         var error = await jobResp.Content.ReadFromJsonAsync<ErrorResult>();
-        Assert.Contains("not connected", error!.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PrinterNotConnected", error!.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     // ──────────────────────────────────────────────
@@ -469,7 +469,7 @@ public class FullE2ETests : IntegrationTestBase
         // Should fail because printer status is Error (not Idle)
         Assert.Equal(HttpStatusCode.BadRequest, jobResp.StatusCode);
         var error = await jobResp.Content.ReadFromJsonAsync<ErrorResult>();
-        Assert.Contains("not idle", error!.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PrinterNotIdle", error!.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     // ──────────────────────────────────────────────

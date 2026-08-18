@@ -25,4 +25,10 @@
     <ProjectReference Include="..\..\Printers\CodePrintManager.Printer.Mock\CodePrintManager.Printer.Mock.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Localization\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

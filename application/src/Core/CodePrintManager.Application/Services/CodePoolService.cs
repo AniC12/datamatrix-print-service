@@ -14,15 +14,18 @@ public class CodePoolService : ICodePoolService
     private readonly IAuditService _audit;
     private readonly IAlertService _alerts;
     private readonly ILogger<CodePoolService> _logger;
+    private readonly ILocalizationService _loc;
 
     private const int LowStockThreshold = 500;
 
-    public CodePoolService(AppDbContext db, IAuditService audit, IAlertService alerts, ILogger<CodePoolService> logger)
+    public CodePoolService(AppDbContext db, IAuditService audit, IAlertService alerts,
+        ILogger<CodePoolService> logger, ILocalizationService loc)
     {
         _db = db;
         _audit = audit;
         _alerts = alerts;
         _logger = logger;
+        _loc = loc;
     }
 
     public async Task<CsvImportResult> ImportCodesAsync(int productId, string batchName, IReadOnlyList<string> codes)
@@ -92,7 +95,7 @@ public class CodePoolService : ICodePoolService
 
         if (codes.Count < quantity)
             throw new InvalidOperationException(
-                $"Not enough codes available. Requested: {quantity}, Available: {codes.Count}");
+                _loc.Format("Error_NotEnoughCodes", quantity, codes.Count));
 
         foreach (var code in codes)
         {
@@ -115,8 +118,8 @@ public class CodePoolService : ICodePoolService
                 productId, remaining);
             var product = await _db.ProductNodes.FindAsync(productId);
             var name = product?.Name ?? $"Product #{productId}";
-            _alerts.Raise(AlertSeverity.Warning, "Code Pool",
-                $"{name}: only {remaining} codes remaining.");
+            _alerts.Raise(AlertSeverity.Warning, _loc["Alert_CodePool"],
+                _loc.Format("Alert_LowStock", name, remaining));
         }
 
         return codes;

@@ -17,6 +17,7 @@ public partial class ProductsViewModel : ObservableObject
     private readonly ICodeManagementService _codeManagement;
     private readonly AppDbContext _db;
     private readonly ILogger<ProductsViewModel> _logger;
+    private readonly ILocalizationService _loc;
 
     public CodesTabViewModel CodesTab { get; }
 
@@ -71,7 +72,7 @@ public partial class ProductsViewModel : ObservableObject
 
     /// <summary>Hint text showing where new nodes will be added.</summary>
     [ObservableProperty]
-    private string _addTargetHint = "Root";
+    private string _addTargetHint = string.Empty;
 
     /// <summary>True when the selected leaf has available codes to print.</summary>
     [ObservableProperty]
@@ -88,13 +89,16 @@ public partial class ProductsViewModel : ObservableObject
 
     public ProductsViewModel(IProductService productService, ICodePoolService codePoolService,
         ICodeManagementService codeManagement, AppDbContext db,
-        CodesTabViewModel codesTab, ILogger<ProductsViewModel> logger)
+        CodesTabViewModel codesTab, ILogger<ProductsViewModel> logger,
+        ILocalizationService loc)
     {
         _productService = productService;
         _codePoolService = codePoolService;
         _codeManagement = codeManagement;
         _db = db;
         _logger = logger;
+        _loc = loc;
+        _addTargetHint = _loc["Label_Root"];
         CodesTab = codesTab;
         CodesTab.CodesChanged += async (_, _) =>
         {
@@ -158,8 +162,8 @@ public partial class ProductsViewModel : ObservableObject
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "Template Files|*.rox|All Files|*.*",
-            Title = "Select Template File (.rox)"
+            Filter = _loc["Filter_TemplateFiles"],
+            Title = _loc["DialogTitle_SelectTemplate"]
         };
         if (dialog.ShowDialog() == true)
             NewProductTemplate = dialog.FileName;
@@ -198,8 +202,8 @@ public partial class ProductsViewModel : ObservableObject
             {
                 // Simple confirmation for empty product
                 var result = System.Windows.MessageBox.Show(
-                    $"Are you sure you want to delete \"{productName}\"?\n\nThis action cannot be undone.",
-                    "Confirm Delete",
+                    _loc.Format("Dialog_ConfirmDeleteProduct", productName),
+                    _loc.Format("DialogTitle_DeleteProduct", productName),
                     System.Windows.MessageBoxButton.YesNo,
                     System.Windows.MessageBoxImage.Warning);
 
@@ -209,12 +213,8 @@ public partial class ProductsViewModel : ObservableObject
             {
                 // Three-button dialog for products with codes
                 var result = System.Windows.MessageBox.Show(
-                    $"Delete \"{productName}\"?\n\n" +
-                    $"This product has {codeCount:N0} codes.\n\n" +
-                    "• Yes = Keep Codes (move to Unassigned pool)\n" +
-                    "• No = Delete Codes Too (archive them)\n" +
-                    "• Cancel = Don't delete",
-                    $"Delete \"{productName}\"",
+                    _loc.Format("Dialog_DeleteProductWithCodes", productName, codeCount),
+                    _loc.Format("DialogTitle_DeleteProduct", productName),
                     System.Windows.MessageBoxButton.YesNoCancel,
                     System.Windows.MessageBoxImage.Warning);
 
@@ -243,8 +243,8 @@ public partial class ProductsViewModel : ObservableObject
         {
             _logger.LogError(ex, "Products: Delete failed for Id={Id}", SelectedProduct?.Id);
             System.Windows.MessageBox.Show(
-                ex.Message,
-                "Cannot Delete",
+                _loc.Format("Error_CannotDeleteReason", productName, ex.Message),
+                _loc["DialogTitle_CannotDelete"],
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error);
         }
@@ -257,8 +257,8 @@ public partial class ProductsViewModel : ObservableObject
 
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "CSV Files|*.csv|All Files|*.*",
-            Title = "Import Codes CSV"
+            Filter = _loc["Filter_CsvFiles"],
+            Title = _loc["DialogTitle_ImportCodes"]
         };
 
         if (dialog.ShowDialog() != true) return;
@@ -282,8 +282,8 @@ public partial class ProductsViewModel : ObservableObject
 
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "Template Files|*.rox|All Files|*.*",
-            Title = "Select Template File (.rox)"
+            Filter = _loc["Filter_TemplateFiles"],
+            Title = _loc["DialogTitle_SelectTemplate"]
         };
 
         if (dialog.ShowDialog() != true) return;
@@ -356,11 +356,11 @@ public partial class ProductsViewModel : ObservableObject
 
         // Update the "adding to" hint
         if (value == null)
-            AddTargetHint = "Root";
+            AddTargetHint = _loc["Label_Root"];
         else if (!value.IsLeaf)
             AddTargetHint = value.Name;
         else
-            AddTargetHint = value.Parent?.Name ?? "Root";
+            AddTargetHint = value.Parent?.Name ?? _loc["Label_Root"];
 
         // Close any open rename form on selection change
         IsRenaming = false;
@@ -394,7 +394,7 @@ public partial class ProductsViewModel : ObservableObject
 
         var canDelete = await _productService.CanDeleteAsync(SelectedProduct.Id);
         CanDeleteSelectedProduct = canDelete;
-        DeleteBlockedReason = canDelete ? string.Empty : "Has active jobs or reserved codes";
+        DeleteBlockedReason = canDelete ? string.Empty : _loc["Error_DeleteBlocked"];
     }
 
     private async Task RefreshCodeCountsAsync()

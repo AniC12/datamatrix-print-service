@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IAlertService _alertService;
     private readonly AppDbContext _db;
     private readonly ILogger<MainViewModel> _logger;
+    private readonly ILocalizationService _loc;
 
     [ObservableProperty]
     private ObservableObject? _currentView;
@@ -35,6 +36,12 @@ public partial class MainViewModel : ObservableObject
     public string ZoomPercent => $"{ZoomLevel * 100:0}%";
 
     public ObservableCollection<AlertItemViewModel> Alerts { get; } = new();
+
+    // Language selector
+    public List<LanguageOption> AvailableLanguages { get; private set; } = new();
+
+    [ObservableProperty]
+    private LanguageOption? _selectedLanguage;
 
     private readonly DashboardViewModel _dashboard;
     private readonly ProductsViewModel _products;
@@ -50,11 +57,13 @@ public partial class MainViewModel : ObservableObject
         PrintersViewModel printers,
         JobsViewModel jobs,
         NewJobViewModel newJob,
-        ILogger<MainViewModel> logger)
+        ILogger<MainViewModel> logger,
+        ILocalizationService loc)
     {
         _alertService = alertService;
         _db = db;
         _logger = logger;
+        _loc = loc;
         _dashboard = dashboard;
         _products = products;
         _printers = printers;
@@ -62,6 +71,7 @@ public partial class MainViewModel : ObservableObject
         _newJob = newJob;
 
         LoadZoomLevel();
+        LoadLanguageOptions();
 
         _alertService.AlertRaised += OnAlertRaised;
         _alertService.AlertDismissed += OnAlertDismissed;
@@ -201,6 +211,73 @@ public partial class MainViewModel : ObservableObject
             _logger.LogWarning(ex, "Failed to save zoom level to config");
         }
     }
+
+    // ── Language ────────────────────────────────────────────
+    private const string LanguageConfigKey = "Language";
+
+    private void LoadLanguageOptions()
+    {
+        AvailableLanguages = _loc.AvailableLanguages
+            .Select(code => new LanguageOption(code,
+                _loc.LanguageDisplayNames.TryGetValue(code, out var name) ? name : code))
+            .ToList();
+
+        var savedLang = LoadSavedLanguage();
+        if (savedLang != null && _loc.AvailableLanguages.Contains(savedLang))
+            _loc.SetLanguage(savedLang);
+
+        SelectedLanguage = AvailableLanguages.FirstOrDefault(l => l.Code == _loc.CurrentLanguage)
+                        ?? AvailableLanguages.FirstOrDefault();
+    }
+
+    partial void OnSelectedLanguageChanged(LanguageOption? value)
+    {
+        if (value == null || value.Code == _loc.CurrentLanguage) return;
+        _loc.SetLanguage(value.Code);
+        _logger.LogInformation("Language changed to {Lang}", value.Code);
+        _ = SaveLanguageAsync(value.Code);
+    }
+
+    private string? LoadSavedLanguage()
+    {
+        try
+        {
+            var config = _db.AppConfig.Find(LanguageConfigKey);
+            return config?.Value;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load language from config");
+            return null;
+        }
+    }
+
+    private async Task SaveLanguageAsync(string languageCode)
+    {
+        try
+        {
+            var config = await _db.AppConfig.FindAsync(LanguageConfigKey);
+            if (config == null)
+            {
+                config = new AppConfig { Key = LanguageConfigKey, Value = languageCode };
+                _db.AppConfig.Add(config);
+            }
+            else
+            {
+                config.Value = languageCode;
+            }
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save language to config");
+        }
+    }
+}
+
+public record LanguageOption(string Code, string DisplayName)
+{
+    public override string ToString() => DisplayName;
 }
 
 public partial class AlertItemViewModel : ObservableObject

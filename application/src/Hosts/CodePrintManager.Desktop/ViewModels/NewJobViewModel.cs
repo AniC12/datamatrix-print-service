@@ -17,6 +17,7 @@ public partial class NewJobViewModel : ObservableObject
     private readonly ICodePoolService _codePoolService;
     private readonly AppDbContext _db;
     private readonly ILogger<NewJobViewModel> _logger;
+    private readonly ILocalizationService _loc;
 
     public ObservableCollection<ProductNode> Products { get; } = new();
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
@@ -78,12 +79,14 @@ public partial class NewJobViewModel : ObservableObject
         IPrintJobService printJobService,
         ICodePoolService codePoolService,
         AppDbContext db,
-        ILogger<NewJobViewModel> logger)
+        ILogger<NewJobViewModel> logger,
+        ILocalizationService loc)
     {
         _printJobService = printJobService;
         _codePoolService = codePoolService;
         _db = db;
         _logger = logger;
+        _loc = loc;
     }
 
     public void Reset(int? productId = null, int? printerId = null)
@@ -158,7 +161,7 @@ public partial class NewJobViewModel : ObservableObject
         PrepComplete = false;
         PrepFailed = false;
         PrepErrorMessage = null;
-        StatusMessage = "Creating job...";
+        StatusMessage = _loc["Progress_CreatingJob"];
 
         try
         {
@@ -170,7 +173,7 @@ public partial class NewJobViewModel : ObservableObject
                 SelectedProduct.Id, SelectedPrinter.Id, Quantity);
             CreatedJobId = job.Id;
             ShowPrepProgress = true;
-            StatusMessage = "Preparing job...";
+            StatusMessage = _loc["Progress_PreparingJob"];
             _logger.LogInformation("NewJob: Job #{JobId} created", job.Id);
 
             // Step 2: Prepare with step-by-step progress
@@ -179,35 +182,35 @@ public partial class NewJobViewModel : ObservableObject
                 switch (step)
                 {
                     case "checking_printer":
-                        StatusMessage = "Checking printer state...";
+                        StatusMessage = _loc["Progress_CheckingPrinter"];
                         break;
                     case "printer_verified":
                         PrepVerified = true;
-                        StatusMessage = "Reserving codes...";
+                        StatusMessage = _loc["Progress_ReservingCodes"];
                         break;
                     case "reserving_codes":
-                        StatusMessage = "Reserving codes...";
+                        StatusMessage = _loc["Progress_ReservingCodes"];
                         break;
                     case "codes_reserved":
                         PrepCodesReserved = true;
-                        StatusMessage = "Uploading data file...";
+                        StatusMessage = _loc["Progress_UploadingData"];
                         break;
                     case "uploading_data":
-                        StatusMessage = "Uploading data file...";
+                        StatusMessage = _loc["Progress_UploadingData"];
                         break;
                     case "data_uploaded":
                         PrepDataUploaded = true;
-                        StatusMessage = "Loading template...";
+                        StatusMessage = _loc["Progress_LoadingTemplate"];
                         break;
                     case "loading_template":
-                        StatusMessage = "Loading template...";
+                        StatusMessage = _loc["Progress_LoadingTemplate"];
                         break;
                     case "template_loaded":
                         PrepTemplateLoaded = true;
                         break;
                     case "complete":
                         PrepComplete = true;
-                        StatusMessage = $"Job #{job.Id} is ready to print.";
+                        StatusMessage = _loc.Format("Status_JobReady", job.Id);
                         break;
                 }
             });
@@ -222,7 +225,7 @@ public partial class NewJobViewModel : ObservableObject
                 PrepDataUploaded = true;
                 PrepTemplateLoaded = true;
                 PrepComplete = true;
-                StatusMessage = $"Job #{job.Id} is ready to print.";
+                StatusMessage = _loc.Format("Status_JobReady", job.Id);
             }
             _logger.LogInformation("NewJob: Job #{JobId} prepared successfully → Ready", job.Id);
         }
@@ -231,7 +234,7 @@ public partial class NewJobViewModel : ObservableObject
             _logger.LogError(ex, "NewJob: Preparation failed for Job #{JobId}", CreatedJobId);
             PrepFailed = true;
             PrepErrorMessage = ex.Message;
-            StatusMessage = $"Preparation failed: {ex.Message}";
+            StatusMessage = _loc.Format("Error_PreparationFailed", ex.Message);
         }
         finally
         {
@@ -253,7 +256,7 @@ public partial class NewJobViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "NewJob: Start print failed for Job #{JobId}", CreatedJobId.Value);
-            StatusMessage = $"Error starting print: {ex.Message}";
+            StatusMessage = _loc.Format("Error_StartPrintFailed", ex.Message);
         }
     }
 

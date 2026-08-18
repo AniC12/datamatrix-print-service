@@ -1,5 +1,6 @@
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
+using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PrinterEntity = CodePrintManager.Domain.Entities.Printer;
@@ -8,6 +9,8 @@ namespace CodePrintManager.Desktop.ViewModels.Components;
 
 public partial class PrinterCardViewModel : ObservableObject
 {
+    private readonly ILocalizationService _loc;
+
     public int PrinterId { get; }
     public string Name { get; }
     public string IpAddress { get; }
@@ -56,8 +59,9 @@ public partial class PrinterCardViewModel : ObservableObject
     public event EventHandler<int>? ResumeJobRequested;
     public event EventHandler<int>? CardClicked;
 
-    public PrinterCardViewModel(PrinterEntity printer, PrintJob? currentJob = null)
+    public PrinterCardViewModel(PrinterEntity printer, ILocalizationService loc, PrintJob? currentJob = null)
     {
+        _loc = loc;
         PrinterId = printer.Id;
         Name = printer.Name;
         IpAddress = printer.IpAddress;
@@ -69,7 +73,7 @@ public partial class PrinterCardViewModel : ObservableObject
     public void SetJob(PrintJob job)
     {
         JobId = job.Id;
-        JobProductName = job.Product?.Name ?? "Unknown";
+        JobProductName = job.Product?.Name ?? _loc["Common_Unknown"];
         JobStatus = job.Status;
         CurrentJobProgress = job.CodesConfirmed;
         CurrentJobTotal = job.Quantity;
@@ -101,7 +105,7 @@ public partial class PrinterCardViewModel : ObservableObject
         if (CurrentJobTotal > 0)
         {
             ProgressPercent = 100.0 * CurrentJobProgress / CurrentJobTotal;
-            ProgressText = $"{CurrentJobProgress}/{CurrentJobTotal} ({(int)ProgressPercent}%)";
+            ProgressText = _loc.Format("Status_ProgressDisplay", CurrentJobProgress, CurrentJobTotal, (int)ProgressPercent);
         }
         else
         {
@@ -114,11 +118,11 @@ public partial class PrinterCardViewModel : ObservableObject
     {
         JobSummaryText = status switch
         {
-            Domain.Enums.JobStatus.Ready => "Prepared, waiting to start",
-            Domain.Enums.JobStatus.Paused => $"Paused at {CurrentJobProgress}/{CurrentJobTotal}",
-            Domain.Enums.JobStatus.Completed => $"Completed {CompletedAt:MMM d HH:mm}",
-            Domain.Enums.JobStatus.Cancelled => $"Cancelled {CompletedAt:MMM d HH:mm}",
-            Domain.Enums.JobStatus.Error => "Error occurred",
+            Domain.Enums.JobStatus.Ready => _loc["Status_PreparedWaiting"],
+            Domain.Enums.JobStatus.Paused => _loc.Format("Status_PausedAt", CurrentJobProgress, CurrentJobTotal),
+            Domain.Enums.JobStatus.Completed => _loc.Format("Status_CompletedDate", CompletedAt!),
+            Domain.Enums.JobStatus.Cancelled => _loc.Format("Status_CancelledDate", CompletedAt!),
+            Domain.Enums.JobStatus.Error => _loc["Status_ErrorOccurred"],
             _ => null
         };
     }

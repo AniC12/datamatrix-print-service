@@ -17,6 +17,7 @@ public class PrintJobService : IPrintJobService
     private readonly IAlertService _alerts;
     private readonly IAuditService _audit;
     private readonly ILogger<PrintJobService> _logger;
+    private readonly ILocalizationService _loc;
     private readonly ActiveJobRegistry _jobRegistry;
     private readonly JobEventBus _eventBus;
     private readonly IServiceScopeFactory? _scopeFactory;
@@ -31,6 +32,7 @@ public class PrintJobService : IPrintJobService
         IAlertService alerts,
         IAuditService audit,
         ILogger<PrintJobService> logger,
+        ILocalizationService loc,
         ActiveJobRegistry jobRegistry,
         JobEventBus eventBus,
         IServiceScopeFactory? scopeFactory = null)
@@ -41,6 +43,7 @@ public class PrintJobService : IPrintJobService
         _alerts = alerts;
         _audit = audit;
         _logger = logger;
+        _loc = loc;
         _jobRegistry = jobRegistry;
         _eventBus = eventBus;
         _scopeFactory = scopeFactory;
@@ -50,14 +53,14 @@ public class PrintJobService : IPrintJobService
     {
         if (quantity <= 0)
             throw new ArgumentOutOfRangeException(nameof(quantity), quantity,
-                "Quantity must be greater than zero");
+                _loc["Error_QuantityMustBePositive"]);
 
         // Check available codes before creating the job
         var available = await _db.Codes
             .CountAsync(c => c.ProductId == productId && c.Status == CodeStatus.Available);
         if (available < quantity)
             throw new InvalidOperationException(
-                $"Not enough codes available. Requested: {quantity}, Available: {available}");
+                _loc.Format("Error_NotEnoughCodes", quantity, available));
 
         var job = new PrintJob
         {
@@ -94,14 +97,14 @@ public class PrintJobService : IPrintJobService
         try
         {
             var adapter = _connectionManager.GetAdapter(job.PrinterId)
-                ?? throw new InvalidOperationException($"Printer {job.Printer.Name} is not connected");
+                ?? throw new InvalidOperationException(_loc.Format("Error_PrinterNotConnected", job.Printer.Name));
 
             // Step 1: Check printer state
             progress?.Report("checking_printer");
             var status = await adapter.GetStatusAsync(ct);
             _logger.LogDebug("Job {JobId}: printer status = {Status}", jobId, status);
             if (status != PrinterStatus.Idle)
-                throw new InvalidOperationException($"Printer is not idle. Current state: {status}");
+                throw new InvalidOperationException(_loc.Format("Error_PrinterNotIdle", status));
             progress?.Report("printer_verified");
 
             // Step 2: Reserve codes
@@ -116,7 +119,7 @@ public class PrintJobService : IPrintJobService
             // Step 3: Upload CSV
             progress?.Report("uploading_data");
             var csvFilename = job.Product.PrinterCsvName
-                ?? throw new InvalidOperationException("Product has no CSV filename configured");
+                ?? throw new InvalidOperationException(_loc["Error_NoCsvFilename"]);
             _logger.LogDebug("Job {JobId}: uploading CSV '{Filename}' ({Count} codes)", jobId, csvFilename, codes.Count);
             await adapter.DeleteCsvAsync(csvFilename, ct);
 
@@ -125,21 +128,21 @@ public class PrintJobService : IPrintJobService
             var codeTexts = codes.Select(c => c.CodeText).ToList();
             var uploadOk = await adapter.UploadCsvAsync(csvFilename, codeTexts, ct);
             if (!uploadOk)
-                throw new InvalidOperationException("CSV upload failed: SPLCDF returned FAIL");
+                throw new InvalidOperationException(_loc["Error_CsvUploadFailed"]);
 
             ct.ThrowIfCancellationRequested();
 
             // Verify upload
             var exists = await adapter.VerifyCsvExistsAsync(csvFilename, ct);
             if (!exists)
-                throw new InvalidOperationException("CSV verification failed: file not found on printer");
+                throw new InvalidOperationException(_loc["Error_CsvVerificationFailed"]);
             _logger.LogDebug("Job {JobId}: CSV uploaded and verified", jobId);
             progress?.Report("data_uploaded");
 
             // Step 4: Check template
             progress?.Report("loading_template");
             var templateName = job.Product.TemplateFile
-                ?? throw new InvalidOperationException("Product has no template configured");
+                ?? throw new InvalidOperationException(_loc["Error_NoTemplateConfigured"]);
             _logger.LogDebug("Job {JobId}: checking template '{Template}'", jobId, templateName);
             var templates = await adapter.ListTemplatesAsync(ct);
             if (!templates.Contains(templateName))
@@ -153,9 +156,9 @@ public class PrintJobService : IPrintJobService
                     if (!uploadTemplateOk)
                     {
                         _alerts.Raise(AlertSeverity.Error, job.Printer.Name,
-                            "Template upload failed. Load it manually via Sayasis.",
+                            _loc["Alert_TemplateUploadFailed"],
                             printerId: job.PrinterId, jobId: job.Id);
-                        throw new InvalidOperationException("Template upload failed: SPLRTF returned FAIL");
+                        throw new InvalidOperationException(_loc["Error_TemplateUploadFailed"]);
                     }
                     _logger.LogInformation("Job {JobId}: template '{Template}' uploaded from disk", jobId, templateName);
                     // Use the filename (without path) for activation
@@ -164,7 +167,7 @@ public class PrintJobService : IPrintJobService
                 else
                 {
                     throw new InvalidOperationException(
-                        $"Template '{templateName}' not found on printer and .rox file not found on disk.");
+                        _loc.Format("Error_TemplateNotFound", templateName));
                 }
             }
 
@@ -172,7 +175,7 @@ public class PrintJobService : IPrintJobService
             ct.ThrowIfCancellationRequested();
             var activateOk = await adapter.ActivateTemplateAsync(templateName, ct);
             if (!activateOk)
-                throw new InvalidOperationException("Template activation failed: SPLLTF returned FAIL");
+                throw new InvalidOperationException(_loc["Error_TemplateActivationFailed"]);
             _logger.LogDebug("Job {JobId}: template activated", jobId);
 
             progress?.Report("template_loaded");
@@ -213,10 +216,10 @@ public class PrintJobService : IPrintJobService
             .FirstAsync(j => j.Id == jobId);
 
         if (job.Status != JobStatus.Ready)
-            throw new InvalidOperationException($"Job is not ready. Current status: {job.Status}");
+            throw new InvalidOperationException(_loc.Format("Error_JobNotReady", job.Status));
 
         var adapter = _connectionManager.GetAdapter(job.PrinterId)
-            ?? throw new InvalidOperationException("Printer not connected");
+            ?? throw new InvalidOperationException(_loc["Error_PrinterNotConnectedShort"]);
 
         // Record lifetime counter baseline
         job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
@@ -281,7 +284,7 @@ public class PrintJobService : IPrintJobService
 
         if (job.Status is JobStatus.Completed or JobStatus.Cancelled)
             throw new InvalidOperationException(
-                $"Cannot cancel job in {job.Status} state");
+                _loc.Format("Error_CannotCancelJob", job.Status));
 
         _logger.LogInformation("Job {JobId} cancelling (status={Status}, confirmed={Confirmed})",
             jobId, job.Status, job.CodesConfirmed);
@@ -353,7 +356,7 @@ public class PrintJobService : IPrintJobService
         var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
 
         if (job.Status != JobStatus.Printing)
-            throw new InvalidOperationException($"Only printing jobs can be paused. Current status: {job.Status}");
+            throw new InvalidOperationException(_loc.Format("Error_CannotPauseJob", job.Status));
 
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
         await printerLock.WaitAsync();
@@ -447,14 +450,14 @@ public class PrintJobService : IPrintJobService
         }
 
         if (job.Status != JobStatus.Paused)
-            throw new InvalidOperationException($"Only paused or ready jobs can be resumed. Current status: {job.Status}");
+            throw new InvalidOperationException(_loc.Format("Error_CannotResumeJob", job.Status));
 
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
         await printerLock.WaitAsync(ct);
         try
         {
             var adapter = _connectionManager.GetAdapter(job.PrinterId)
-                ?? throw new InvalidOperationException("Printer not connected");
+                ?? throw new InvalidOperationException(_loc["Error_PrinterNotConnectedShort"]);
 
             // Set remaining quantity and restart printer
             var remaining = job.Quantity - job.CodesConfirmed;

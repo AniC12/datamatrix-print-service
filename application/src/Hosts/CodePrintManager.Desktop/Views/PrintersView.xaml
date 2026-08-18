@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:CodePrintManager.Desktop.ViewModels"
+             xmlns:loc="clr-namespace:CodePrintManager.Desktop.Localization"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:PrintersViewModel}"
              Loaded="OnLoaded">
@@ -16,15 +17,15 @@
 
         <!-- Header -->
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
-            <Button DockPanel.Dock="Right" Content="+ New Job"
+            <Button DockPanel.Dock="Right" Content="{loc:Loc Common_NewJob}"
                     Command="{Binding NewJobCommand}"
                     Style="{StaticResource PrimaryButton}" Padding="16,8" />
-            <TextBlock Text="PRINTERS" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
+            <TextBlock Text="{loc:Loc Printers_Title}" Style="{StaticResource PageHeader}" VerticalAlignment="Center" />
         </DockPanel>
 
         <!-- Printer selector row -->
         <DockPanel Grid.Row="1" Margin="0,0,0,12">
-            <Button DockPanel.Dock="Right" Content="+ Add Printer"
+            <Button DockPanel.Dock="Right" Content="{loc:Loc Printers_AddPrinter}"
                     Command="{Binding ShowAddPrinterCommand}"
                     Style="{StaticResource OutlineButton}" Padding="10,4" Margin="8,0,0,0" />
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -46,21 +47,21 @@
                 BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12"
                 VerticalAlignment="Top" HorizontalAlignment="Left" MinWidth="350">
             <StackPanel>
-                <TextBlock Text="Add New Printer" FontWeight="Bold" FontSize="14" Margin="0,0,0,8" />
-                <TextBlock Text="Name" Margin="0,0,0,2" />
+                <TextBlock Text="{loc:Loc Printers_AddNewPrinter}" FontWeight="Bold" FontSize="14" Margin="0,0,0,8" />
+                <TextBlock Text="{loc:Loc Printers_Label_Name}" Margin="0,0,0,2" />
                 <TextBox Text="{Binding NewPrinterName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
-                <TextBlock Text="IP Address" Margin="0,0,0,2" />
+                <TextBlock Text="{loc:Loc Printers_Label_IpAddress}" Margin="0,0,0,2" />
                 <TextBox Text="{Binding NewPrinterIp, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
-                <TextBlock Text="Port" Margin="0,0,0,2" />
+                <TextBlock Text="{loc:Loc Printers_Label_Port}" Margin="0,0,0,2" />
                 <TextBox Text="{Binding NewPrinterPort, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6" />
-                <TextBlock Text="Adapter Type" Margin="0,0,0,2" />
+                <TextBlock Text="{loc:Loc Printers_Label_AdapterType}" Margin="0,0,0,2" />
                 <ComboBox ItemsSource="{Binding AvailableAdapterTypes}"
                           SelectedItem="{Binding NewPrinterAdapterType}"
                           Margin="0,0,0,12" />
                 <StackPanel Orientation="Horizontal">
-                    <Button Content="Add" Command="{Binding ConfirmAddPrinterCommand}"
+                    <Button Content="{loc:Loc Common_Add}" Command="{Binding ConfirmAddPrinterCommand}"
                             Style="{StaticResource PrimaryButton}" Padding="16,6" Margin="0,0,8,0" />
-                    <Button Content="Cancel" Command="{Binding CancelAddPrinterCommand}"
+                    <Button Content="{loc:Loc Common_Cancel}" Command="{Binding CancelAddPrinterCommand}"
                             Style="{StaticResource OutlineButton}" Padding="16,6" />
                 </StackPanel>
             </StackPanel>
@@ -70,7 +71,7 @@
         <TabControl Grid.Row="2"
                     Visibility="{Binding SelectedPrinter, Converter={StaticResource NullToVisibilityConverter}}">
             <!-- Configuration Tab -->
-            <TabItem Header="Configuration">
+            <TabItem Header="{loc:Loc Printers_Tab_Configuration}">
                 <StackPanel Margin="12">
                     <!-- Read-only view (not editing) -->
                     <StackPanel Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}">
@@ -79,7 +80,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Name:" FontWeight="SemiBold" />
+                            <TextBlock Text="{loc:Loc Printers_Label_Name}" FontWeight="SemiBold" />
                             <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.Name}" />
                         </Grid>
                         <Grid Margin="0,0,0,4">
@@ -87,7 +88,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="IP Address:" FontWeight="SemiBold" />
+                            <TextBlock Text="{loc:Loc Printers_Label_IpAddress}" FontWeight="SemiBold" />
                             <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.IpAddress}" />
                         </Grid>
                         <Grid Margin="0,0,0,4">
@@ -95,7 +96,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Port:" FontWeight="SemiBold" />
+                            <TextBlock Text="{loc:Loc Printers_Label_Port}" FontWeight="SemiBold" />
                             <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.Port}" />
                         </Grid>
                         <Grid Margin="0,0,0,4">
@@ -103,7 +104,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Adapter:" FontWeight="SemiBold" />
+                            <TextBlock Text="{loc:Loc Printers_Label_AdapterType}" FontWeight="SemiBold" />
                             <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.AdapterType}" />
                         </Grid>
                     </StackPanel>
@@ -115,7 +116,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="250" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Name:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc Printers_Label_Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <TextBox Grid.Column="1" Text="{Binding EditPrinterName, UpdateSourceTrigger=PropertyChanged}" />
                         </Grid>
                         <Grid Margin="0,0,0,4">
@@ -123,7 +124,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="250" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="IP Address:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc Printers_Label_IpAddress}" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <TextBox Grid.Column="1" Text="{Binding EditPrinterIp, UpdateSourceTrigger=PropertyChanged}" />
                         </Grid>
                         <Grid Margin="0,0,0,4">
@@ -131,7 +132,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="250" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Port:" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Text="{loc:Loc Printers_Label_Port}" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <TextBox Grid.Column="1" Text="{Binding EditPrinterPort, UpdateSourceTrigger=PropertyChanged}" />
                         </Grid>
                         <Grid Margin="0,0,0,4">
@@ -139,7 +140,7 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Adapter:" FontWeight="SemiBold" />
+                            <TextBlock Text="{loc:Loc Printers_Label_AdapterType}" FontWeight="SemiBold" />
                             <TextBlock Grid.Column="1" Text="{Binding SelectedPrinter.AdapterType}" />
                         </Grid>
                     </StackPanel>
@@ -148,23 +149,23 @@
 
                     <StackPanel Orientation="Horizontal">
                         <!-- Normal mode buttons -->
-                        <Button Content="Connect" Command="{Binding ConnectPrinterCommand}"
+                        <Button Content="{loc:Loc Printers_Connect}" Command="{Binding ConnectPrinterCommand}"
                                 Style="{StaticResource PrimaryButton}" Padding="12,6" Margin="0,0,8,0"
                                 Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
-                        <Button Content="Disconnect" Command="{Binding DisconnectPrinterCommand}"
+                        <Button Content="{loc:Loc Printers_Disconnect}" Command="{Binding DisconnectPrinterCommand}"
                                 Style="{StaticResource OutlineButton}" Padding="12,6" Margin="0,0,8,0"
                                 Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
-                        <Button Content="Edit" Command="{Binding EditPrinterCommand}"
+                        <Button Content="{loc:Loc Printers_Edit}" Command="{Binding EditPrinterCommand}"
                                 Style="{StaticResource OutlineButton}" Padding="12,6" Margin="0,0,8,0"
                                 Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
-                        <Button Content="Delete Printer" Command="{Binding DeletePrinterCommand}"
+                        <Button Content="{loc:Loc Printers_DeletePrinter}" Command="{Binding DeletePrinterCommand}"
                                 Style="{StaticResource DangerButton}" Padding="12,6"
                                 Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}" />
                         <!-- Edit mode buttons -->
-                        <Button Content="Save" Command="{Binding SaveEditPrinterCommand}"
+                        <Button Content="{loc:Loc Common_Save}" Command="{Binding SaveEditPrinterCommand}"
                                 Style="{StaticResource PrimaryButton}" Padding="12,6" Margin="0,0,8,0"
                                 Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}}" />
-                        <Button Content="Cancel" Command="{Binding CancelEditPrinterCommand}"
+                        <Button Content="{loc:Loc Common_Cancel}" Command="{Binding CancelEditPrinterCommand}"
                                 Style="{StaticResource OutlineButton}" Padding="12,6"
                                 Visibility="{Binding IsEditingPrinter, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
@@ -172,15 +173,15 @@
             </TabItem>
 
             <!-- Storage Tab -->
-            <TabItem Header="Storage">
+            <TabItem Header="{loc:Loc Printers_Tab_Storage}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
                     <StackPanel>
                         <!-- Templates on Printer -->
                         <DockPanel Margin="0,0,0,4">
-                            <Button DockPanel.Dock="Right" Content="Refresh"
+                            <Button DockPanel.Dock="Right" Content="{loc:Loc Common_Refresh}"
                                     Command="{Binding RefreshStorageCommand}"
                                     Style="{StaticResource OutlineButton}" Padding="10,4" />
-                            <TextBlock Text="TEMPLATES ON PRINTER" Style="{StaticResource SectionHeader}" Margin="0" />
+                            <TextBlock Text="{loc:Loc Printers_TemplatesOnPrinter}" Style="{StaticResource SectionHeader}" Margin="0" />
                         </DockPanel>
                         <DataGrid ItemsSource="{Binding TemplateFiles}" AutoGenerateColumns="False"
                                   CanUserAddRows="False" IsReadOnly="False" HeadersVisibility="Column"
@@ -195,13 +196,13 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Name" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />
-                                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="200" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{loc:Loc Printers_Col_Name}" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{loc:Loc Printers_Col_Status}" Binding="{Binding StatusText}" Width="200" IsReadOnly="True" />
                             </DataGrid.Columns>
                         </DataGrid>
 
                         <!-- CSV Files on Printer -->
-                        <TextBlock Text="CSV FILES ON PRINTER" Style="{StaticResource SectionHeader}" />
+                        <TextBlock Text="{loc:Loc Printers_CsvFilesOnPrinter}" Style="{StaticResource SectionHeader}" />
                         <DataGrid ItemsSource="{Binding CsvFiles}" AutoGenerateColumns="False"
                                   CanUserAddRows="False" IsReadOnly="False" HeadersVisibility="Column"
                                   Margin="0,0,0,16">
@@ -215,15 +216,15 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Name" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />
-                                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="200" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{loc:Loc Printers_Col_Name}" Binding="{Binding FileName}" Width="*" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{loc:Loc Printers_Col_Status}" Binding="{Binding StatusText}" Width="200" IsReadOnly="True" />
                             </DataGrid.Columns>
                         </DataGrid>
 
                         <Button Command="{Binding DeleteSelectedFilesCommand}"
                                 Style="{StaticResource DangerButton}" Padding="12,6" HorizontalAlignment="Left">
                             <TextBlock>
-                                <Run Text="Delete Selected (" /><Run Text="{Binding SelectedDeleteCount, Mode=OneWay}" /><Run Text=")" />
+                                <Run Text="{loc:Loc Printers_DeleteSelectedCount}" /><Run Text="{Binding SelectedDeleteCount, Mode=OneWay}" /><Run Text=")" />
                             </TextBlock>
                         </Button>
                     </StackPanel>
@@ -231,18 +232,18 @@
             </TabItem>
 
             <!-- Verify Tab -->
-            <TabItem Header="Verify">
+            <TabItem Header="{loc:Loc Printers_Tab_Verify}">
                 <StackPanel Margin="12">
                     <DockPanel Margin="0,0,0,12">
                         <TextBlock DockPanel.Dock="Right" Text="{Binding VerifyOverallStatus}"
                                    FontWeight="Bold" FontSize="14" VerticalAlignment="Center"
                                    Visibility="{Binding HasVerifyResults, Converter={StaticResource BoolToVisibilityConverter}}" />
-                        <Button Content="Run Verification" Command="{Binding VerifyPrinterCommand}"
+                        <Button Content="{loc:Loc Printers_RunVerification}" Command="{Binding VerifyPrinterCommand}"
                                 Style="{StaticResource PrimaryButton}" Padding="14,6" HorizontalAlignment="Left"
                                 IsEnabled="{Binding IsVerifying, Converter={StaticResource InverseBoolConverter}}" />
                     </DockPanel>
 
-                    <TextBlock Text="Checking printer state..." Opacity="0.6" Margin="0,0,0,8"
+                    <TextBlock Text="{loc:Loc Printers_CheckingPrinter}" Opacity="0.6" Margin="0,0,0,8"
                                Visibility="{Binding IsVerifying, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                     <!-- Results -->

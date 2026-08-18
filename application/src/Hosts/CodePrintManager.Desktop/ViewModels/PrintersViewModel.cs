@@ -21,6 +21,7 @@ public partial class PrintersViewModel : ObservableObject
     private readonly IPrinterAdapterFactory _adapterFactory;
     private readonly IDialogService _dialog;
     private readonly ILogger<PrintersViewModel> _logger;
+    private readonly ILocalizationService _loc;
 
     public ObservableCollection<PrinterEntity> Printers { get; } = new();
 
@@ -96,7 +97,8 @@ public partial class PrintersViewModel : ObservableObject
     public event EventHandler<int>? NavigateToNewJobRequested;
 
     public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit,
-        IPrinterAdapterFactory adapterFactory, IDialogService dialog, ILogger<PrintersViewModel> logger)
+        IPrinterAdapterFactory adapterFactory, IDialogService dialog, ILogger<PrintersViewModel> logger,
+        ILocalizationService loc)
     {
         _db = db;
         _connectionManager = connectionManager;
@@ -104,6 +106,7 @@ public partial class PrintersViewModel : ObservableObject
         _adapterFactory = adapterFactory;
         _dialog = dialog;
         _logger = logger;
+        _loc = loc;
 
         // Build available adapter types from registered factory
         AvailableAdapterTypes = adapterFactory is MockPrinterAdapterFactory
@@ -245,8 +248,8 @@ public partial class PrintersViewModel : ObservableObject
         if (hasActiveJobs)
         {
             if (!_dialog.Confirm(
-                $"Printer \"{SelectedPrinter.Name}\" has active jobs.\n\nDisconnecting may interrupt printing. Continue?",
-                "Active Jobs Warning"))
+                _loc.Format("Dialog_ConfirmDisconnectActiveJobs", SelectedPrinter.Name),
+                _loc["DialogTitle_ActiveJobsWarning"]))
                 return;
         }
 
@@ -313,14 +316,14 @@ public partial class PrintersViewModel : ObservableObject
         if (hasActiveJobs)
         {
             _dialog.ShowWarning(
-                $"Cannot delete \"{SelectedPrinter.Name}\" because it has active jobs.\n\nCancel or complete all jobs on this printer first.",
-                "Printer In Use");
+                _loc.Format("Error_PrinterHasActiveJobs", SelectedPrinter.Name),
+                _loc["DialogTitle_PrinterInUse"]);
             return;
         }
 
         if (!_dialog.Confirm(
-            $"Are you sure you want to delete \"{SelectedPrinter.Name}\"?\n\nJob history referencing this printer will be preserved but the printer will no longer be available.",
-            "Confirm Delete"))
+            _loc.Format("Dialog_ConfirmDeletePrinter", SelectedPrinter.Name),
+            _loc["DialogTitle_ConfirmDelete"]))
             return;
 
         _logger.LogInformation("Printers: Printer deleted '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
@@ -363,7 +366,7 @@ public partial class PrintersViewModel : ObservableObject
                     string.Equals(System.IO.Path.GetFileName(p.TemplateFile), t, StringComparison.OrdinalIgnoreCase));
                 var isActive = activeTemplateName != null &&
                     string.Equals(activeTemplateName, t, StringComparison.OrdinalIgnoreCase);
-                var item = new PrinterFileItem(t, mapped?.Name, isActiveOnPrinter: isActive);
+                var item = new PrinterFileItem(t, mapped?.Name, isActiveOnPrinter: isActive, loc: _loc);
                 if (!item.IsProtected) item.IsSelected = true;
                 item.PropertyChanged += (_, _) => UpdateDeleteCount();
                 TemplateFiles.Add(item);
@@ -375,7 +378,7 @@ public partial class PrintersViewModel : ObservableObject
             {
                 var mapped = products.FirstOrDefault(p =>
                     string.Equals(p.PrinterCsvName, d, StringComparison.OrdinalIgnoreCase));
-                var item = new PrinterFileItem(d, mapped?.Name);
+                var item = new PrinterFileItem(d, mapped?.Name, loc: _loc);
                 if (mapped == null) item.IsSelected = true;
                 item.PropertyChanged += (_, _) => UpdateDeleteCount();
                 CsvFiles.Add(item);
@@ -410,8 +413,8 @@ public partial class PrintersViewModel : ObservableObject
         if (deleteCount == 0) return;
 
         if (!_dialog.Confirm(
-            $"Delete {deleteCount} file(s) from \"{SelectedPrinter.Name}\"?\n\nThis cannot be undone.",
-            "Confirm Delete"))
+            _loc.Format("Dialog_ConfirmDeleteFiles", deleteCount, SelectedPrinter.Name),
+            _loc["DialogTitle_ConfirmDelete"]))
             return;
 
         var deletedFiles = new List<string>();
@@ -452,9 +455,9 @@ public partial class PrintersViewModel : ObservableObject
         if (adapter == null)
         {
             VerifyResults.Clear();
-            VerifyResults.Add(new VerifyResultItem("Connection", VerifyStatus.Fail, "Printer is not connected"));
+            VerifyResults.Add(new VerifyResultItem(_loc["Verify_Connection"], VerifyStatus.Fail, _loc["Verify_PrinterNotConnected"]));
             HasVerifyResults = true;
-            VerifyOverallStatus = "FAILED";
+            VerifyOverallStatus = _loc["Verify_Failed"];
             return;
         }
 
@@ -477,20 +480,20 @@ public partial class PrintersViewModel : ObservableObject
             {
                 var csvExists = await adapter.VerifyCsvExistsAsync(activeJob.Product.PrinterCsvName);
                 VerifyResults.Add(csvExists
-                    ? new VerifyResultItem("CSV File", VerifyStatus.Pass,
-                        $"\"{activeJob.Product.PrinterCsvName}\" present on printer")
-                    : new VerifyResultItem("CSV File", VerifyStatus.Warning,
-                        $"\"{activeJob.Product.PrinterCsvName}\" NOT found on printer"));
+                    ? new VerifyResultItem(_loc["Verify_CsvFile"], VerifyStatus.Pass,
+                        _loc.Format("Verify_CsvPresent", activeJob.Product.PrinterCsvName))
+                    : new VerifyResultItem(_loc["Verify_CsvFile"], VerifyStatus.Warning,
+                        _loc.Format("Verify_CsvNotFound", activeJob.Product.PrinterCsvName)));
             }
             else if (activeJob != null)
             {
-                VerifyResults.Add(new VerifyResultItem("CSV File", VerifyStatus.Warning,
-                    "No CSV name configured for this product"));
+                VerifyResults.Add(new VerifyResultItem(_loc["Verify_CsvFile"], VerifyStatus.Warning,
+                    _loc["Verify_NoCsvConfigured"]));
             }
             else
             {
-                VerifyResults.Add(new VerifyResultItem("CSV File", VerifyStatus.Pass,
-                    "No active job — no CSV expected"));
+                VerifyResults.Add(new VerifyResultItem(_loc["Verify_CsvFile"], VerifyStatus.Pass,
+                    _loc["Verify_NoActiveJobNoCsv"]));
             }
 
             // 2. Check active template
@@ -501,20 +504,20 @@ public partial class PrintersViewModel : ObservableObject
                 var matches = activeTemplate != null &&
                     string.Equals(activeTemplate, expectedName, StringComparison.OrdinalIgnoreCase);
                 VerifyResults.Add(matches
-                    ? new VerifyResultItem("Active Template", VerifyStatus.Pass,
-                        $"\"{activeTemplate}\" matches expected")
-                    : new VerifyResultItem("Active Template", VerifyStatus.Warning,
-                        $"Active: \"{activeTemplate ?? "(none)"}\" — Expected: \"{expectedName}\""));
+                    ? new VerifyResultItem(_loc["Verify_ActiveTemplate"], VerifyStatus.Pass,
+                        _loc.Format("Verify_TemplateMatches", activeTemplate!))
+                    : new VerifyResultItem(_loc["Verify_ActiveTemplate"], VerifyStatus.Warning,
+                        _loc.Format("Verify_TemplateMismatch", activeTemplate ?? _loc["Verify_None"], expectedName)));
             }
             else if (activeJob != null)
             {
-                VerifyResults.Add(new VerifyResultItem("Active Template", VerifyStatus.Warning,
-                    $"No template configured. Active on printer: \"{activeTemplate ?? "(none)"}\""));
+                VerifyResults.Add(new VerifyResultItem(_loc["Verify_ActiveTemplate"], VerifyStatus.Warning,
+                    _loc.Format("Verify_NoTemplateConfigured", activeTemplate ?? _loc["Verify_None"])));
             }
             else
             {
-                VerifyResults.Add(new VerifyResultItem("Active Template", VerifyStatus.Pass,
-                    $"No active job. Printer has: \"{activeTemplate ?? "(none)"}\""));
+                VerifyResults.Add(new VerifyResultItem(_loc["Verify_ActiveTemplate"], VerifyStatus.Pass,
+                    _loc.Format("Verify_NoActiveJobTemplate", activeTemplate ?? _loc["Verify_None"])));
             }
 
             // 3. Check counters (only meaningful with an active/printing job)
@@ -526,58 +529,58 @@ public partial class PrintersViewModel : ObservableObject
 
                 if (delta == 0)
                 {
-                    VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Pass,
-                        $"Printer: {totalCounter}, Expected: {expectedTotal} — consistent"));
+                    VerifyResults.Add(new VerifyResultItem(_loc["Verify_Counter"], VerifyStatus.Pass,
+                        _loc.Format("Verify_CounterConsistent", totalCounter, expectedTotal)));
                 }
                 else if (delta > 0)
                 {
-                    VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Warning,
-                        $"Printer: {totalCounter}, Expected: {expectedTotal} — printer is +{delta} ahead (prints during downtime?)"));
+                    VerifyResults.Add(new VerifyResultItem(_loc["Verify_Counter"], VerifyStatus.Warning,
+                        _loc.Format("Verify_CounterAhead", totalCounter, expectedTotal, delta)));
                 }
                 else
                 {
-                    VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Fail,
-                        $"Printer: {totalCounter}, Expected: {expectedTotal} — printer is {delta} behind (anomaly)"));
+                    VerifyResults.Add(new VerifyResultItem(_loc["Verify_Counter"], VerifyStatus.Fail,
+                        _loc.Format("Verify_CounterBehind", totalCounter, expectedTotal, delta)));
                 }
             }
             else if (activeJob != null)
             {
-                VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Warning,
-                    "Job has not started printing yet — no baseline to compare"));
+                VerifyResults.Add(new VerifyResultItem(_loc["Verify_Counter"], VerifyStatus.Warning,
+                    _loc["Verify_NoBaseline"]));
             }
             else
             {
                 var totalCounter = await adapter.GetTotalCounterAsync();
-                VerifyResults.Add(new VerifyResultItem("Counter (SPGGTP)", VerifyStatus.Pass,
-                    $"No active job. Lifetime counter: {totalCounter}"));
+                VerifyResults.Add(new VerifyResultItem(_loc["Verify_Counter"], VerifyStatus.Pass,
+                    _loc.Format("Verify_LifetimeCounter", totalCounter)));
             }
 
             // 4. Printer status
             var status = await adapter.GetStatusAsync();
             var statusResult = status switch
             {
-                PrinterStatus.Error => new VerifyResultItem("Printer Status", VerifyStatus.Fail,
-                    $"Printer reports ERROR state"),
-                PrinterStatus.Blocked => new VerifyResultItem("Printer Status", VerifyStatus.Warning,
-                    $"Printer is BLOCKED (not in main window?)"),
-                _ => new VerifyResultItem("Printer Status", VerifyStatus.Pass,
-                    $"Printer state: {status}")
+                PrinterStatus.Error => new VerifyResultItem(_loc["Verify_PrinterStatus"], VerifyStatus.Fail,
+                    _loc["Verify_PrinterError"]),
+                PrinterStatus.Blocked => new VerifyResultItem(_loc["Verify_PrinterStatus"], VerifyStatus.Warning,
+                    _loc["Verify_PrinterBlocked"]),
+                _ => new VerifyResultItem(_loc["Verify_PrinterStatus"], VerifyStatus.Pass,
+                    _loc.Format("Verify_PrinterState", status))
             };
             VerifyResults.Add(statusResult);
 
             // Overall
             var hasFailure = VerifyResults.Any(r => r.Status == VerifyStatus.Fail);
             var hasWarning = VerifyResults.Any(r => r.Status == VerifyStatus.Warning);
-            VerifyOverallStatus = hasFailure ? "ISSUES FOUND" : hasWarning ? "WARNINGS" : "ALL OK";
+            VerifyOverallStatus = hasFailure ? _loc["Verify_IssuesFound"] : hasWarning ? _loc["Verify_Warnings"] : _loc["Verify_AllOk"];
             _logger.LogInformation("Printers: Verify result for '{Name}': {OverallStatus} ({ResultCount} checks)",
                 SelectedPrinter.Name, VerifyOverallStatus, VerifyResults.Count);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Printers: Verify failed for Printer {Id}", SelectedPrinter.Id);
-            VerifyResults.Add(new VerifyResultItem("Error", VerifyStatus.Fail,
-                $"Verification failed: {ex.Message}"));
-            VerifyOverallStatus = "ERROR";
+            VerifyResults.Add(new VerifyResultItem(_loc["DialogTitle_Error"], VerifyStatus.Fail,
+                _loc.Format("Error_VerificationFailed", ex.Message)));
+            VerifyOverallStatus = _loc["DialogTitle_Error"];
         }
         finally
         {
@@ -598,23 +601,25 @@ public partial class PrintersViewModel : ObservableObject
 
 public partial class PrinterFileItem : ObservableObject
 {
+    private readonly ILocalizationService? _loc;
     public string FileName { get; }
     public string? MappedProduct { get; }
     public bool IsActiveOnPrinter { get; }
     public bool IsMapped => MappedProduct != null;
     public bool IsProtected => IsMapped || IsActiveOnPrinter;
     public string StatusText => IsActiveOnPrinter
-        ? "Active on printer"
-        : IsMapped ? $"Used ({MappedProduct})" : "Not mapped to any product";
+        ? (_loc?["Storage_ActiveOnPrinter"] ?? "Active on printer")
+        : IsMapped ? (_loc != null ? _loc.Format("Storage_UsedByProduct", MappedProduct!) : $"Used ({MappedProduct})") : (_loc?["Storage_NotMapped"] ?? "Not mapped to any product");
 
     [ObservableProperty]
     private bool _isSelected;
 
-    public PrinterFileItem(string fileName, string? mappedProduct, bool isActiveOnPrinter = false)
+    public PrinterFileItem(string fileName, string? mappedProduct, bool isActiveOnPrinter = false, ILocalizationService? loc = null)
     {
         FileName = fileName;
         MappedProduct = mappedProduct;
         IsActiveOnPrinter = isActiveOnPrinter;
+        _loc = loc;
     }
 }
 

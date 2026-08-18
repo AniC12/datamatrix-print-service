@@ -12,12 +12,14 @@ public class CodeManagementService : ICodeManagementService
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
     private readonly ILogger<CodeManagementService> _logger;
+    private readonly ILocalizationService _loc;
 
-    public CodeManagementService(AppDbContext db, IAuditService audit, ILogger<CodeManagementService> logger)
+    public CodeManagementService(AppDbContext db, IAuditService audit, ILogger<CodeManagementService> logger, ILocalizationService loc)
     {
         _db = db;
         _audit = audit;
         _logger = logger;
+        _loc = loc;
     }
 
     public async Task<CodePage> GetCodesPageAsync(int? productId, CodeStatus? statusFilter,
@@ -85,7 +87,7 @@ public class CodeManagementService : ICodeManagementService
 
         await _db.SaveChangesAsync();
 
-        var description = $"Changed {codes.Count} code(s) to {newStatus}.";
+        var description = _loc.Format("Status_ChangedCodes", codes.Count, newStatus);
         _logger.LogInformation("Admin status change: {Description}", description);
         await _audit.LogAsync("admin_status_change",
             productId: codes.FirstOrDefault()?.ProductId,
@@ -121,7 +123,7 @@ public class CodeManagementService : ICodeManagementService
 
         await _db.SaveChangesAsync();
 
-        var description = $"Changed all {codes.Count} {fromStatus} code(s) to {toStatus}.";
+        var description = _loc.Format("Status_ChangedAllCodes", codes.Count, fromStatus, toStatus);
         _logger.LogInformation("Admin bulk status change: {Description}", description);
         await _audit.LogAsync("admin_status_change",
             productId: productId,
@@ -137,9 +139,9 @@ public class CodeManagementService : ICodeManagementService
     {
         // Validate target is a leaf product
         var target = await _db.ProductNodes.FindAsync(targetProductId)
-            ?? throw new InvalidOperationException($"Target product {targetProductId} not found.");
+            ?? throw new InvalidOperationException(_loc.Format("Error_TargetProductNotFound", targetProductId));
         if (!target.IsLeaf)
-            throw new InvalidOperationException("Codes can only be moved to leaf products.");
+            throw new InvalidOperationException(_loc["Error_CodesOnlyMoveToLeaf"]);
 
         var codes = await _db.Codes
             .Where(c => codeIds.Contains(c.Id) && c.Status != CodeStatus.Reserved)
@@ -154,7 +156,7 @@ public class CodeManagementService : ICodeManagementService
 
         await _db.SaveChangesAsync();
 
-        var description = $"Moved {codes.Count} code(s) to {target.Name}.";
+        var description = _loc.Format("Status_MovedCodes", codes.Count, target.Name);
         _logger.LogInformation("Admin move: {Description}", description);
         await _audit.LogAsync("admin_move",
             productId: targetProductId,
@@ -169,9 +171,9 @@ public class CodeManagementService : ICodeManagementService
     public async Task<CodeOperation> MoveCodesBulkAsync(int? sourceProductId, CodeStatus statusFilter, int targetProductId)
     {
         var target = await _db.ProductNodes.FindAsync(targetProductId)
-            ?? throw new InvalidOperationException($"Target product {targetProductId} not found.");
+            ?? throw new InvalidOperationException(_loc.Format("Error_TargetProductNotFound", targetProductId));
         if (!target.IsLeaf)
-            throw new InvalidOperationException("Codes can only be moved to leaf products.");
+            throw new InvalidOperationException(_loc["Error_CodesOnlyMoveToLeaf"]);
 
         var query = sourceProductId.HasValue
             ? _db.Codes.Where(c => c.ProductId == sourceProductId.Value)
@@ -190,7 +192,7 @@ public class CodeManagementService : ICodeManagementService
 
         await _db.SaveChangesAsync();
 
-        var description = $"Moved all {codes.Count} {statusFilter} code(s) to {target.Name}.";
+        var description = _loc.Format("Status_MovedAllCodes", codes.Count, statusFilter, target.Name);
         _logger.LogInformation("Admin bulk move: {Description}", description);
         await _audit.LogAsync("admin_move",
             productId: targetProductId,
@@ -233,7 +235,7 @@ public class CodeManagementService : ICodeManagementService
         _db.Codes.RemoveRange(codes);
         await _db.SaveChangesAsync();
 
-        var description = $"Archived {codes.Count} code(s).";
+        var description = _loc.Format("Status_ArchivedCodes", codes.Count);
         _logger.LogInformation("Admin archive: {Description}", description);
         await _audit.LogAsync("admin_archive",
             productId: codes.FirstOrDefault()?.ProductId,
@@ -290,7 +292,7 @@ public class CodeManagementService : ICodeManagementService
         _db.Codes.RemoveRange(codes);
         await _db.SaveChangesAsync();
 
-        var description = $"Archived {codes.Count} code(s).";
+        var description = _loc.Format("Status_ArchivedCodes", codes.Count);
         _logger.LogInformation("Admin bulk archive: {Description}", description);
         await _audit.LogAsync("admin_archive",
             productId: productId,
@@ -334,7 +336,7 @@ public class CodeManagementService : ICodeManagementService
                     if (code == null)
                     {
                         skipped++;
-                        skipReasons.Add($"Code #{codeId}: no longer exists");
+                        skipReasons.Add(_loc.Format("Undo_CodeNotFound", codeId));
                         continue;
                     }
 
@@ -342,7 +344,7 @@ public class CodeManagementService : ICodeManagementService
                     if (operation.NewStatus.HasValue && code.Status != operation.NewStatus.Value)
                     {
                         skipped++;
-                        skipReasons.Add($"Code #{codeId}: status changed to {code.Status}");
+                        skipReasons.Add(_loc.Format("Undo_CodeStatusChanged", codeId, code.Status));
                         continue;
                     }
 
@@ -362,7 +364,7 @@ public class CodeManagementService : ICodeManagementService
                     if (code == null)
                     {
                         skipped++;
-                        skipReasons.Add($"Code #{codeId}: no longer exists");
+                        skipReasons.Add(_loc.Format("Undo_CodeNotFound", codeId));
                         continue;
                     }
 
@@ -370,14 +372,14 @@ public class CodeManagementService : ICodeManagementService
                     if (code.ProductId != operation.TargetProductId)
                     {
                         skipped++;
-                        skipReasons.Add($"Code #{codeId}: moved again");
+                        skipReasons.Add(_loc.Format("Undo_CodeMovedAgain", codeId));
                         continue;
                     }
 
                     if (code.Status == CodeStatus.Reserved)
                     {
                         skipped++;
-                        skipReasons.Add($"Code #{codeId}: now reserved by a job");
+                        skipReasons.Add(_loc.Format("Undo_CodeReserved", codeId));
                         continue;
                     }
 
@@ -398,7 +400,7 @@ public class CodeManagementService : ICodeManagementService
                     if (archived == null)
                     {
                         skipped++;
-                        skipReasons.Add($"Code #{codeId}: archive record not found");
+                        skipReasons.Add(_loc.Format("Undo_ArchiveNotFound", codeId));
                         continue;
                     }
 
@@ -407,7 +409,7 @@ public class CodeManagementService : ICodeManagementService
                     if (conflicting)
                     {
                         skipped++;
-                        skipReasons.Add($"Code '{archived.CodeText}': already re-imported");
+                        skipReasons.Add(_loc.Format("Undo_AlreadyReimported", archived.CodeText));
                         continue;
                     }
 
@@ -435,9 +437,9 @@ public class CodeManagementService : ICodeManagementService
 
         await _db.SaveChangesAsync();
 
-        var message = $"Reverted {reverted} code(s).";
-        if (skipped > 0)
-            message += $" {skipped} skipped ({string.Join("; ", skipReasons)}).";
+        var message = _loc.Format("Status_RevertedCodes", reverted);
+        if (skipReasons.Count > 0)
+            message += $" {_loc.Format("Status_SkippedCount", skipReasons.Count)} ({string.Join("; ", skipReasons)}).";
 
         _logger.LogInformation("Admin undo: {Message}", message);
         await _audit.LogAsync("admin_undo",

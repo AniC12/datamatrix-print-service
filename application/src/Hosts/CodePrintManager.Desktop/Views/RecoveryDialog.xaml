@@ -4,8 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:CodePrintManager.Desktop.ViewModels"
+        xmlns:loc="clr-namespace:CodePrintManager.Desktop.Localization"
         mc:Ignorable="d"
-        Title="Job Recovery — Interrupted Jobs Detected" Height="420" Width="700"
+        Title="{loc:Loc Recovery_Title}" Height="420" Width="700"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         d:DataContext="{d:DesignInstance vm:RecoveryViewModel}">
     <Grid Margin="20">
@@ -16,7 +17,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"
-                   Text="The following print jobs were interrupted. Please resolve each one before continuing." 
+                   Text="{loc:Loc Recovery_Message}" 
                    TextWrapping="Wrap" />
 
         <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
@@ -24,20 +25,20 @@
                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                   BorderBrush="#E0E0E0" BorderThickness="1">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Job #" Binding="{Binding JobId}" Width="60" />
-                <DataGridTextColumn Header="Product" Binding="{Binding ProductName}" Width="*" />
-                <DataGridTextColumn Header="Printer" Binding="{Binding PrinterName}" Width="120" />
-                <DataGridTextColumn Header="App Says" Binding="{Binding AppConfirmed}" Width="80" />
-                <DataGridTextColumn Header="Printer Says" Binding="{Binding PrinterConfirmed}" Width="90" />
-                <DataGridTextColumn Header="Delta" Binding="{Binding DeltaDisplay}" Width="70" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Job}" Binding="{Binding JobId}" Width="60" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Product}" Binding="{Binding ProductName}" Width="*" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Printer}" Binding="{Binding PrinterName}" Width="120" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_AppSays}" Binding="{Binding AppConfirmed}" Width="80" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_PrinterSays}" Binding="{Binding PrinterConfirmed}" Width="90" />
+                <DataGridTextColumn Header="{loc:Loc Recovery_Col_Delta}" Binding="{Binding DeltaDisplay}" Width="70" />
             </DataGrid.Columns>
         </DataGrid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Resume Selected" Command="{Binding ResumeCommand}" 
+            <Button Content="{loc:Loc Recovery_ResumeSelected}" Command="{Binding ResumeCommand}" 
                     Padding="16,8" Margin="0,0,8,0"
                     Background="#4CAF50" Foreground="White" FontWeight="SemiBold" />
-            <Button Content="Abort Selected" Command="{Binding AbortCommand}" 
+            <Button Content="{loc:Loc Recovery_AbortSelected}" Command="{Binding AbortCommand}" 
                     Padding="16,8"
                     Background="#F44336" Foreground="White" FontWeight="SemiBold" />
         </StackPanel>

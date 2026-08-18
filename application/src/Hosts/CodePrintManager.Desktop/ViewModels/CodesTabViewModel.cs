@@ -30,6 +30,7 @@ public partial class CodesTabViewModel : ObservableObject
     private readonly ICodeManagementService _codeManagement;
     private readonly IProductService _productService;
     private readonly ILogger<CodesTabViewModel> _logger;
+    private readonly ILocalizationService _loc;
     private readonly DispatcherTimer _searchDebounce;
     private readonly Stack<CodeOperation> _undoStack = new();
 
@@ -116,11 +117,12 @@ public partial class CodesTabViewModel : ObservableObject
     public event EventHandler? CodesChanged;
 
     public CodesTabViewModel(ICodeManagementService codeManagement, IProductService productService,
-        ILogger<CodesTabViewModel> logger)
+        ILogger<CodesTabViewModel> logger, ILocalizationService loc)
     {
         _codeManagement = codeManagement;
         _productService = productService;
         _logger = logger;
+        _loc = loc;
 
         _searchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _searchDebounce.Tick += (s, e) =>
@@ -293,17 +295,14 @@ public partial class CodesTabViewModel : ObservableObject
         var hasRisky = Codes.Where(c => c.IsSelected).Any(c => IsRiskyTransition(c.Status, newStatus));
 
         var message = hasRisky
-            ? $"WARNING: Changing {ids.Count} code(s) to {newStatus}.\n\n" +
-              "If any of these codes were physically printed on a product, " +
-              "marking them Available will allow them to be printed again, " +
-              "creating a DUPLICATE.\n\nContinue?"
-            : $"Change {ids.Count} code(s) to {newStatus}?";
+            ? _loc.Format("Dialog_ConfirmStatusChangeWarning", ids.Count, newStatus)
+            : _loc.Format("Dialog_ConfirmStatusChange", ids.Count, newStatus);
 
         var icon = hasRisky
             ? System.Windows.MessageBoxImage.Warning
             : System.Windows.MessageBoxImage.Question;
 
-        var result = System.Windows.MessageBox.Show(message, "Confirm Status Change",
+        var result = System.Windows.MessageBox.Show(message, _loc["DialogTitle_ConfirmStatusChange"],
             System.Windows.MessageBoxButton.YesNo, icon);
         if (result != System.Windows.MessageBoxResult.Yes) return;
 
@@ -317,7 +316,7 @@ public partial class CodesTabViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Status change failed");
-            System.Windows.MessageBox.Show($"Operation failed: {ex.Message}", "Error",
+            System.Windows.MessageBox.Show(_loc.Format("Error_ChangeStatusFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
@@ -334,12 +333,10 @@ public partial class CodesTabViewModel : ObservableObject
 
         var hasRisky = IsRiskyTransition(statusFilter.Value, toStatus);
         var message = hasRisky
-            ? $"WARNING: Changing ALL {TotalCount} {statusFilter} code(s) to {toStatus}.\n\n" +
-              "If any of these codes were physically printed, marking them Available " +
-              "will allow DUPLICATES.\n\nThis cannot be easily undone for large batches.\n\nContinue?"
-            : $"Change ALL {TotalCount} {statusFilter} code(s) to {toStatus}?";
+            ? _loc.Format("Dialog_ConfirmBulkStatusChangeWarning", TotalCount, statusFilter, toStatus)
+            : _loc.Format("Dialog_ConfirmBulkStatusChange", TotalCount, statusFilter, toStatus);
 
-        var result = System.Windows.MessageBox.Show(message, "Confirm Bulk Status Change",
+        var result = System.Windows.MessageBox.Show(message, _loc["DialogTitle_ConfirmStatusChange"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
         if (result != System.Windows.MessageBoxResult.Yes) return;
 
@@ -353,7 +350,7 @@ public partial class CodesTabViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Bulk status change failed");
-            System.Windows.MessageBox.Show($"Operation failed: {ex.Message}", "Error",
+            System.Windows.MessageBox.Show(_loc.Format("Error_ChangeStatusFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
@@ -365,8 +362,8 @@ public partial class CodesTabViewModel : ObservableObject
 
         var ids = GetSelectedCodeIds();
         var result = System.Windows.MessageBox.Show(
-            $"Move {ids.Count} code(s) to \"{MoveTargetProduct.Name}\"?",
-            "Confirm Move",
+            _loc.Format("Dialog_ConfirmMoveCodes", ids.Count, MoveTargetProduct.Name),
+            _loc["DialogTitle_ConfirmMove"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
         if (result != System.Windows.MessageBoxResult.Yes) return;
 
@@ -380,7 +377,7 @@ public partial class CodesTabViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Move failed");
-            System.Windows.MessageBox.Show($"Operation failed: {ex.Message}", "Error",
+            System.Windows.MessageBox.Show(_loc.Format("Error_MoveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
@@ -392,9 +389,8 @@ public partial class CodesTabViewModel : ObservableObject
         if (statusFilter == null || MoveTargetProduct == null) return;
 
         var result = System.Windows.MessageBox.Show(
-            $"Move ALL {TotalCount} {statusFilter} code(s) to \"{MoveTargetProduct.Name}\"?\n\n" +
-            "This affects every matching code, not just the current page.",
-            "Confirm Bulk Move",
+            _loc.Format("Dialog_ConfirmBulkMove", TotalCount, statusFilter, MoveTargetProduct.Name),
+            _loc["DialogTitle_ConfirmBulkMove"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
         if (result != System.Windows.MessageBoxResult.Yes) return;
 
@@ -408,7 +404,7 @@ public partial class CodesTabViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Bulk move failed");
-            System.Windows.MessageBox.Show($"Operation failed: {ex.Message}", "Error",
+            System.Windows.MessageBox.Show(_loc.Format("Error_MoveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
@@ -420,10 +416,8 @@ public partial class CodesTabViewModel : ObservableObject
 
         var ids = GetSelectedCodeIds();
         var result = System.Windows.MessageBox.Show(
-            $"Archive {ids.Count} code(s)?\n\n" +
-            "Archived codes are removed from the active pool. They can be re-imported later, " +
-            "but their current status and job associations will be moved to the archive.",
-            "Confirm Archive",
+            _loc.Format("Dialog_ConfirmArchiveCodes", ids.Count),
+            _loc["DialogTitle_ConfirmArchive"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
         if (result != System.Windows.MessageBoxResult.Yes) return;
 
@@ -437,7 +431,7 @@ public partial class CodesTabViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Archive failed");
-            System.Windows.MessageBox.Show($"Operation failed: {ex.Message}", "Error",
+            System.Windows.MessageBox.Show(_loc.Format("Error_ArchiveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
@@ -449,10 +443,8 @@ public partial class CodesTabViewModel : ObservableObject
         if (statusFilter == null) return;
 
         var result = System.Windows.MessageBox.Show(
-            $"Archive ALL {TotalCount} {statusFilter} code(s)?\n\n" +
-            "This permanently archives every matching code — not just the current page.\n" +
-            "Archived codes can be re-imported later.",
-            "Confirm Bulk Archive",
+            _loc.Format("Dialog_ConfirmBulkArchive", TotalCount, statusFilter),
+            _loc["DialogTitle_ConfirmBulkArchive"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
         if (result != System.Windows.MessageBoxResult.Yes) return;
 
@@ -466,7 +458,7 @@ public partial class CodesTabViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Bulk archive failed");
-            System.Windows.MessageBox.Show($"Operation failed: {ex.Message}", "Error",
+            System.Windows.MessageBox.Show(_loc.Format("Error_ArchiveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }
@@ -484,7 +476,7 @@ public partial class CodesTabViewModel : ObservableObject
             CanUndo = _undoStack.Count > 0;
 
             if (_undoStack.Count > 0)
-                LastOperationSummary += $" ({_undoStack.Count} more undo(s) available)";
+                LastOperationSummary += _loc.Format("Status_UndoMoreAvailable", _undoStack.Count);
 
             await LoadCodesAsync();
             CodesChanged?.Invoke(this, EventArgs.Empty);
@@ -492,7 +484,7 @@ public partial class CodesTabViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Undo failed");
-            System.Windows.MessageBox.Show($"Undo failed: {ex.Message}", "Error",
+            System.Windows.MessageBox.Show(_loc.Format("Error_UndoFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
     }

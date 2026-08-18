@@ -146,3 +146,27 @@ dotnet publish src/Hosts/CodePrintManager.Desktop -c Release -r win-x64 --self-c
 - **IPrinterAdapterFactory**: Each printer brand registers its own factory via DI. Application never directly references printer-specific projects.
 - **Printer engineers**: Only need `Domain` + their `Printer.X` project + `PrinterTestHarness`. No DB, no UI, no services.
 - **Dispatcher.Invoke pitfall**: Never use `Dispatcher.Invoke(async () => ...)` — it creates `async void` and silently swallows exceptions. Use synchronous updates from event data inside Dispatcher callbacks.
+
+## Localization
+
+The application supports multi-language UI (English, Russian, Armenian). All user-facing text must be localized.
+
+### How it works
+
+- **Translation files**: `application/src/Hosts/CodePrintManager.Desktop/Localization/{en,ru,hy}.json`
+- **Interface**: `ILocalizationService` (Domain layer) — injected into ViewModels and Application services
+- **XAML markup**: `{loc:Loc KeyName}` using `LocExtension` + `TranslationSource` for live binding
+- **ViewModel/service usage**: `_loc["KeyName"]` or `_loc.Format("KeyName", arg1, arg2)`
+- **Language selector**: ComboBox at the bottom of the sidebar. Selection is persisted in `AppConfig` (same as zoom level).
+- **Fallback**: If a key is missing in the current language, English is used. If missing in English too, the raw key name is shown.
+
+### Rules for new UI components
+
+1. **Never hardcode user-facing text.** Use localization keys for all labels, buttons, messages, dialog titles, error messages, and status text.
+2. **Add keys to all 3 language files** (`en.json`, `ru.json`, `hy.json`). If you don't know the translation, add the English text as a placeholder — it will be corrected later.
+3. **XAML**: Add `xmlns:loc="clr-namespace:CodePrintManager.Desktop.Localization"` and use `{loc:Loc KeyName}`.
+4. **ViewModels/Services**: Inject `ILocalizationService` via constructor and use `_loc["Key"]` or `_loc.Format("Key", args)`.
+5. **Do NOT translate**: user-entered data (product names, printer names, imported codes), diagnostic log messages, enum values, structural punctuation.
+6. **Format placeholders**: Use `{0}`, `{1}`, etc. in translation values. Never concatenate translated fragments — grammar differs across languages.
+7. **Key naming convention**: `Section_Description` (e.g., `Products_Title`, `Error_NotEnoughCodes`, `Dialog_ConfirmDelete`).
+8. **Tests**: When testing with a mock `ILocalizationService`, the mock returns the key name as the value. Update test assertions accordingly.

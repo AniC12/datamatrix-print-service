@@ -48,9 +48,14 @@ public class ProductsViewModelTests : IDisposable
         _codeManagement = Substitute.For<ICodeManagementService>();
         _logger = Substitute.For<ILogger<ProductsViewModel>>();
 
+        var loc = Substitute.For<ILocalizationService>();
+        loc[Arg.Any<string>()].Returns(ci => ci.Arg<string>());
+        loc.Format(Arg.Any<string>(), Arg.Any<object[]>())
+            .Returns(ci => string.Format(ci.Arg<string>(), ci.Arg<object[]>()));
+
         var codesTabLogger = Substitute.For<ILogger<CodesTabViewModel>>();
-        var codesTab = new CodesTabViewModel(_codeManagement, _productService, codesTabLogger);
-        _vm = new ProductsViewModel(_productService, _codePoolService, _codeManagement, _db, codesTab, _logger);
+        var codesTab = new CodesTabViewModel(_codeManagement, _productService, codesTabLogger, loc);
+        _vm = new ProductsViewModel(_productService, _codePoolService, _codeManagement, _db, codesTab, _logger, loc);
     }
 
     public void Dispose()
@@ -99,7 +104,7 @@ public class ProductsViewModelTests : IDisposable
     public void InitialState_AddTargetHint_ShowsRoot()
     {
         // Requirement: When nothing selected, adding creates at root
-        _vm.AddTargetHint.Should().Be("Root");
+        _vm.AddTargetHint.Should().Be("Label_Root");
     }
 
     [Fact]
@@ -170,7 +175,7 @@ public class ProductsViewModelTests : IDisposable
 
         _vm.AvailableCodesCount.Should().Be(0);
         _vm.ActivityHistory.Should().BeEmpty();
-        _vm.AddTargetHint.Should().Be("Root");
+        _vm.AddTargetHint.Should().Be("Label_Root");
     }
 
     [Fact]
@@ -203,7 +208,7 @@ public class ProductsViewModelTests : IDisposable
 
         _vm.SelectedProduct = leaf;
 
-        _vm.AddTargetHint.Should().Be("Root");
+        _vm.AddTargetHint.Should().Be("Label_Root");
     }
 
     // ═══════════════════════════════════════════════════════════════

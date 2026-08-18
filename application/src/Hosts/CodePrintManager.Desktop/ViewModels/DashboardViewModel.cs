@@ -19,6 +19,7 @@ public partial class DashboardViewModel : ObservableObject
     private readonly JobEventBus _eventBus;
     private readonly AppDbContext _db;
     private readonly ILogger<DashboardViewModel> _logger;
+    private readonly ILocalizationService _loc;
 
     public ObservableCollection<Components.PrinterCardViewModel> PrinterCards { get; } = new();
     public ObservableCollection<AuditEntryViewModel> RecentActivity { get; } = new();
@@ -31,13 +32,15 @@ public partial class DashboardViewModel : ObservableObject
         IPrintJobService printJobService,
         JobEventBus eventBus,
         AppDbContext db,
-        ILogger<DashboardViewModel> logger)
+        ILogger<DashboardViewModel> logger,
+        ILocalizationService loc)
     {
         _connectionManager = connectionManager;
         _printJobService = printJobService;
         _eventBus = eventBus;
         _db = db;
         _logger = logger;
+        _loc = loc;
 
         _connectionManager.PrinterStatusChanged += OnPrinterStatusChanged;
         _eventBus.ProgressChanged += OnJobProgressChanged;
@@ -66,7 +69,7 @@ public partial class DashboardViewModel : ObservableObject
             if (latestJob == null)
                 continue;
 
-            var card = new Components.PrinterCardViewModel(p, latestJob);
+            var card = new Components.PrinterCardViewModel(p, _loc, latestJob);
             card.StartPrintRequested += OnStartPrintRequested;
             card.CancelJobRequested += OnCancelJobRequested;
             card.PauseJobRequested += OnPauseJobRequested;
