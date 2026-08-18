@@ -61,7 +61,9 @@ Each printable product owns a pool of codes. Codes transition through states:
 
 ```
 available → reserved → printed
-                ↘ returned (back to available)
+                ├──→ returned (back to available)
+                ├──→ burned (operator-confirmed permanent loss)
+                └──→ quarantined (uncertain — frozen until operator verifies)
 ```
 
 | State | Meaning |
@@ -70,12 +72,15 @@ available → reserved → printed
 | `reserved` | Selected for a print job, uploaded to printer |
 | `printed` | Confirmed printed (counter-based) |
 | `returned` | Was reserved but job cancelled; back in available pool |
-| `burned` | Ambiguous boundary code; marked as used but uncertain |
+| `burned` | Operator-confirmed permanent loss; code is consumed and cannot be reused |
+| `quarantined` | Ambiguous — system is unsure if this code was physically printed; frozen until operator resolves via Codes tab |
 
 **Rules:**
 - Codes are selected in import order (FIFO within each CSV)
-- A code can never go from `printed` back to `available`
-- `burned` codes are treated as printed (never reused) — safety margin
+- A code can never go from `printed` back to `available` automatically (only operator override via Codes tab)
+- `burned` codes are treated as printed (never reused) — permanent
+- `quarantined` codes are frozen — excluded from availability counts, cannot be auto-reused, but operators can recover them after investigation
+- `Code.ProductId` is nullable — codes can exist in an unassigned pool (e.g., after product deletion)
 
 ### Printers
 Savema TTO printers connected via TCP/IP on LAN. Each printer:
@@ -247,15 +252,31 @@ product_nodes (
 -- Imported codes
 codes (
   id            INTEGER PRIMARY KEY,
-  product_id    INTEGER NOT NULL REFERENCES product_nodes(id),
+  product_id    INTEGER REFERENCES product_nodes(id) ON DELETE SET NULL,  -- NULL = unassigned pool
   code_text     TEXT NOT NULL,           -- raw code string
-  status        TEXT NOT NULL DEFAULT 'available',  -- available|reserved|printed|returned|burned
+  status        TEXT NOT NULL DEFAULT 'available',  -- available|reserved|printed|returned|burned|quarantined
   import_order  INTEGER NOT NULL,        -- order within import (for FIFO selection)
   import_batch  TEXT,                    -- source filename for reference
   job_id        INTEGER REFERENCES print_jobs(id),  -- which job reserved/printed this
   status_changed_at DATETIME,
   created_at    DATETIME NOT NULL,
   UNIQUE(code_text)                      -- global uniqueness enforced
+)
+
+-- Archived codes (preserves history when codes are deleted via admin)
+archived_codes (
+  id                 INTEGER PRIMARY KEY,
+  original_code_id   INTEGER NOT NULL,        -- original codes.id before archival
+  product_id         INTEGER,                 -- product at time of archival (may be NULL)
+  code_text          TEXT NOT NULL,            -- preserved for re-import eligibility
+  status             TEXT NOT NULL,            -- status at time of archival
+  import_order       INTEGER NOT NULL,
+  import_batch       TEXT,
+  job_id             INTEGER,
+  status_changed_at  DATETIME,
+  created_at         DATETIME NOT NULL,       -- original creation timestamp
+  archived_at        DATETIME NOT NULL,       -- when the code was archived
+  archived_reason    TEXT                      -- e.g., "product_deletion", "manual_archive"
 )
 
 -- Printers
@@ -305,6 +326,7 @@ CREATE INDEX idx_codes_code_text ON codes(code_text);  -- for dedup lookups
 CREATE INDEX idx_jobs_status ON print_jobs(status);
 CREATE INDEX idx_audit_created ON audit_log(created_at);
 CREATE INDEX idx_audit_product ON audit_log(product_id);
+CREATE INDEX idx_archived_product_date ON archived_codes(product_id, archived_at);
 
 -- Concurrency guards (see multi-printer-concurrency.md §2)
 CREATE UNIQUE INDEX idx_one_active_job_per_printer
@@ -594,7 +616,7 @@ Key behaviors:
 
 ### 6.3 Products Screen
 
-Two-tab detail pane: **Operations** (daily workflow) and **Settings** (configuration). Tree toolbar for adding nodes.
+Three-tab detail pane: **Operations** (daily workflow), **Settings** (configuration), and **Codes** (admin code management). Tree toolbar for adding nodes. A separate **Unassigned Codes** section appears below the tree when codes exist without a product.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -602,17 +624,18 @@ Two-tab detail pane: **Operations** (daily workflow) and **Settings** (configura
 ├────────────────────┬─────────────────────────────────────────────┤
 │  [+F] [+P]        │  APPLE 0.5L                                  │
 │                    │                                               │
-│  ▼ Juice           │  [Operations]  [Settings]                    │
+│  ▼ Juice           │  [Operations]  [Settings]  [Codes]          │
 │    ▼ Apple         │  ──────────────────────────────────────────  │
 │      ● 0.5L  ←    │                                               │
 │      ● 1.0L       │  Code Pool:                                   │
-│    ▼ Orange        │    Available: 8,300                           │
-│  ▼ Water           │    Printed:   1,700                           │
-│    ● Still 0.5L    │    Burned:    3                               │
-│  ▼ Milk            │    Total:     10,003                          │
-│    ● 1.0L          │                                               │
-│                    │  [Import CSV...]  [+ New Job]                 │
+│    ▼ Orange        │    Available:    8,300                        │
+│  ▼ Water           │    Printed:      1,700                        │
+│    ● Still 0.5L    │    Burned:       3                            │
+│  ▼ Milk            │    Quarantined:  7                            │
+│    ● 1.0L          │    Total:        10,010                       │
 │                    │                                               │
+│  ──────────────    │  [Import CSV...]  [+ New Job]                 │
+│  ⚠ Unassigned (5) │                                               │
 │                    │  History:                                     │
 │                    │    Aug 10  Job #52 completed — 500/500        │
 │                    │    Aug 09  Imported 10,000 — gold_0.5.csv     │
@@ -624,7 +647,7 @@ Two-tab detail pane: **Operations** (daily workflow) and **Settings** (configura
 
 ```
 ┌────────────────────┬─────────────────────────────────────────────┐
-│                    │  [Operations]  [Settings]                    │
+│                    │  [Operations]  [Settings]  [Codes]          │
 │  (tree unchanged)  │  ──────────────────────────────────────────  │
 │                    │                                               │
 │                    │  Template:  apple_05_template.rox  [Change]  │
@@ -636,13 +659,37 @@ Two-tab detail pane: **Operations** (daily workflow) and **Settings** (configura
 └────────────────────┴─────────────────────────────────────────────┘
 ```
 
+```
+┌────────────────────┬─────────────────────────────────────────────┐
+│                    │  [Operations]  [Settings]  [Codes]          │
+│  (tree unchanged)  │  ──────────────────────────────────────────  │
+│                    │                                               │
+│                    │  Status: [All ▼]  Search: [________]  [⟳]  │
+│                    │                                               │
+│                    │  ☐  CODE_TEXT          STATUS    BATCH  JOB  │
+│                    │  ☐  010462001234...   Available  b1.csv  —   │
+│                    │  ☐  010462005678...   Printed    b1.csv  #52 │
+│                    │  ☑  010462009012...   Quarantin  b2.csv  #48 │
+│                    │                                               │
+│                    │  [Select All] [Deselect] Page 1/83 [◀][▶]  │
+│                    │  Page size: [100 ▼]                          │
+│                    │                                               │
+│                    │  Selected (1):                                │
+│                    │    [Change Status ▼] [Move ▼] [Archive]     │
+│                    │                                               │
+│                    │  [Undo Last Action]                          │
+└────────────────────┴─────────────────────────────────────────────┘
+```
+
 Key behaviors:
 - **Tree** always expanded by default. Toolbar: [+F] = add folder, [+P] = add product (relative to selection; click empty space to deselect and add at root).
-- **Operations tab** (default): code pool stats, [Import CSV...], [+ New Job], unified activity history (imports + job outcomes merged chronologically, newest first).
+- **Unassigned section** — visible below the tree when codes exist without a product (after product deletion with "Keep Codes"). Clicking it opens the Codes tab in unassigned mode.
+- **Operations tab** (default): code pool stats (including Quarantined in amber), [Import CSV...], [+ New Job], unified activity history (imports + job outcomes merged chronologically, newest first).
 - **Settings tab**: template file path + [Change], printer CSV name + [Save], [Delete Product] in a danger zone at the bottom.
+- **Codes tab**: paginated DataGrid with status filter, search, select/deselect, status change, move to product, archive, undo. Reserved codes are protected (checkbox disabled). Confirmation dialogs for risky transitions. Page size default 100, max 1000.
 - **[+ New Job]** — opens New Job screen with this product preselected.
 - **History** — merged timeline: imports (blue), completed (green), cancelled (orange), error (red). Max 20 entries.
-- **Delete** — blocked if product has active jobs or reserved codes; confirmation dialog required.
+- **Delete** — blocked if product has active jobs or reserved codes. Products with codes show a three-button dialog: Keep Codes (→ unassigned pool) / Delete Codes Too (→ archive) / Cancel. Zero-code products use simple Yes/No.
 
 > See `products-page-design.md` for full button-by-button specification, validation rules, and unit test coverage.
 

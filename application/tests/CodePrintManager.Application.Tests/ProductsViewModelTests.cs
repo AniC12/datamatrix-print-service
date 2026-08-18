@@ -32,6 +32,7 @@ public class ProductsViewModelTests : IDisposable
     private readonly AppDbContext _db;
     private readonly IProductService _productService;
     private readonly ICodePoolService _codePoolService;
+    private readonly ICodeManagementService _codeManagement;
     private readonly ILogger<ProductsViewModel> _logger;
     private readonly ProductsViewModel _vm;
 
@@ -44,9 +45,12 @@ public class ProductsViewModelTests : IDisposable
         _db = new AppDbContext(options);
         _productService = Substitute.For<IProductService>();
         _codePoolService = Substitute.For<ICodePoolService>();
+        _codeManagement = Substitute.For<ICodeManagementService>();
         _logger = Substitute.For<ILogger<ProductsViewModel>>();
 
-        _vm = new ProductsViewModel(_productService, _codePoolService, _db, _logger);
+        var codesTabLogger = Substitute.For<ILogger<CodesTabViewModel>>();
+        var codesTab = new CodesTabViewModel(_codeManagement, _productService, codesTabLogger);
+        _vm = new ProductsViewModel(_productService, _codePoolService, _codeManagement, _db, codesTab, _logger);
     }
 
     public void Dispose()

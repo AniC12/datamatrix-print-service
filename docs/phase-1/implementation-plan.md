@@ -44,7 +44,8 @@ Every task required to go from "compiles" to "production-ready Phase 1 matching 
 | E6: Job Management | 2/3 | 1 (E6-3) | 8 | 8 |
 | E7: Testing | 0/7 | 7 | 0 | 33 |
 | E8: Polish & Deployment | 0/5 | 5 | 0 | 12 |
-| **Total** | **18/32** | **14** | **75** | **58** |
+| E9: Codes Management | 6/6 | 0 | 26 | 0 |
+| **Total** | **24/38** | **14** | **101** | **58** |
 
 ---
 
@@ -400,6 +401,77 @@ Current `MainWindow.xaml` has an alert bar but may not implement collapse or max
 
 ---
 
+## Epic 9: Codes Management
+
+> **Admin-level code management.** Operators can inspect, filter, move, archive, and undo changes to individual codes. Includes the Quarantined status, archived codes table, safe product deletion with code handling, and an Unassigned codes pool.
+
+### E9-1. Domain changes — Quarantined status, nullable ProductId, ArchivedCode — DONE
+
+**Points: 5** | **Depends on: E0-1** | **Blocks: E9-2** | **Status: DONE**
+
+- Added `Quarantined` to `CodeStatus` enum.
+- Changed `Code.ProductId` from `int` to `int?` (nullable). Changed `Product` navigation to nullable.
+- Changed `CodeConfiguration` FK to `DeleteBehavior.SetNull`.
+- Created `ArchivedCode` entity with fields: OriginalCodeId, ProductId, CodeText, Status, ImportOrder, ImportBatch, JobId, StatusChangedAt, CreatedAt, ArchivedAt, ArchivedReason.
+- Created `ArchivedCodeConfiguration` mapping to `archived_codes` table with index on (ProductId, ArchivedAt).
+- Added `DbSet<ArchivedCode> ArchivedCodes` to `AppDbContext`.
+- Generated migration `20260817224936_AddArchivedCodesAndNullableProductId`.
+
+### E9-2. ICodeManagementService interface + CodeManagementService implementation — DONE
+
+**Points: 8** | **Depends on: E9-1** | **Blocks: E9-3** | **Status: DONE**
+
+- Created `ICodeManagementService` interface in Domain with DTOs: `CodePage`, `CodeOperation`, `UndoResult`.
+- Methods: `GetCodesPageAsync` (paginated, filtered, searchable), `GetUnassignedCountAsync`, `ChangeStatusAsync`, `ChangeStatusBulkAsync`, `MoveCodesAsync`, `MoveCodesBulkAsync`, `ArchiveCodesAsync`, `ArchiveCodesBulkAsync`, `UnassignCodesAsync`, `UndoOperationAsync`.
+- Implemented `CodeManagementService` in Application layer with full audit logging.
+- Safety: Reserved codes are excluded from all admin mutations (enforced server-side).
+- Undo validates current state before reverting; skips codes affected by subsequent jobs.
+- Archive undo checks for uniqueness conflicts from re-imported codes.
+- Added `IProductService.GetCodeCountAsync` and implemented in `ProductService`.
+- Registered `ICodeManagementService` → `CodeManagementService` as scoped in DI.
+
+### E9-3. CodesTabViewModel — DONE
+
+**Points: 5** | **Depends on: E9-2** | **Blocks: E9-4** | **Status: DONE**
+
+- Created `CodesTabViewModel` with pagination, status filter (All + each status), debounced search (300ms), configurable page size (100/250/500/1000/All).
+- Created `CodeItemViewModel` with `IsSelected` / `IsReserved` (disabled checkbox) support.
+- Selection: Select All / Deselect All (current page, excludes reserved). Bulk requires specific status filter.
+- Commands: status change, move, archive (selected + bulk variants), undo (stack of 10).
+- Confirmation dialogs with risky-transition warnings (Printed→Available, Burned→Available, Quarantined→Available).
+- `CodesChanged` event for parent ViewModel refresh.
+
+### E9-4. ProductsViewModel integration — DONE
+
+**Points: 3** | **Depends on: E9-3** | **Blocks: E9-5** | **Status: DONE**
+
+- Added `CodesTab`, `QuarantinedCodesCount`, `UnassignedCodesCount`, `IsShowingUnassigned` properties.
+- Loads Codes tab when a leaf product is selected.
+- `ShowUnassignedCodesCommand` switches to unassigned mode.
+- Rewrote `DeleteProductAsync`: zero-code products use simple confirmation; products with codes show three-button dialog (Keep Codes → unassign / Delete Codes Too → archive / Cancel).
+- Updated `RefreshCodeCountsAsync` for Quarantined count.
+- `RefreshUnassignedCountAsync` runs after load and after code mutations.
+- Updated test constructor in `ProductsViewModelTests.cs`.
+
+### E9-5. Codes tab XAML + Unassigned section — DONE
+
+**Points: 3** | **Depends on: E9-3, E9-4** | **Blocks: nothing** | **Status: DONE**
+
+- Added Codes tab (third tab after Operations and Settings) in `ProductsView.xaml` with: filter toolbar (status ComboBox + search TextBox + Refresh), DataGrid with checkbox/CodeText/Status/Batch/Job/Changed columns, Select All / Deselect All, pagination bar with page-size selector, selected-actions panel (change status, move, archive), bulk-actions panel, undo bar.
+- Added Unassigned section below tree in left panel: separator + button with warning icon + count, visible only when count > 0.
+- Added full Unassigned mode detail pane (same DataGrid layout, bound to CodesTab in unassigned mode).
+- Added Quarantined row (amber) to Operations tab stats grid.
+- Created `CodeStatusToColorConverter` (green/blue/gray/teal/red/amber) and registered in `Theme.xaml`.
+
+### E9-6. Build verification — DONE
+
+**Points: 2** | **Depends on: E9-5** | **Blocks: nothing** | **Status: DONE**
+
+- `dotnet build` — 0 errors, 0 warnings.
+- `dotnet test` — all 198 tests pass (165 Application + 30 Integration + 1 Domain + 1 Data + 1 Savema).
+
+---
+
 ## Dependency Graph
 
 ```
@@ -477,7 +549,8 @@ Phase 6 (polish):
 | E6: Job Management | 3 | **2/3** | 16 | 8 | No |
 | E7: Testing | 7 | 0/7 | 33 | 0 | No |
 | E8: Polish & Deployment | 5 | 0/5 | 12 | 0 | No |
-| **Total** | **32** | **18/32** | **133 SP** | **75 SP** | |
+| E9: Codes Management | 6 | **6/6** | 26 | 26 | No |
+| **Total** | **38** | **24/38** | **159 SP** | **101 SP** | |
 
 ### Critical path (shortest path to "works end-to-end")
 
@@ -521,7 +594,7 @@ Current implementation status of every feature area in the design spec.
 | `Printer` entity | Done | All fields match §4 schema |
 | `PrintJob` entity | Done | All fields match §4 schema |
 | `AuditEntry` entity | Done | |
-| `CodeStatus` enum | Done | Available, Reserved, Printed, Returned, Burned |
+| `CodeStatus` enum | Done | Available, Reserved, Printed, Returned, Burned, Quarantined (E9-1) |
 | `JobStatus` enum | Partial | Missing `Paused` state (needed for E6-3) |
 | `PrinterStatus` enum | Done | Offline, Init, Idle, Printing, Error, Blocked |
 | `AlertSeverity` enum | Done | |
@@ -529,6 +602,7 @@ Current implementation status of every feature area in the design spec.
 | `IPrinterAdapterFactory` interface | Done | |
 | `IProductService` interface | Done | |
 | `ICodePoolService` interface | Done | |
+| `ICodeManagementService` interface | Done | Paginated query, status change, move, archive, undo (E9-2) |
 | `IPrintJobService` interface | Partial | Missing `PauseJobAsync` (E6-3) |
 | `IAlertService` interface | Done | |
 | `IAuditService` interface | Done | |
@@ -539,10 +613,11 @@ Current implementation status of every feature area in the design spec.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `AppDbContext` | Done | All 5 DbSets |
+| `AppDbContext` | Done | 6 DbSets (added ArchivedCodes in E9-1) |
 | `DbInitializer` (WAL mode) | Done | PRAGMA WAL + busy_timeout=5000 |
 | `ProductNodeConfiguration` | Done | Self-referencing tree, indexes |
-| `CodeConfiguration` | Done | Unique constraint, composite indexes |
+| `CodeConfiguration` | Done | Unique constraint, composite indexes, nullable ProductId FK with SetNull (E9-1) |
+| `ArchivedCodeConfiguration` | Done | Maps to `archived_codes`, index on (ProductId, ArchivedAt) (E9-1) |
 | `PrinterConfiguration` | Done | |
 | `PrintJobConfiguration` | Done | Partial unique indexes for concurrency guards |
 | `AuditEntryConfiguration` | Done | |
@@ -552,7 +627,8 @@ Current implementation status of every feature area in the design spec.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `ProductService` | Done | Full CRUD, tree operations |
+| `ProductService` | Done | Full CRUD, tree operations, `GetCodeCountAsync` (E9-2) |
+| `CodeManagementService` | Done | Admin code operations: query, status change, move, archive, undo (E9-2) |
 | `CodePoolService` | Done | SPPL forbidden-sequence validation via `CodeValidator` (E0-4), low stock alert (E2-2) |
 | `CodePoolService.ReturnCodesToPoolAsync` | Done | Sets `Available` status and clears `JobId` (E0-3) |
 | `PrintJobService.CreateJobAsync` | Done | |
@@ -564,7 +640,7 @@ Current implementation status of every feature area in the design spec.
 | `PrinterConnectionManager` | Done | Factory lookup, connect, reconnect with backoff |
 | `AlertService` | Done | Events, auto-dismiss, audit bridge |
 | `AuditService` | Done | JSON serialization, DB persist |
-| `ServiceCollectionExtensions` | Done | All registrations including `ActiveJobRegistry` + `JobEventBus` singletons |
+| `ServiceCollectionExtensions` | Done | All registrations including `ActiveJobRegistry` + `JobEventBus` singletons + `CodeManagementService` (E9-2) |
 
 ### Printer.Savema
 
@@ -587,7 +663,7 @@ Current implementation status of every feature area in the design spec.
 | `MainViewModel` (navigation, alerts) | Done | Event subscription, alert collection, dispatch |
 | Alert bar (collapse, scroll) | Partial | Needs max-height scroll and collapse when empty (E8-4) |
 | Theme.xaml + Controls.xaml | Done | Colors, card styles, button styles |
-| Converters (Bool, Null, Status) | Done | |
+| Converters (Bool, Null, Status, CodeStatus) | Done | Added `CodeStatusToColorConverter` (E9-5) |
 
 ### Desktop — Dashboard (§6.2)
 
@@ -611,12 +687,14 @@ Current implementation status of every feature area in the design spec.
 | Product detail pane — available/total counts | Done | |
 | Product detail pane — template file + [Change] | Done | Template path shown with [Change] button (E3-1) |
 | Product detail pane — CSV name | Done | Editable field with [Save] button (E3-1) |
-| Product detail pane — pool stats by status | Done | Available/Printed/Burned/Total (E3-1) |
+| Product detail pane — pool stats by status | Done | Available/Printed/Burned/Quarantined/Total (E3-1, E9-5) |
 | Product detail pane — import history | Done | Date + details from audit log (E3-1) |
 | Import CSV with file dialog | Done | OpenFileDialog wired (E1-4) |
 | [+ New Job] on product | Done | NavigateToNewJobRequested event (E8-1) |
 | [+ Add Folder] / [+ Add Product] | Done | Inline forms with Create/Cancel buttons, ViewModel commands |
-| Delete product node | Done | Confirmation dialog, CanDeleteAsync validation (active jobs + reserved codes), disabled button with tooltip (E3-2) |
+| Delete product node | Done | Three-button dialog: Keep Codes / Delete Codes Too / Cancel. Codes unassigned or archived. (E3-2, E9-4) |
+| Codes tab (third tab) | Done | Paginated DataGrid, filter/search, status change, move, archive, undo (E9-5) |
+| Unassigned codes section | Done | Shown below tree when count > 0, opens Codes tab in unassigned mode (E9-5) |
 
 ### Desktop — Printers (§6.4)
 

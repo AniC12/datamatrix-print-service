@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<Printer> Printers => Set<Printer>();
     public DbSet<PrintJob> PrintJobs => Set<PrintJob>();
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
+    public DbSet<ArchivedCode> ArchivedCodes => Set<ArchivedCode>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {

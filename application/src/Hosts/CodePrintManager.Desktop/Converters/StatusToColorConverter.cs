@@ -31,6 +31,26 @@ public class StatusToColorConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+public class CodeStatusToColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value switch
+        {
+            CodeStatus.Available => new SolidColorBrush(Color.FromRgb(40, 167, 69)),
+            CodeStatus.Reserved => new SolidColorBrush(Color.FromRgb(0, 123, 255)),
+            CodeStatus.Printed => new SolidColorBrush(Color.FromRgb(108, 117, 125)),
+            CodeStatus.Returned => new SolidColorBrush(Color.FromRgb(23, 162, 184)),
+            CodeStatus.Burned => new SolidColorBrush(Color.FromRgb(220, 53, 69)),
+            CodeStatus.Quarantined => new SolidColorBrush(Color.FromRgb(255, 152, 0)),
+            _ => new SolidColorBrush(Color.FromRgb(108, 117, 125))
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public class SeverityToBackgroundConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

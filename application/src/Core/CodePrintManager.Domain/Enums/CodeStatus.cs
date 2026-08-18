@@ -6,5 +6,6 @@ public enum CodeStatus
     Reserved,
     Printed,
     Returned,
-    Burned
+    Burned,
+    Quarantined
 }

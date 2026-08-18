@@ -6,15 +6,15 @@
 
 ## 1. Page Purpose
 
-The Products page is where the operator manages the product catalog: organizing products into folders, assigning templates, importing codes, and launching print jobs. It is a **split-panel** layout: tree navigation on the left, detail/actions on the right.
+The Products page is where the operator manages the product catalog: organizing products into folders, assigning templates, importing codes, launching print jobs, and managing individual codes. It is a **split-panel** layout: tree navigation on the left, detail/actions on the right. A separate **Unassigned Codes** section below the tree provides access to codes that have no product.
 
 ---
 
 ## 2. Proposed Layout (Redesign)
 
-### 2.1 Two-Tab Detail Pane
+### 2.1 Three-Tab Detail Pane
 
-Split the right-side detail pane into two tabs to separate frequent operations from configuration.
+Split the right-side detail pane into three tabs: frequent operations, configuration, and code management.
 
 ```
 +---------------------------------------------------------+
@@ -22,17 +22,18 @@ Split the right-side detail pane into two tabs to separate frequent operations f
 +------------------+--------------------------------------+
 |  [+F] [+P]      |  APPLE 0.5L                          |
 |                  |                                       |
-|  v Juice         |  [Operations]  [Settings]            |
+|  v Juice         |  [Operations]  [Settings]  [Codes]  |
 |    v Apple       |  ----------------------------------  |
 |      * 0.5L  <-- |                                       |
 |      * 1.0L      |  === OPERATIONS TAB ===               |
 |    > Orange      |                                       |
 |  v Water         |  Code Pool:                           |
-|    * Still 0.5L  |    Available: 8,300                   |
-|  v Milk          |    Printed:   1,700                   |
-|    * 1.0L        |    Burned:    3                       |
-|                  |    Total:     10,003                  |
-|                  |                                       |
+|    * Still 0.5L  |    Available:    8,300                 |
+|  v Milk          |    Printed:      1,700                 |
+|    * 1.0L        |    Burned:       3                     |
+|                  |    Quarantined:  7                     |
+|  ──────────────  |    Total:        10,010                |
+|  ⚠ Unassigned(5) |                                       |
 |                  |  [Import CSV...]  [+ New Job]         |
 |                  |                                       |
 |                  |  History:                             |
@@ -63,8 +64,29 @@ Split the right-side detail pane into two tabs to separate frequent operations f
 +---------------------------------------------------------+
 ```
 
+```
++---------------------------------------------------------+
+|                  |  === CODES TAB ===                     |
+|                  |                                       |
+|                  |  Status: [All ▼]  Search: [____] [⟳] |
+|                  |                                       |
+|                  |  ☐  CODE_TEXT        STATUS   BATCH   |
+|                  |  ☐  01046200123...  Avail.   b1.csv  |
+|                  |  ☐  01046200567...  Printed  b1.csv  |
+|                  |  ☑  01046200901...  Quaran.  b2.csv  |
+|                  |                                       |
+|                  |  [Select All] [Deselect]              |
+|                  |  Page 1/83  [◀][▶]  Size: [100 ▼]   |
+|                  |                                       |
+|                  |  Selected (1):                        |
+|                  |   [Change Status ▼] [Move ▼] [Arch.] |
+|                  |                                       |
+|                  |  [Undo Last Action]                   |
++---------------------------------------------------------+
+```
+
 **Tab A — "Operations" (default, frequent use):**
-- Code pool stats (Available / Printed / Burned / Total)
+- Code pool stats (Available / Printed / Burned / Quarantined / Total)
 - [Import CSV...] button
 - [+ New Job] button
 - Activity history (merged import + print job entries, last 20, chronological)
@@ -74,9 +96,33 @@ Split the right-side detail pane into two tabs to separate frequent operations f
 - Printer CSV Name (editable text field) + [Save] button
 - [Delete Product] button (danger zone, at the bottom)
 
-**Rationale:** The operator's primary daily workflow is: select product -> check availability -> import codes or start job. Template and CSV name changes happen only during initial setup or rarely. Separating them reduces visual clutter and protects against accidental configuration changes.
+**Tab C — "Codes" (admin, code management):**
+- Paginated DataGrid of all codes for this product (or all unassigned codes)
+- Status filter (All + each status), text search, refresh
+- Select/deselect (reserved codes are always protected — checkbox disabled)
+- Actions: change status, move to another product, archive
+- Undo with safety validation (bounded stack of 10)
+- Page size default 100, options: 100/250/500/1000
 
-### 2.2 Left Panel — Tree with Toolbar
+**Rationale:** The operator's primary daily workflow is: select product -> check availability -> import codes or start job. Template and CSV name changes happen only during initial setup or rarely. Code management is an occasional admin activity. Separating all three into tabs reduces visual clutter and protects against accidental configuration changes or code modifications.
+
+### 2.2 Unassigned Codes Section
+
+Below the tree, a separate section appears when codes exist without a product (i.e., `Code.ProductId IS NULL`). This happens when:
+- A product is deleted and the operator chose "Keep Codes"
+- Codes are explicitly unassigned via the Codes tab
+
+```
++------------------+
+|  (tree)          |
+|  ──────────────  |
+|  ⚠ Unassigned(5) |   <-- visible only when count > 0
++------------------+
+```
+
+Clicking the Unassigned section opens the Codes tab in **unassigned mode**, showing all codes with `ProductId IS NULL`. The same filter/search/select/action controls are available.
+
+### 2.3 Left Panel — Tree with Toolbar
 
 Move "Add Folder" / "Add Product" buttons into the left panel as a compact icon toolbar above the tree (like VS Code's file explorer).
 
@@ -103,7 +149,7 @@ Delete lives exclusively in the Settings tab as a "danger zone" action (see sect
 
 **Key change:** These buttons now operate relative to the **selected node** but with corrected logic (see section 3.3 for root-level creation fix).
 
-### 2.3 Tree Always Expanded by Default
+### 2.4 Tree Always Expanded by Default
 
 On page load, all tree nodes should be expanded. The operator needs to see the full hierarchy immediately — there are typically 10-30 products, not thousands. If needed, individual folders can be collapsed by the user.
 
@@ -252,7 +298,7 @@ var parentId = SelectedProduct?.IsLeaf == false ? SelectedProduct.Id : SelectedP
 
 ### 3.5 [Delete Product] (Settings Tab — Danger Zone)
 
-**Purpose:** Delete the selected folder or product.
+**Purpose:** Delete the selected folder or product, with explicit handling of any codes belonging to it.
 
 **Location:** Settings tab only, at the bottom in a visually distinct "danger zone" section. NOT in the left panel toolbar — deletion is infrequent and destructive, so it belongs behind an extra navigation step.
 
@@ -263,30 +309,34 @@ var parentId = SelectedProduct?.IsLeaf == false ? SelectedProduct.Id : SelectedP
   - No reserved codes (status: Reserved)
   - For folders: ALL children must also be deletable (recursive)
 
-**Flow:**
+**Flow — zero-code products (simple):**
 1. User navigates to Settings tab
 2. Sees [Delete Product] button at the bottom (disabled if blocked)
-3. Clicks button -> confirmation dialog: "Are you sure you want to delete {name}? This cannot be undone."
-4. User clicks Yes
-5. System calls `CanDeleteAsync` -> if false, shows error with reason
-6. System calls `DeleteAsync` -> removes from DB
-7. Tree refreshes, selection moves to parent or first sibling
+3. Clicks button -> simple confirmation dialog: "Are you sure you want to delete {name}? This cannot be undone."
+4. User clicks Yes -> product removed from DB
+5. Tree refreshes, selection moves to parent or first sibling
+
+**Flow — products with codes (three-button dialog):**
+1. User clicks [Delete Product]
+2. System checks `CanDeleteAsync` -> if false, shows error with reason
+3. System counts codes via `GetCodeCountAsync`
+4. Dialog: "'{name}' has {N} codes. What would you like to do?"
+   - **[Keep Codes]** — codes are moved to the unassigned pool (`ProductId` set to `NULL` via `DeleteBehavior.SetNull`). Product is removed. Codes remain in the system and can be managed via the Unassigned section.
+   - **[Delete Codes Too]** — codes are archived to `archived_codes` table (preserving code text, status, batch, job history). Code text becomes available for re-import elsewhere. Product is removed.
+   - **[Cancel]** — no action taken.
+5. Tree refreshes, selection moves to parent or first sibling. If codes were kept, the Unassigned count updates.
 
 **What user sees:**
 - Button disabled (greyed out) when selection cannot be deleted
 - Explanation text next to disabled button: "Has active jobs or reserved codes"
-- Confirmation dialog before destructive action
+- For zero-code products: simple Yes/No confirmation
+- For products with codes: three-button dialog explaining the consequences of each choice
 - On success: node disappears, detail pane clears
 
 **Edge cases:**
-- Deleting a folder with children -> currently unclear behavior. Should either:
-  - Cascade delete all children (dangerous), OR
-  - Refuse deletion if folder has children (safer, current behavior)
-  - **Recommendation:** refuse if folder has any children (require emptying first)
-- Deleting a product with historical data (printed codes, completed jobs) -> should be allowed (only block on ACTIVE jobs/reserved codes)
-
-**Missing from current implementation:**
-- No recursive `CanDelete` check for folders with children
+- Deleting a folder with children -> refuse deletion if folder has children (require emptying first)
+- Deleting a product with historical data (printed codes, completed jobs) -> allowed (only block on ACTIVE jobs/reserved codes)
+- Codes are **never silently deleted**. The operator must explicitly choose what happens to them.
 
 ### 3.6 [Change] Template (Settings Tab)
 
@@ -392,6 +442,91 @@ Section 3.5 fully covers the delete behavior. Additional UX detail for the Setti
 [RelayCommand] void CancelRename()  // Sets IsRenaming = false, clears EditName
 [RelayCommand] async Task ConfirmRenameAsync()  // Validates, updates, refreshes tree
 ```
+
+### 3.10 Codes Tab (Detail Pane — Third Tab)
+
+**Purpose:** Inspect, filter, and manage individual codes for the selected product (or all unassigned codes).
+
+**Location:** Third tab in the detail pane, labeled "Codes". Also used in Unassigned mode (same UI, different data source).
+
+**Preconditions:**
+- A leaf product is selected (or Unassigned section is active)
+- Tab is always visible for leaf products; disabled for folders
+
+#### Controls
+
+**Status filter** — ComboBox with options: All, Available, Reserved, Printed, Returned, Burned, Quarantined. Defaults to "All". Changing the filter reloads page 1.
+
+**Search** — TextBox with debounced input (300ms). Searches by `CodeText` substring. Clearing the search reloads the current filter.
+
+**Refresh** — Button that reloads the current page with current filter/search.
+
+**Page size** — ComboBox with options: 100 (default), 250, 500, 1000. Changing page size reloads page 1.
+
+**Pagination** — Previous / Next buttons. Page N of M display. Disabled at boundaries.
+
+#### DataGrid Columns
+
+| Column | Binding | Notes |
+|--------|---------|-------|
+| ☐ (checkbox) | `IsSelected` | Disabled for Reserved codes (protected) |
+| Code Text | `CodeText` | Full code string |
+| Status | `Status` | Color-coded by `CodeStatusToColorConverter` |
+| Batch | `ImportBatch` | Source CSV filename |
+| Job | `JobId` | Which job last touched this code (if any) |
+| Changed | `StatusChangedAt` | Last status change timestamp |
+
+#### Selection
+
+- **Individual select** — toggle checkboxes. Reserved codes have disabled checkboxes.
+- **Select All** — selects all non-reserved codes on the current page only.
+- **Deselect All** — clears all selections on the current page.
+
+#### Actions (selected codes)
+
+**Change Status** — dropdown with target status options. Shows confirmation dialog for risky transitions:
+- Printed → Available: "This code was confirmed printed. Returning it to Available could cause a DUPLICATE. Are you sure?"
+- Burned → Available: "This code was burned. Returning it may risk a duplicate if it was physically printed."
+- Quarantined → Available: "This code's print state is uncertain. Verify it was NOT physically printed before releasing."
+
+Reserved codes are excluded from status changes (enforced server-side even if UI somehow allows it).
+
+**Move to Product** — dropdown listing all leaf products. Moves selected codes to the target product. In unassigned mode, this is the primary way to reassign codes.
+
+**Archive** — removes selected codes from the active pool. Codes are saved to `archived_codes` table. Code text becomes available for re-import. Confirmation: "Archive {N} codes? They will be removed from the active pool. Their code text can be re-imported elsewhere."
+
+#### Bulk Actions
+
+When a specific status filter is active (not "All"), bulk action buttons appear:
+- **Change All {Status}** — changes all codes matching the current filter (not just current page) to a new status.
+- **Move All {Status}** — moves all codes matching the current filter to another product.
+- **Archive All {Status}** — archives all codes matching the current filter.
+
+Bulk actions always show a count confirmation: "This will affect {N} codes. Continue?"
+
+Bulk is disabled when filter is "All" to prevent accidental mass operations.
+
+#### Undo
+
+- **[Undo Last Action]** button — reverses the most recent operation.
+- Bounded stack of 10 operations.
+- Safety validation: undo is blocked if any of the affected codes have been touched by a subsequent print job (the undo would conflict with job state).
+- Archive undo checks that the code text hasn't been re-imported elsewhere (uniqueness conflict).
+- On undo failure, the operator sees a message explaining why the undo was blocked.
+
+#### Unassigned Mode
+
+When the operator clicks the Unassigned section below the tree:
+- The detail pane switches to show the Codes tab in unassigned mode.
+- Header shows "Unassigned Codes" instead of a product name.
+- Operations and Settings tabs are not shown.
+- Same filter/search/select/action controls are available.
+- The "Move to Product" action is the primary workflow for reassigning unassigned codes.
+
+**Implementation:**
+- `CodesTabViewModel` handles all code management logic.
+- `ProductsViewModel` owns a `CodesTab` instance and sets its `ProductId` (or null for unassigned mode).
+- `CodesChanged` event triggers refresh of parent ViewModel stats (Available/Printed/Burned/Quarantined counts, Unassigned count).
 
 ---
 
@@ -811,22 +946,23 @@ Products_E2E_ImportPreservesOrderAcrossBatches
 
 ## 7. Detailed Change Proposals
 
-### 7.1 Two-Tab Module
+### 7.1 Three-Tab Module
 
 **What changes:**
-- `ProductsView.xaml`: Replace single detail `StackPanel` with `TabControl` containing two tabs
-- `ProductsViewModel.cs`: No logic changes needed (tabs are purely presentational)
+- `ProductsView.xaml`: Replace single detail `StackPanel` with `TabControl` containing three tabs
+- `ProductsViewModel.cs`: Owns a `CodesTabViewModel` instance, sets product context on selection change
+- `CodesTabViewModel.cs`: Handles all code management logic (pagination, filter, actions, undo)
 - Consider remembering last active tab per session (not critical)
 
 **Tab content distribution:**
 
-| Operations Tab (default) | Settings Tab |
-|--------------------------|--------------|
-| Code Pool stats (4 lines) | **Name + [Rename]** |
-| [Import CSV...] button | Template file + [Change] |
-| [+ New Job] button (disabled if available=0) | CSV Name + [Save] |
-| Activity History (imports + jobs merged) | --- separator --- |
-| | [Delete Product] (danger) |
+| Operations Tab (default) | Settings Tab | Codes Tab |
+|--------------------------|--------------|-----------|
+| Code Pool stats (5 lines incl. Quarantined) | **Name + [Rename]** | Status filter + Search |
+| [Import CSV...] button | Template file + [Change] | Paginated DataGrid |
+| [+ New Job] button (disabled if available=0) | CSV Name + [Save] | Select All / Deselect |
+| Activity History (imports + jobs merged) | --- separator --- | Actions: Change Status, Move, Archive |
+| | [Delete Product] (danger) | Undo Last Action |
 
 ### 7.2 Tree Always Expanded
 
@@ -967,18 +1103,36 @@ User clicks [Delete Product] (Settings tab)
 CanDeleteAsync(id)
     |-- Any active jobs (Preparing/Ready/Printing/Paused)? -> blocked
     |-- Any reserved codes? -> blocked
-    |-- (Proposed) Has children? -> blocked
+    |-- Has children (folder)? -> blocked
     |
     v
-Show confirmation dialog
+GetCodeCountAsync(id)
     |
-    |-- No -> abort
-    |-- Yes:
-    v
-DeleteAsync(id)
+    |-- count == 0:
+    |       |
+    |       v
+    |   Simple confirmation: "Delete {name}?"
+    |       |-- No -> abort
+    |       |-- Yes -> DeleteAsync(id) -> remove from DB
     |
-    v
-Remove from DB
+    |-- count > 0:
+    |       |
+    |       v
+    |   Three-button dialog:
+    |   "'{name}' has {N} codes. What would you like to do?"
+    |       |
+    |       |-- [Keep Codes]:
+    |       |       ProductId set to NULL (DeleteBehavior.SetNull)
+    |       |       Codes move to unassigned pool
+    |       |       DeleteAsync(id) -> remove product from DB
+    |       |       RefreshUnassignedCountAsync()
+    |       |
+    |       |-- [Delete Codes Too]:
+    |       |       ArchiveCodesBulkAsync(productId) -> codes saved to archived_codes
+    |       |       Code text freed for re-import
+    |       |       DeleteAsync(id) -> remove product from DB
+    |       |
+    |       |-- [Cancel] -> abort
     |
     v
 Refresh tree
@@ -999,6 +1153,12 @@ Clear selection
 | Template change: active job | "Cannot change template while Job #{id} is active. Complete or cancel the job first." | Error dialog |
 | CSV name: invalid chars | "CSV name can only contain letters, numbers, underscores, and hyphens." | Inline validation |
 | Reserve: insufficient codes | "Not enough codes. Available: {N}, Requested: {M}." | Shown in New Job screen |
+| Codes: risky status change | "This code was confirmed printed. Returning it to Available could cause a DUPLICATE. Are you sure?" | Confirmation dialog (Codes tab) |
+| Codes: archive confirmation | "Archive {N} codes? They will be removed from the active pool." | Confirmation dialog (Codes tab) |
+| Codes: bulk operation | "This will affect {N} codes. Continue?" | Confirmation dialog (Codes tab) |
+| Codes: undo blocked | "Cannot undo: {N} codes have been affected by subsequent print jobs." | Error dialog (Codes tab) |
+| Codes: archive undo conflict | "Cannot undo archive: code text '{code}' has been re-imported into another product." | Error dialog (Codes tab) |
+| Delete: product with codes | "'{name}' has {N} codes. What would you like to do?" | Three-button dialog (Settings tab) |
 
 ---
 
@@ -1016,17 +1176,21 @@ Clear selection
 
 | Area | Current | Proposed |
 |------|---------|----------|
-| Detail pane | Single scrollable panel | Two tabs: Operations + Settings |
+| Detail pane | Single scrollable panel | Three tabs: Operations + Settings + Codes |
 | Add buttons | Top-right page header | Left panel icon toolbar |
 | Root creation | Impossible when item is selected | Click empty area to deselect; add hint text |
 | Tree expansion | User must manually expand | All expanded by default (Style setter) |
 | Delete button | Right panel, always visible | Settings tab only (danger zone) — not in toolbar |
+| **Delete dialog** | Simple Yes/No | Three-button dialog: Keep Codes / Delete Codes Too / Cancel (for products with codes) |
 | Template change | No safety check | Block if active job exists |
 | CSV name save | No validation | Format validation + feedback |
 | Import result | Silent (just updates counts) | Summary dialog with counts and errors |
 | Folder detail | Shows leaf-only fields (confusing) | Shows folder summary (child count, aggregate stats) + rename |
 | **New Job button** | Always enabled for any leaf | **Disabled when available codes = 0** |
 | **Rename** | Not available — must delete and recreate | **Inline rename in Settings tab (leaves) and folder pane** |
+| **Codes tab** | Not available | **Paginated grid with filter/search, status change, move, archive, undo** |
+| **Unassigned section** | Not available | **Shown below tree when unassigned codes exist; opens Codes tab in unassigned mode** |
+| **Pool stats** | Available / Printed / Burned / Total | **Available / Printed / Burned / Quarantined / Total** |
 
 ---
 
@@ -1034,10 +1198,11 @@ Clear selection
 
 1. **Tree always expanded** (trivial — one XAML line)
 2. **Root creation fix** (small — add deselect mechanism)
-3. **Two-tab layout** (medium — XAML restructure, no logic changes)
+3. **Three-tab layout** (medium — XAML restructure, no logic changes)
 4. **Left panel toolbar** (medium — move buttons, add icons)
 5. **Import summary dialog** (small — add result reporting)
 6. **Template change safety check** (small — one async check)
 7. **CSV name validation** (small — regex validation)
 8. **Folder detail pane** (medium — new aggregate query + UI)
-9. **Unit tests** (parallel — can write alongside feature work)
+9. ~~**Codes tab + Unassigned section**~~ ✅ **DONE** (E9 — see `implementation-plan.md`)
+10. **Unit tests** (parallel — can write alongside feature work)

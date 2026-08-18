@@ -85,20 +85,22 @@ The heart of the system. Contains everything that every other project needs to a
 Domain/
   Entities/
     ProductNode.cs      # Tree node: folders (IsLeaf=false) and products (IsLeaf=true)
-    Code.cs             # A single unique code. Status: Available → Reserved → Printed/Returned/Burned
+    Code.cs             # A single unique code. ProductId is nullable (null = unassigned).
+    ArchivedCode.cs     # Snapshot of a deleted code, preserving history for re-import.
     Printer.cs          # Printer config record: name, IP, port, adapter type string
     PrintJob.cs         # Job lifecycle: Preparing → Ready → Printing → Completed/Cancelled/Error
     AuditEntry.cs       # Persistent event log row
   Enums/
-    CodeStatus.cs       # Available, Reserved, Printed, Returned, Burned
+    CodeStatus.cs       # Available, Reserved, Printed, Returned, Burned, Quarantined
     JobStatus.cs        # Preparing, Ready, Printing, Completed, Cancelled, Error
     PrinterStatus.cs    # Offline, Init, Idle, Printing, Error, Blocked
     AlertSeverity.cs    # Info, Warning, Error
   Interfaces/
     IPrinterAdapter.cs          # THE contract every printer implementation fulfills
     IPrinterAdapterFactory.cs   # Creates an adapter given an adapter type string
-    IProductService.cs          # CRUD for product tree
+    IProductService.cs          # CRUD for product tree + GetCodeCountAsync
     ICodePoolService.cs         # CSV import, reservation, status transitions, dedup
+    ICodeManagementService.cs   # Admin code ops: paginated query, status change, move, archive, undo
     IPrintJobService.cs         # Job lifecycle management
     IAlertService.cs            # Ephemeral alert events (not persistent)
     IAuditService.cs            # Persistent event logging
@@ -120,11 +122,12 @@ EF Core persistence. Owns the `AppDbContext`, entity configurations, and migrati
 
 ```
 Data/
-  AppDbContext.cs                  # DbContext with DbSet<T> properties
+  AppDbContext.cs                  # DbContext with 6 DbSets (includes ArchivedCodes)
   DbInitializer.cs                # PRAGMA journal_mode=WAL; busy_timeout=5000
   Configurations/
     ProductNodeConfiguration.cs    # Self-referencing parent/child relationship
-    CodeConfiguration.cs           # UNIQUE(code_text), index on (product_id, status)
+    CodeConfiguration.cs           # UNIQUE(code_text), index on (product_id, status), nullable FK with SetNull
+    ArchivedCodeConfiguration.cs   # Maps to archived_codes table, index on (product_id, archived_at)
     PrinterConfiguration.cs
     PrintJobConfiguration.cs       # Partial unique indexes (see below)
     AuditEntryConfiguration.cs
@@ -193,8 +196,9 @@ All business logic. Orchestrates Domain interfaces, Data access, and printer ada
 ```
 Application/
   Services/
-    ProductService.cs              # CRUD product tree, folder/product creation
+    ProductService.cs              # CRUD product tree, folder/product creation, GetCodeCountAsync
     CodePoolService.cs             # CSV import, code reservation (FIFO), dedup, status transitions
+    CodeManagementService.cs       # Admin code ops: paginated query, status change, move, archive, undo
     PrinterConnectionManager.cs    # Singleton: owns adapter instances, connect/reconnect with backoff
     PrintJobService.cs             # Job lifecycle, per-printer service locks, spawns JobExecutors
     JobExecutor.cs                 # Per-job: 500ms poll loop, counter tracking, anomaly detection
@@ -215,6 +219,7 @@ Application/
 | `AlertService` | Singleton | Event hub — all services raise alerts through one instance; hosts subscribe once |
 | `ProductService` | Scoped | One DbContext per operation; stateless |
 | `CodePoolService` | Scoped | Same |
+| `CodeManagementService` | Scoped | Same |
 | `PrintJobService` | Scoped | Same, but also owns `ConcurrentDictionary<int, JobExecutor>` for active jobs |
 | `AuditService` | Scoped | Writes to DB |
 
@@ -256,7 +261,8 @@ Desktop/
   ViewModels/
     MainViewModel.cs               # Navigation state, alert collection (subscribes to AlertRaised)
     DashboardViewModel.cs          # Printer cards, summary stats
-    ProductsViewModel.cs           # Tree + detail + CSV import
+    ProductsViewModel.cs           # Tree + detail + CSV import + codes tab + unassigned + safe delete
+    CodesTabViewModel.cs           # Admin code management: paginated grid, filter, status change, move, archive, undo
     PrintersViewModel.cs           # Config + connect/disconnect
     JobsViewModel.cs               # Active jobs + history tabs
     NewJobViewModel.cs             # Create → Prepare → Start flow
@@ -265,7 +271,7 @@ Desktop/
       PrinterCardViewModel.cs      # Per-printer dashboard card
   Views/
     DashboardView.xaml             # Summary cards + printer card grid
-    ProductsView.xaml              # Tree view + detail pane
+    ProductsView.xaml              # Tree view + detail pane (Operations / Settings / Codes tabs) + Unassigned section
     PrintersView.xaml              # Add printer form + action buttons
     JobsView.xaml                  # DataGrid with active/history tabs
     NewJobView.xaml                # Product/printer selection, quantity, start
@@ -273,6 +279,7 @@ Desktop/
   Converters/
     BoolToVisibilityConverter.cs   # + InverseBoolConverter, NullToVisibility, CountToVisibility
     StatusToColorConverter.cs      # Maps PrinterStatus/JobStatus → SolidColorBrush
+    CodeStatusToColorConverter.cs  # Maps CodeStatus → SolidColorBrush (green/blue/gray/teal/red/amber)
   Assets/
     Styles/
       Theme.xaml                   # Colors, converter registrations, global TextBlock style
@@ -418,18 +425,40 @@ Available ──→ Reserved ──→ Printed                         │
                  │                                         │
                  ├──→ Returned ──→ Available ───────────────┘
                  │
-                 └──→ Burned (ambiguous / lost)
+                 ├──→ Burned (operator-confirmed loss)
+                 │
+                 └──→ Quarantined (uncertain — needs human verification)
+                          │
+                          ├──→ Available  (operator verifies: not printed)
+                          ├──→ Printed    (operator verifies: was printed)
+                          └──→ Burned     (operator decides: discard permanently)
 ```
+
+### Automated transitions (job lifecycle)
 
 | Transition | When | Who |
 |-----------|------|-----|
 | Available → Reserved | Job preparation (FIFO by `import_order`) | `CodePoolService.ReserveCodesAsync` |
 | Reserved → Printed | Counter confirms print | `CodePoolService.MarkCodesPrintedAsync` |
 | Reserved → Returned | Job cancelled, codes not yet printed | `CodePoolService.ReturnCodesToPoolAsync` |
-| Reserved → Burned | Ambiguous state (counter mismatch) | `CodePoolService.BurnCodeAsync` |
+| Reserved → Burned | Operator confirms loss | `CodePoolService.BurnCodeAsync` |
+| Reserved → Quarantined | Ambiguous state (counter mismatch, power cycle, template mismatch) | `CodePoolService.BurnCodeAsync` (updated) |
 | Returned → Available | Automatic (returned codes re-enter the pool) | Same as above |
 
-**Burn-on-ambiguity rule:** If a code's print status is uncertain (e.g., printer disconnected mid-print, counter doesn't match), the code is burned rather than returned. Government-issued codes must never be duplicated; wasting a code is acceptable, using it twice is not.
+### Manual transitions (admin — Codes tab)
+
+| Transition | When | Who |
+|-----------|------|-----|
+| Quarantined → Available | Operator verifies code was not physically printed | `CodeManagementService.ChangeStatusAsync` |
+| Quarantined → Printed | Operator verifies code was physically printed | `CodeManagementService.ChangeStatusAsync` |
+| Quarantined → Burned | Operator decides to permanently discard | `CodeManagementService.ChangeStatusAsync` |
+| Available / Printed / Burned → any | Operator corrects a mistake via the Codes tab | `CodeManagementService.ChangeStatusAsync` |
+
+**Reserved codes are protected** — the Codes tab cannot change the status of a code that is currently Reserved by an active job.
+
+**Quarantine-on-ambiguity rule:** If a code's print status is uncertain (e.g., printer disconnected mid-print, power cycle, template mismatch), the code is quarantined rather than burned. Quarantined codes are frozen: they cannot be auto-reused, but an operator can recover them via the Codes tab after investigation. See `connection-recovery-deep-dive.md` §5 for full details.
+
+**Burn rule:** Burned is now reserved for cases where the operator explicitly confirms the code should be permanently discarded. The key distinction: Quarantined = system marks automatically (recoverable). Burned = human decides explicitly (permanent).
 
 ---
 

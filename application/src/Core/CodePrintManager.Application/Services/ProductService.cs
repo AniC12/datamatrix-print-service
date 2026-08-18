@@ -108,6 +108,11 @@ public class ProductService : IProductService
         return true;
     }
 
+    public async Task<int> GetCodeCountAsync(int productId)
+    {
+        return await _db.Codes.CountAsync(c => c.ProductId == productId);
+    }
+
     public async Task DeleteAsync(int id)
     {
         if (!await CanDeleteAsync(id))

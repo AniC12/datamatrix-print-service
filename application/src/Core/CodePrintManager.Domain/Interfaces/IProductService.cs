@@ -11,5 +11,6 @@ public interface IProductService
     Task<ProductNode> CreateProductAsync(string name, int? parentId, string templateFile, string printerCsvName);
     Task UpdateAsync(ProductNode product);
     Task<bool> CanDeleteAsync(int id);
+    Task<int> GetCodeCountAsync(int productId);
     Task DeleteAsync(int id);
 }

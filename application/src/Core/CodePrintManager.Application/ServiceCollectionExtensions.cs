@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<ICodePoolService, CodePoolService>();
+        services.AddScoped<ICodeManagementService, CodeManagementService>();
         services.AddScoped<IPrintJobService, PrintJobService>();
 
         return services;

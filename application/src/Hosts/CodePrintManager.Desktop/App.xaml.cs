@@ -81,6 +81,7 @@ public partial class App : System.Windows.Application
                 services.AddTransient<JobsViewModel>();
                 services.AddTransient<NewJobViewModel>();
                 services.AddTransient<RecoveryViewModel>();
+                services.AddTransient<CodesTabViewModel>();
 
                 // Main window
                 services.AddSingleton<MainWindow>();

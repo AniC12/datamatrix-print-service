@@ -14,8 +14,11 @@ public partial class ProductsViewModel : ObservableObject
 {
     private readonly IProductService _productService;
     private readonly ICodePoolService _codePoolService;
+    private readonly ICodeManagementService _codeManagement;
     private readonly AppDbContext _db;
     private readonly ILogger<ProductsViewModel> _logger;
+
+    public CodesTabViewModel CodesTab { get; }
 
     public ObservableCollection<ProductNode> Products { get; } = new();
     public ObservableCollection<ActivityHistoryItem> ActivityHistory { get; } = new();
@@ -33,7 +36,16 @@ public partial class ProductsViewModel : ObservableObject
     private int _burnedCodesCount;
 
     [ObservableProperty]
+    private int _quarantinedCodesCount;
+
+    [ObservableProperty]
     private int _totalCodesCount;
+
+    [ObservableProperty]
+    private int _unassignedCodesCount;
+
+    [ObservableProperty]
+    private bool _isShowingUnassigned;
 
     // Add folder/product dialog fields
     [ObservableProperty]
@@ -74,13 +86,21 @@ public partial class ProductsViewModel : ObservableObject
 
     public event EventHandler<int>? NavigateToNewJobRequested;
 
-    public ProductsViewModel(IProductService productService, ICodePoolService codePoolService, AppDbContext db,
-        ILogger<ProductsViewModel> logger)
+    public ProductsViewModel(IProductService productService, ICodePoolService codePoolService,
+        ICodeManagementService codeManagement, AppDbContext db,
+        CodesTabViewModel codesTab, ILogger<ProductsViewModel> logger)
     {
         _productService = productService;
         _codePoolService = codePoolService;
+        _codeManagement = codeManagement;
         _db = db;
         _logger = logger;
+        CodesTab = codesTab;
+        CodesTab.CodesChanged += async (_, _) =>
+        {
+            await RefreshCodeCountsAsync();
+            await RefreshUnassignedCountAsync();
+        };
     }
 
     [RelayCommand]
@@ -91,6 +111,7 @@ public partial class ProductsViewModel : ObservableObject
         foreach (var root in roots)
             Products.Add(root);
         _logger.LogInformation("Products page loaded: {Count} root nodes", roots.Count);
+        await RefreshUnassignedCountAsync();
     }
 
     [RelayCommand]
@@ -166,18 +187,55 @@ public partial class ProductsViewModel : ObservableObject
     {
         if (SelectedProduct == null) return;
 
-        var result = System.Windows.MessageBox.Show(
-            $"Are you sure you want to delete \"{SelectedProduct.Name}\"?\n\nThis action cannot be undone.",
-            "Confirm Delete",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Warning);
-
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        var productId = SelectedProduct.Id;
+        var productName = SelectedProduct.Name;
 
         try
         {
-            _logger.LogInformation("Products: Deleting Id={Id}", SelectedProduct.Id);
-            await _productService.DeleteAsync(SelectedProduct.Id);
+            var codeCount = await _productService.GetCodeCountAsync(productId);
+
+            if (codeCount == 0)
+            {
+                // Simple confirmation for empty product
+                var result = System.Windows.MessageBox.Show(
+                    $"Are you sure you want to delete \"{productName}\"?\n\nThis action cannot be undone.",
+                    "Confirm Delete",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Warning);
+
+                if (result != System.Windows.MessageBoxResult.Yes) return;
+            }
+            else
+            {
+                // Three-button dialog for products with codes
+                var result = System.Windows.MessageBox.Show(
+                    $"Delete \"{productName}\"?\n\n" +
+                    $"This product has {codeCount:N0} codes.\n\n" +
+                    "• Yes = Keep Codes (move to Unassigned pool)\n" +
+                    "• No = Delete Codes Too (archive them)\n" +
+                    "• Cancel = Don't delete",
+                    $"Delete \"{productName}\"",
+                    System.Windows.MessageBoxButton.YesNoCancel,
+                    System.Windows.MessageBoxImage.Warning);
+
+                if (result == System.Windows.MessageBoxResult.Cancel) return;
+
+                if (result == System.Windows.MessageBoxResult.Yes)
+                {
+                    // Keep codes — move to unassigned pool
+                    _logger.LogInformation("Products: Keeping {Count} codes as unassigned before deleting Id={Id}", codeCount, productId);
+                    await _codeManagement.UnassignCodesAsync(productId);
+                }
+                else // No = Delete codes too
+                {
+                    // Archive all codes
+                    _logger.LogInformation("Products: Archiving {Count} codes before deleting Id={Id}", codeCount, productId);
+                    await _codeManagement.ArchiveCodesBulkAsync(productId, default, "product_deleted");
+                }
+            }
+
+            _logger.LogInformation("Products: Deleting Id={Id}", productId);
+            await _productService.DeleteAsync(productId);
             SelectedProduct = null;
             await LoadProductsAsync();
         }
@@ -293,6 +351,9 @@ public partial class ProductsViewModel : ObservableObject
         if (value != null)
             _logger.LogInformation("Product selected: '{Name}' (Id={Id}, IsLeaf={IsLeaf})", value.Name, value.Id, value.IsLeaf);
 
+        // Clear unassigned mode when a product is selected
+        IsShowingUnassigned = false;
+
         // Update the "adding to" hint
         if (value == null)
             AddTargetHint = "Root";
@@ -308,6 +369,18 @@ public partial class ProductsViewModel : ObservableObject
         _ = RefreshCodeCountsAsync();
         _ = LoadActivityHistoryAsync();
         _ = CheckCanDeleteAsync();
+
+        // Load codes tab for leaf products
+        if (value?.IsLeaf == true)
+            _ = CodesTab.LoadForProductAsync(value.Id);
+    }
+
+    [RelayCommand]
+    private async Task ShowUnassignedCodesAsync()
+    {
+        SelectedProduct = null;
+        IsShowingUnassigned = true;
+        await CodesTab.LoadForProductAsync(null);
     }
 
     private async Task CheckCanDeleteAsync()
@@ -331,6 +404,7 @@ public partial class ProductsViewModel : ObservableObject
             AvailableCodesCount = 0;
             PrintedCodesCount = 0;
             BurnedCodesCount = 0;
+            QuarantinedCodesCount = 0;
             TotalCodesCount = 0;
             CanCreateNewJob = false;
             return;
@@ -340,10 +414,16 @@ public partial class ProductsViewModel : ObservableObject
         AvailableCodesCount = stats.GetValueOrDefault(CodeStatus.Available, 0);
         PrintedCodesCount = stats.GetValueOrDefault(CodeStatus.Printed, 0);
         BurnedCodesCount = stats.GetValueOrDefault(CodeStatus.Burned, 0);
+        QuarantinedCodesCount = stats.GetValueOrDefault(CodeStatus.Quarantined, 0);
         TotalCodesCount = stats.Values.Sum();
         CanCreateNewJob = AvailableCodesCount > 0;
-        _logger.LogInformation("Product '{Name}' pool: Available={Avail}, Printed={Printed}, Burned={Burned}, Total={Total}",
-            SelectedProduct.Name, AvailableCodesCount, PrintedCodesCount, BurnedCodesCount, TotalCodesCount);
+        _logger.LogInformation("Product '{Name}' pool: Available={Avail}, Printed={Printed}, Burned={Burned}, Quarantined={Quarantined}, Total={Total}",
+            SelectedProduct.Name, AvailableCodesCount, PrintedCodesCount, BurnedCodesCount, QuarantinedCodesCount, TotalCodesCount);
+    }
+
+    private async Task RefreshUnassignedCountAsync()
+    {
+        UnassignedCodesCount = await _codeManagement.GetUnassignedCountAsync();
     }
 
     private async Task LoadActivityHistoryAsync()

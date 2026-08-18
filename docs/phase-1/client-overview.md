@@ -82,9 +82,24 @@ Every product has its own pool of codes. When you import a CSV file, those codes
 - **Reserved** — selected for a print job, waiting to be printed
 - **Printed** — confirmed as physically printed on a product
 - **Returned** — was reserved but the job was cancelled; code goes back to the available pool
-- **Burned** — the system is unsure if this code was printed (for example, during a power failure); it is marked as used to be safe
+- **Burned** — the operator has confirmed this code should be permanently discarded (for example, after verifying a code was lost during a failure)
+- **Quarantined** — the system is unsure if this code was physically printed (for example, during a power failure or printer disconnect); it is frozen until the operator investigates and decides what to do with it
 
-A code that has been printed can never be reused. This is the core safety guarantee.
+A code that has been printed can never be automatically reused. Quarantined codes cannot be automatically reused either — only an operator can release them after verification via the Codes tab. This is the core safety guarantee.
+
+Codes can also exist in an **unassigned pool** — without any product — if their product was deleted while choosing to keep the codes, or if they were explicitly unassigned. These codes can be managed and moved to another product via the Codes tab.
+
+### Code Management
+
+The **Codes tab** on the Products page gives operators direct control over individual codes:
+
+- **Browse and search** — paginated list with status filter and text search
+- **Change status** — manually correct a code's status (e.g., move a quarantined code back to Available after verifying it was not printed)
+- **Move codes** — transfer codes between products, or to the unassigned pool
+- **Archive** — remove codes from the active pool while preserving their history (the code text becomes available for re-import elsewhere)
+- **Undo** — reverse the last operation, with safety checks (undo is blocked if subsequent print jobs have affected the codes)
+
+Reserved codes (actively assigned to a running job) are always protected — the operator cannot change their status or move them.
 
 ### Printers
 
@@ -238,7 +253,7 @@ The first screen you see when opening the application. It is the active monitori
 
 ### 7.2 Products
 
-A split-panel screen for managing your product catalog. The detail pane has two tabs: **Operations** (daily use) and **Settings** (configuration).
+A split-panel screen for managing your product catalog. The detail pane has three tabs: **Operations** (daily use), **Settings** (configuration), and **Codes** (admin code management). A separate **Unassigned Codes** section appears below the tree when codes exist without a product.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -246,17 +261,18 @@ A split-panel screen for managing your product catalog. The detail pane has two 
 ├───────────────────┬─────────────────────────────────────────────┤
 │  [+F] [+P]       │  APPLE 0.5L                                  │
 │                   │                                              │
-│  ▼ Juice          │  [Operations]  [Settings]                    │
+│  ▼ Juice          │  [Operations]  [Settings]  [Codes]          │
 │    ▼ Apple        │  ─────────────────────────────────────────── │
 │      ● 0.5L  ←    │                                              │
 │      ● 1.0L       │  Code Pool:                                  │
-│    ▼ Orange       │    Available: 8,300                          │
-│  ▼ Water          │    Printed:   1,700                          │
-│    ● Still 0.5L   │    Burned:    3                              │
-│  ▼ Milk           │    Total:     10,003                         │
-│    ● 1.0L         │                                              │
-│                   │  [Import CSV...]  [+ New Job]                │
+│    ▼ Orange       │    Available:    8,300                        │
+│  ▼ Water          │    Printed:      1,700                        │
+│    ● Still 0.5L   │    Burned:       3                            │
+│  ▼ Milk           │    Quarantined:  7                            │
+│    ● 1.0L         │    Total:        10,010                       │
 │                   │                                              │
+│  ──────────────   │  [Import CSV...]  [+ New Job]                │
+│  ⚠ Unassigned (5) │                                              │
 │                   │  History:                                    │
 │                   │    Aug 10  Job #52 completed — 500/500       │
 │                   │    Aug 09  Imported 10,000 — gold_0.5.csv    │
@@ -267,10 +283,13 @@ A split-panel screen for managing your product catalog. The detail pane has two 
 ```
 
 - **Left side** — the product tree (always expanded by default). Icon toolbar at top: [+F] adds a folder, [+P] adds a product. Adding is relative to the selected node; click empty space to deselect and add at root.
-- **Right side — Operations tab** (default): code pool statistics, [Import CSV...], [+ New Job], and a merged activity history showing both imports and print jobs chronologically.
+- **Unassigned section** — visible below the tree when codes exist without a product (e.g., after product deletion with "Keep Codes"). Clicking it opens the Codes tab in unassigned mode.
+- **Right side — Operations tab** (default): code pool statistics (including Quarantined in amber), [Import CSV...], [+ New Job], and a merged activity history showing both imports and print jobs chronologically.
 - **Right side — Settings tab**: template file + [Change], printer CSV name + [Save], and [Delete Product] as a danger-zone action at the bottom.
+- **Right side — Codes tab**: paginated DataGrid of the product's codes. Filter by status, search by code text. Select individual codes or bulk-select (reserved codes are protected). Actions: change status, move to another product, archive. Undo reverses the last action with safety checks. Page size defaults to 100 (up to 1000).
 - **[+ New Job]** button — opens the New Job screen with this product preselected
 - **History** — unified timeline of imports (blue) and job outcomes: completed (green), cancelled (orange), error (red)
+- **Delete** — blocked if product has active jobs or reserved codes. If the product has codes, the operator is asked: Keep Codes (moved to unassigned pool) / Delete Codes Too (archived, code text freed for re-import) / Cancel.
 
 When importing codes, the system validates the file and checks for duplicates across all products. Duplicate codes are rejected with a clear message.
 
@@ -461,13 +480,15 @@ When there are no alerts, the bar collapses and takes up no space.
 
 | Risk | How the system handles it |
 |------|---------------------------|
-| **Duplicate code printed** | Global uniqueness enforced — it is impossible to assign the same code to two jobs. A printed code can never return to the available pool. |
+| **Duplicate code printed** | Global uniqueness enforced — it is impossible to assign the same code to two jobs. A printed code can never return to the available pool automatically. |
 | **Power failure mid-print** | All progress is saved continuously. On restart, the system reads the printer's permanent counter to determine exactly what was printed, and presents a recovery screen. |
 | **External printing on the printer** | Counter jumps are detected and flagged. Affected codes are conservatively marked as used. |
 | **Application crash** | Same as power failure — all state is in the local database and is recoverable. |
 | **Network disconnect** | The affected job pauses, other jobs continue. Automatic reconnection with retry. Operator is alerted. |
-| **Ambiguous codes** | If the system cannot be certain whether a code was printed, it marks it as "burned" (used) rather than risking a duplicate. |
+| **Ambiguous codes** | If the system cannot be certain whether a code was printed, it quarantines the code — freezing it so it cannot be reused automatically. The operator can later investigate and recover the code or permanently discard it via the Codes tab. |
 | **Two jobs targeting the same printer** | Prevented by design — only one job can be active per printer at any time. The system enforces this at every level. |
+| **Product deletion with codes** | The operator is asked what to do: keep codes (moved to an unassigned pool for later reassignment) or archive them (history preserved, code text freed for re-import). Codes are never silently deleted. |
+| **Manual code correction** | The Codes tab allows operators to inspect and correct code statuses, but reserved codes (actively assigned to a running job) are always protected and cannot be modified. |
 
 ---
 

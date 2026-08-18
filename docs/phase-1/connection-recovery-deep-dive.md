@@ -1000,7 +1000,7 @@ Safe approach:
 | **Template match check** | Not done on reconnect. Only done during Verify flow (manual action). | `PrintersViewModel.VerifyPrinterAsync` |
 | **Serial number tracking** | Not implemented. No hardware swap detection. | — |
 | **Burn on power cycle** | Burn +1 is done on Cancel, but the recovery flow lets the operator choose Resume or Abort — it doesn't force a burn on the boundary code for Resume. | `PrintJobService.CancelJobAsync` |
-| **Quarantine status** | Not implemented. The `CodeStatus` enum has: Available, Reserved, Printed, Burned, Returned. No concept of "uncertain, needs human decision." | `Domain/Enums/CodeStatus.cs` |
+| **Quarantine status** | **Implemented.** `CodeStatus.Quarantined` added to the enum. The Codes tab on the Products page allows operators to inspect quarantined codes and resolve them (move to Available, Printed, or Burned) individually or in bulk. Quarantined codes are excluded from availability counts and cannot be auto-reused. | `Domain/Enums/CodeStatus.cs`, `CodesTabViewModel.cs` |
 
 ### Gaps requiring attention
 

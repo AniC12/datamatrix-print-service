@@ -26,7 +26,8 @@ public class CodeConfiguration : IEntityTypeConfiguration<Code>
         builder.HasOne(e => e.Product)
             .WithMany(e => e.Codes)
             .HasForeignKey(e => e.ProductId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(e => e.Job)
             .WithMany(e => e.Codes)

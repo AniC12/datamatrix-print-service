@@ -15,6 +15,7 @@
     <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
     <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter" />
     <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
+    <converters:CodeStatusToColorConverter x:Key="CodeStatusToColorConverter" />
     <converters:SeverityToBackgroundConverter x:Key="SeverityToBackgroundConverter" />
     <converters:SeverityToForegroundConverter x:Key="SeverityToForegroundConverter" />
     <converters:SeverityToIconConverter x:Key="SeverityToIconConverter" />
