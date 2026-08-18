@@ -248,7 +248,7 @@ The first screen you see when opening the application. It is the active monitori
   - Job is completed → no buttons
 - **Clicking a card** navigates to the Jobs page with that job selected for full detail.
 - **Alerts** — inline display of current errors and warnings.
-- **Recent Activity** — chronological list of recent events across the system.
+- **Recent Activity** — chronological list of recent events (excludes job creation entries). Color-coded dots by event type: green (info/completed), purple (import), blue (started/resumed), amber (warning/paused), gray (cancelled), red (error).
 - **[+ New Job]** button (top-right) — opens the New Job screen with nothing preselected.
 
 ### 7.2 Products

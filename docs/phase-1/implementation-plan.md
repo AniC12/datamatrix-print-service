@@ -207,7 +207,7 @@ Design (phase1-design.md §3.3): Operator clicks "Verify" on a printer to check 
 
 **Points: 3** | **Depends on: E0-1** | **Blocks: nothing** | **Status: DONE**
 
-`DashboardViewModel.RecentActivity` shows last 20 audit entries (format: "HH:mm {Description}"). Auto-refreshes on `JobCompleted` events via `OnJobCompleted` handler. `AuditEntryViewModel` formats time and description.
+`DashboardViewModel.RecentActivity` shows last 20 audit entries (format: "HH:mm {Description}"), excluding `job_created` entries (redundant with dedicated start/complete events). Auto-refreshes on `JobCompleted` events via `OnJobCompleted` handler. `AuditEntryViewModel` formats time and description with color-coded dots by event type: green (info/completed), purple (import), blue (started/resumed), amber (warning/paused), gray (cancelled), red (error). Alert messages are fully localized via `ILocalizationService`.
 
 ---
 

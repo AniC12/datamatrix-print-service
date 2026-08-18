@@ -591,7 +591,7 @@ History:
   Aug 05 10:15  Job #45 completed — 1,000/1,000 printed     [green dot]
 ```
 
-- Color-coded dots: green = completed, blue = import, orange = cancelled, red = error
+- Color-coded dots: green = completed/info, purple = import, blue = started/resumed, amber = warning/paused, gray = cancelled, red = error
 - Each row is compact (one main line + optional detail line)
 - Clicking a job entry could optionally navigate to the Jobs page with that job selected (nice-to-have)
 

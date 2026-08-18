@@ -618,7 +618,7 @@ Key behaviors:
   - Job is `completed` → no buttons
 - **Clicking a card** navigates to Jobs page with that job selected.
 - **Alerts** — inline mirror of the bottom alert bar (errors and warnings).
-- **Recent Activity** — last ~10 events. Serves as a lightweight audit view.
+- **Recent Activity** — last ~20 events (excludes `job_created`). Color-coded dots: green (info/completed), purple (import), blue (started/resumed), amber (warning/paused), gray (cancelled), red (error). Alert messages are localized.
 - **[+ New Job]** (top-right) — opens New Job screen with nothing preselected.
 
 ### 6.3 Products Screen
