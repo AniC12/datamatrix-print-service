@@ -16,6 +16,7 @@ public class JobExecutor
     private readonly IAlertService _alerts;
     private readonly AppDbContext _db;
     private readonly ILogger _logger;
+    private readonly ILocalizationService _loc;
 
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
@@ -31,7 +32,8 @@ public class JobExecutor
         ICodePoolService codePool,
         IAlertService alerts,
         AppDbContext db,
-        ILogger logger)
+        ILogger logger,
+        ILocalizationService loc)
     {
         _job = job;
         _adapter = adapter;
@@ -39,6 +41,7 @@ public class JobExecutor
         _alerts = alerts;
         _db = db;
         _logger = logger;
+        _loc = loc;
     }
 
     public void Start()
@@ -85,7 +88,7 @@ public class JobExecutor
             {
                 _logger.LogError(ex, "Job {JobId} connection lost", _job.Id);
                 _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
-                    $"Connection lost. Job #{_job.Id} paused.",
+                    _loc.Format("Alert_ConnectionLost", _job.Id),
                     printerId: _job.PrinterId, jobId: _job.Id);
                 await Task.Delay(2000, ct);
             }
@@ -120,7 +123,7 @@ public class JobExecutor
             _logger.LogWarning("Job {JobId} anomaly: counter mismatch SPGGCP={Counter}, SPGGTP delta={Delta}",
                 _job.Id, snapshot.Counter, snapshot.LifetimeDelta);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
-                $"Counter mismatch: SPGGCP={snapshot.Counter}, SPGGTP delta={snapshot.LifetimeDelta}",
+                _loc.Format("Alert_CounterMismatch", snapshot.Counter, snapshot.LifetimeDelta),
                 printerId: _job.PrinterId, jobId: _job.Id);
         }
 
@@ -130,7 +133,7 @@ public class JobExecutor
             _logger.LogWarning("Job {JobId} anomaly: unexpected counter jump +{Advance}",
                 _job.Id, advance);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
-                $"Unexpected counter jump (+{advance})",
+                _loc.Format("Alert_CounterJump", advance),
                 printerId: _job.PrinterId, jobId: _job.Id);
         }
     }
@@ -158,7 +161,7 @@ public class JobExecutor
         _logger.LogInformation("Job {JobId} completed ({Total}/{Total})", _job.Id, _job.Quantity, _job.Quantity);
 
         _alerts.Raise(AlertSeverity.Info, _job.Printer.Name,
-            $"Job #{_job.Id} completed ({_job.Quantity}/{_job.Quantity})",
+            _loc.Format("Alert_JobCompleted", _job.Id, _job.Quantity),
             printerId: _job.PrinterId, jobId: _job.Id);
 
         Completed?.Invoke(this, new JobCompletedEvent(_job.Id, JobStatus.Completed));

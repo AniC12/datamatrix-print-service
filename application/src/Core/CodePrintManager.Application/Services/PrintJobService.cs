@@ -258,7 +258,7 @@ public class PrintJobService : IPrintJobService
             executorCodePool = _codePool;
         }
 
-        var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger);
+        var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc);
         executor.ProgressChanged += (_, e) =>
         {
             _eventBus.RaiseProgressChanged(this, e);
@@ -487,7 +487,7 @@ public class PrintJobService : IPrintJobService
                 executorCodePool = _codePool;
             }
 
-            var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger);
+            var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc);
             executor.ProgressChanged += (_, e) =>
             {
                 _eventBus.RaiseProgressChanged(this, e);

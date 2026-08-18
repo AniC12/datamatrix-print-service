@@ -251,6 +251,40 @@ public partial class ProductsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task DeleteFolderAsync()
+    {
+        if (SelectedProduct == null || SelectedProduct.IsLeaf) return;
+
+        var folderName = SelectedProduct.Name;
+        var folderId = SelectedProduct.Id;
+
+        // Check if folder has children
+        var hasChildren = await _db.ProductNodes.AnyAsync(n => n.ParentId == folderId);
+        if (hasChildren)
+        {
+            System.Windows.MessageBox.Show(
+                _loc.Format("Error_CannotDeleteNonEmptyFolder", folderName),
+                _loc["DialogTitle_CannotDelete"],
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            _loc.Format("Dialog_ConfirmDeleteFolder", folderName),
+            _loc.Format("DialogTitle_DeleteFolder", folderName),
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes) return;
+
+        _logger.LogInformation("Products: Deleting folder Id={Id}", folderId);
+        await _productService.DeleteAsync(folderId);
+        SelectedProduct = null;
+        await LoadProductsAsync();
+    }
+
+    [RelayCommand]
     private async Task ImportCsvAsync()
     {
         if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;

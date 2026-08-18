@@ -629,6 +629,14 @@
 
                         <Separator Margin="0,12,0,8" />
                         <TextBlock Text="{loc:Loc Products_FolderInfo}" Opacity="0.6" FontStyle="Italic" />
+
+                        <!-- Danger Zone -->
+                        <Separator Margin="0,24,0,0" />
+                        <TextBlock Text="{loc:Loc Products_DangerZone}" Foreground="#E53E3E" FontWeight="SemiBold"
+                                   FontSize="13" Margin="0,12,0,8" />
+                        <Button Content="{loc:Loc Products_DeleteFolder}" Command="{Binding DeleteFolderCommand}"
+                                Style="{StaticResource DangerButton}" Padding="12,6"
+                                HorizontalAlignment="Left" />
                     </StackPanel>
                 </DockPanel>
             </Grid>
