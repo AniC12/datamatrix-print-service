@@ -1,5 +1,8 @@
 ﻿using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Threading;
 using CodePrintManager.Application;
 using CodePrintManager.Application.Models;
 using CodePrintManager.Application.Services;
@@ -28,23 +31,46 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Register global crash handlers before anything else
+        AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+
         var appDir = AppContext.BaseDirectory;
         var dbPath = Path.Combine(appDir, "codeprintmanager.db");
 
+        var useMockArg = Environment.GetCommandLineArgs().Contains("--mock");
+
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            .MinimumLevel.Verbose()
             .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
             .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
             .Enrich.FromLogContext()
+            .Enrich.WithThreadId()
+            .Enrich.WithMachineName()
             .WriteTo.File(
                 Path.Combine(appDir, "logs", "app-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30,
-                outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+                outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [T{ThreadId}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+            .WriteTo.Console(
+                outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
-        Log.Information("Application starting. AppDir={AppDir}, DbPath={DbPath}", appDir, dbPath);
+        // --- Startup Banner ---
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "dev";
+        Log.Information("============================================");
+        Log.Information("  CODE PRINT MANAGER SESSION START");
+        Log.Information("  Version:   {Version}", version);
+        Log.Information("  Runtime:   {Runtime}", RuntimeInformation.FrameworkDescription);
+        Log.Information("  OS:        {OS}", RuntimeInformation.OSDescription);
+        Log.Information("  Machine:   {Machine}", Environment.MachineName);
+        Log.Information("  AppDir:    {AppDir}", appDir);
+        Log.Information("  DbPath:    {DbPath}", dbPath);
+        Log.Information("  Mode:      {Mode}", useMockArg ? "MOCK PRINTER" : "REAL PRINTER");
+        Log.Information("  StartTime: {StartTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+        Log.Information("============================================");
 
         _host = Host.CreateDefaultBuilder()
             .UseSerilog()
@@ -302,6 +328,30 @@ public partial class App : System.Windows.Application
                 RecommendedAction = "Inspection failed — retry after reconnect"
             };
         }
+    }
+
+    // --- Crash Handlers ---
+
+    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        Log.Fatal(e.Exception, "UNHANDLED DISPATCHER EXCEPTION");
+        Log.CloseAndFlush();
+        // Allow the exception to propagate so the default handler can show the error dialog
+    }
+
+    private static void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception ex)
+            Log.Fatal(ex, "UNHANDLED APPDOMAIN EXCEPTION (IsTerminating={IsTerminating})", e.IsTerminating);
+        else
+            Log.Fatal("UNHANDLED APPDOMAIN EXCEPTION (non-Exception object): {Object}", e.ExceptionObject);
+        Log.CloseAndFlush();
+    }
+
+    private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        Log.Error(e.Exception, "UNOBSERVED TASK EXCEPTION (will not crash, but logged for diagnostics)");
+        // Don't call e.SetObserved() — let the default behavior apply
     }
 
     protected override async void OnExit(ExitEventArgs e)

@@ -98,68 +98,87 @@ public partial class ProductsViewModel : ObservableObject
         _db = db;
         _logger = logger;
         _loc = loc;
+        _logger.LogTrace("-> ProductsViewModel()");
         _addTargetHint = _loc["Label_Root"];
         CodesTab = codesTab;
         CodesTab.CodesChanged += async (_, _) =>
         {
+            _logger.LogTrace("-> CodesChanged event handler");
             await RefreshCodeCountsAsync();
             await RefreshUnassignedCountAsync();
+            _logger.LogTrace("<- CodesChanged event handler");
         };
+        _logger.LogTrace("<- ProductsViewModel()");
     }
 
     [RelayCommand]
     private async Task LoadProductsAsync()
     {
+        _logger.LogTrace("-> LoadProductsAsync()");
         var roots = await _productService.GetRootsAsync();
         Products.Clear();
         foreach (var root in roots)
             Products.Add(root);
         _logger.LogInformation("Products page loaded: {Count} root nodes", roots.Count);
         await RefreshUnassignedCountAsync();
+        _logger.LogTrace("<- LoadProductsAsync()");
     }
 
     [RelayCommand]
     private void ShowAddFolder()
     {
+        _logger.LogTrace("-> ShowAddFolder()");
         _logger.LogInformation("Products: Add Folder form opened");
         IsAddingFolder = true;
         IsAddingProduct = false;
         NewNodeName = string.Empty;
+        _logger.LogTrace("<- ShowAddFolder()");
     }
 
     [RelayCommand]
     private void ShowAddProduct()
     {
+        _logger.LogTrace("-> ShowAddProduct()");
         _logger.LogInformation("Products: Add Product form opened");
         IsAddingProduct = true;
         IsAddingFolder = false;
         NewNodeName = string.Empty;
         NewProductTemplate = string.Empty;
         NewProductCsvName = string.Empty;
+        _logger.LogTrace("<- ShowAddProduct()");
     }
 
     [RelayCommand]
     private void CancelAdd()
     {
+        _logger.LogTrace("-> CancelAdd()");
         IsAddingFolder = false;
         IsAddingProduct = false;
+        _logger.LogTrace("<- CancelAdd()");
     }
 
     [RelayCommand]
     private async Task ConfirmAddFolderAsync()
     {
-        if (string.IsNullOrWhiteSpace(NewNodeName)) return;
+        _logger.LogTrace("-> ConfirmAddFolderAsync()");
+        if (string.IsNullOrWhiteSpace(NewNodeName))
+        {
+            _logger.LogTrace("<- ConfirmAddFolderAsync() [empty name]");
+            return;
+        }
         var parentId = SelectedProduct?.IsLeaf == false ? SelectedProduct.Id : SelectedProduct?.ParentId;
         _logger.LogInformation("Products: Creating folder '{Name}' under Parent={ParentId}", NewNodeName.Trim(), parentId);
         await _productService.CreateFolderAsync(NewNodeName.Trim(), parentId);
         IsAddingFolder = false;
         NewNodeName = string.Empty;
         await LoadProductsAsync();
+        _logger.LogTrace("<- ConfirmAddFolderAsync()");
     }
 
     [RelayCommand]
     private void BrowseNewTemplate()
     {
+        _logger.LogTrace("-> BrowseNewTemplate()");
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Filter = _loc["Filter_TemplateFiles"],
@@ -167,12 +186,18 @@ public partial class ProductsViewModel : ObservableObject
         };
         if (dialog.ShowDialog() == true)
             NewProductTemplate = dialog.FileName;
+        _logger.LogTrace("<- BrowseNewTemplate() Template={Template}", NewProductTemplate);
     }
 
     [RelayCommand]
     private async Task ConfirmAddProductAsync()
     {
-        if (string.IsNullOrWhiteSpace(NewNodeName)) return;
+        _logger.LogTrace("-> ConfirmAddProductAsync()");
+        if (string.IsNullOrWhiteSpace(NewNodeName))
+        {
+            _logger.LogTrace("<- ConfirmAddProductAsync() [empty name]");
+            return;
+        }
         var parentId = SelectedProduct?.IsLeaf == false ? SelectedProduct.Id : SelectedProduct?.ParentId;
         _logger.LogInformation("Products: Creating product '{Name}' (Template={Template}, CSV={Csv})",
             NewNodeName.Trim(), NewProductTemplate.Trim(), NewProductCsvName.Trim());
@@ -184,12 +209,18 @@ public partial class ProductsViewModel : ObservableObject
         NewProductTemplate = string.Empty;
         NewProductCsvName = string.Empty;
         await LoadProductsAsync();
+        _logger.LogTrace("<- ConfirmAddProductAsync()");
     }
 
     [RelayCommand]
     private async Task DeleteProductAsync()
     {
-        if (SelectedProduct == null) return;
+        _logger.LogTrace("-> DeleteProductAsync()");
+        if (SelectedProduct == null)
+        {
+            _logger.LogTrace("<- DeleteProductAsync() [no selection]");
+            return;
+        }
 
         var productId = SelectedProduct.Id;
         var productName = SelectedProduct.Name;
@@ -207,7 +238,11 @@ public partial class ProductsViewModel : ObservableObject
                     System.Windows.MessageBoxButton.YesNo,
                     System.Windows.MessageBoxImage.Warning);
 
-                if (result != System.Windows.MessageBoxResult.Yes) return;
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    _logger.LogTrace("<- DeleteProductAsync() [cancelled by user]");
+                    return;
+                }
             }
             else
             {
@@ -218,7 +253,11 @@ public partial class ProductsViewModel : ObservableObject
                     System.Windows.MessageBoxButton.YesNoCancel,
                     System.Windows.MessageBoxImage.Warning);
 
-                if (result == System.Windows.MessageBoxResult.Cancel) return;
+                if (result == System.Windows.MessageBoxResult.Cancel)
+                {
+                    _logger.LogTrace("<- DeleteProductAsync() [cancelled by user]");
+                    return;
+                }
 
                 if (result == System.Windows.MessageBoxResult.Yes)
                 {
@@ -248,12 +287,18 @@ public partial class ProductsViewModel : ObservableObject
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- DeleteProductAsync()");
     }
 
     [RelayCommand]
     private async Task DeleteFolderAsync()
     {
-        if (SelectedProduct == null || SelectedProduct.IsLeaf) return;
+        _logger.LogTrace("-> DeleteFolderAsync()");
+        if (SelectedProduct == null || SelectedProduct.IsLeaf)
+        {
+            _logger.LogTrace("<- DeleteFolderAsync() [no selection or is leaf]");
+            return;
+        }
 
         var folderName = SelectedProduct.Name;
         var folderId = SelectedProduct.Id;
@@ -267,6 +312,7 @@ public partial class ProductsViewModel : ObservableObject
                 _loc["DialogTitle_CannotDelete"],
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error);
+            _logger.LogTrace("<- DeleteFolderAsync() [folder not empty]");
             return;
         }
 
@@ -276,18 +322,28 @@ public partial class ProductsViewModel : ObservableObject
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            _logger.LogTrace("<- DeleteFolderAsync() [cancelled by user]");
+            return;
+        }
 
         _logger.LogInformation("Products: Deleting folder Id={Id}", folderId);
         await _productService.DeleteAsync(folderId);
         SelectedProduct = null;
         await LoadProductsAsync();
+        _logger.LogTrace("<- DeleteFolderAsync()");
     }
 
     [RelayCommand]
     private async Task ImportCsvAsync()
     {
-        if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;
+        _logger.LogTrace("-> ImportCsvAsync()");
+        if (SelectedProduct == null || !SelectedProduct.IsLeaf)
+        {
+            _logger.LogTrace("<- ImportCsvAsync() [no leaf selected]");
+            return;
+        }
 
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
@@ -295,7 +351,11 @@ public partial class ProductsViewModel : ObservableObject
             Title = _loc["DialogTitle_ImportCodes"]
         };
 
-        if (dialog.ShowDialog() != true) return;
+        if (dialog.ShowDialog() != true)
+        {
+            _logger.LogTrace("<- ImportCsvAsync() [dialog cancelled]");
+            return;
+        }
 
         var filePath = dialog.FileName;
         var lines = await System.IO.File.ReadAllLinesAsync(filePath);
@@ -307,12 +367,18 @@ public partial class ProductsViewModel : ObservableObject
         _logger.LogInformation("Products: Import complete for Product {Id}", SelectedProduct.Id);
         await RefreshCodeCountsAsync();
         await LoadActivityHistoryAsync();
+        _logger.LogTrace("<- ImportCsvAsync()");
     }
 
     [RelayCommand]
     private async Task ChangeTemplateAsync()
     {
-        if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;
+        _logger.LogTrace("-> ChangeTemplateAsync()");
+        if (SelectedProduct == null || !SelectedProduct.IsLeaf)
+        {
+            _logger.LogTrace("<- ChangeTemplateAsync() [no leaf selected]");
+            return;
+        }
 
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
@@ -320,52 +386,79 @@ public partial class ProductsViewModel : ObservableObject
             Title = _loc["DialogTitle_SelectTemplate"]
         };
 
-        if (dialog.ShowDialog() != true) return;
+        if (dialog.ShowDialog() != true)
+        {
+            _logger.LogTrace("<- ChangeTemplateAsync() [dialog cancelled]");
+            return;
+        }
 
         SelectedProduct.TemplateFile = dialog.FileName;
         await _db.SaveChangesAsync();
         OnPropertyChanged(nameof(SelectedProduct));
+        _logger.LogTrace("<- ChangeTemplateAsync() Template={Template}", dialog.FileName);
     }
 
     [RelayCommand]
     private async Task SaveCsvNameAsync()
     {
-        if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;
+        _logger.LogTrace("-> SaveCsvNameAsync()");
+        if (SelectedProduct == null || !SelectedProduct.IsLeaf)
+        {
+            _logger.LogTrace("<- SaveCsvNameAsync() [no leaf selected]");
+            return;
+        }
         await _db.SaveChangesAsync();
+        _logger.LogTrace("<- SaveCsvNameAsync()");
     }
 
     [RelayCommand]
     private void NewJob()
     {
+        _logger.LogTrace("-> NewJob() ProductId={ProductId}", SelectedProduct?.Id);
         if (SelectedProduct?.IsLeaf == true && CanCreateNewJob)
             NavigateToNewJobRequested?.Invoke(this, SelectedProduct.Id);
+        _logger.LogTrace("<- NewJob()");
     }
 
     [RelayCommand]
     private void ShowRename()
     {
-        if (SelectedProduct == null) return;
+        _logger.LogTrace("-> ShowRename()");
+        if (SelectedProduct == null)
+        {
+            _logger.LogTrace("<- ShowRename() [no selection]");
+            return;
+        }
         EditName = SelectedProduct.Name;
         IsRenaming = true;
         _logger.LogInformation("Products: Rename started for '{Name}' (Id={Id})", SelectedProduct.Name, SelectedProduct.Id);
+        _logger.LogTrace("<- ShowRename()");
     }
 
     [RelayCommand]
     private void CancelRename()
     {
+        _logger.LogTrace("-> CancelRename()");
         IsRenaming = false;
         EditName = string.Empty;
+        _logger.LogTrace("<- CancelRename()");
     }
 
     [RelayCommand]
     private async Task ConfirmRenameAsync()
     {
-        if (SelectedProduct == null || string.IsNullOrWhiteSpace(EditName)) return;
+        _logger.LogTrace("-> ConfirmRenameAsync()");
+        if (SelectedProduct == null || string.IsNullOrWhiteSpace(EditName))
+        {
+            _logger.LogTrace("<- ConfirmRenameAsync() [no selection or empty name]");
+            return;
+        }
 
         var trimmed = EditName.Trim();
         if (trimmed == SelectedProduct.Name)
         {
             IsRenaming = false;
+            _logger.LogTrace("<- ConfirmRenameAsync() [name unchanged]");
             return;
         }
 
@@ -378,10 +471,12 @@ public partial class ProductsViewModel : ObservableObject
         EditName = string.Empty;
         OnPropertyChanged(nameof(SelectedProduct));
         await LoadProductsAsync();
+        _logger.LogTrace("<- ConfirmRenameAsync()");
     }
 
     partial void OnSelectedProductChanged(ProductNode? value)
     {
+        _logger.LogTrace("-> OnSelectedProductChanged(Id={Id}, Name={Name})", value?.Id, value?.Name);
         if (value != null)
             _logger.LogInformation("Product selected: '{Name}' (Id={Id}, IsLeaf={IsLeaf})", value.Name, value.Id, value.IsLeaf);
 
@@ -407,32 +502,39 @@ public partial class ProductsViewModel : ObservableObject
         // Load codes tab for leaf products
         if (value?.IsLeaf == true)
             _ = CodesTab.LoadForProductAsync(value.Id);
+        _logger.LogTrace("<- OnSelectedProductChanged()");
     }
 
     [RelayCommand]
     private async Task ShowUnassignedCodesAsync()
     {
+        _logger.LogTrace("-> ShowUnassignedCodesAsync()");
         SelectedProduct = null;
         IsShowingUnassigned = true;
         await CodesTab.LoadForProductAsync(null);
+        _logger.LogTrace("<- ShowUnassignedCodesAsync()");
     }
 
     private async Task CheckCanDeleteAsync()
     {
+        _logger.LogTrace("-> CheckCanDeleteAsync()");
         if (SelectedProduct == null)
         {
             CanDeleteSelectedProduct = false;
             DeleteBlockedReason = string.Empty;
+            _logger.LogTrace("<- CheckCanDeleteAsync() [no selection]");
             return;
         }
 
         var canDelete = await _productService.CanDeleteAsync(SelectedProduct.Id);
         CanDeleteSelectedProduct = canDelete;
         DeleteBlockedReason = canDelete ? string.Empty : _loc["Error_DeleteBlocked"];
+        _logger.LogTrace("<- CheckCanDeleteAsync() CanDelete={CanDelete}", canDelete);
     }
 
     private async Task RefreshCodeCountsAsync()
     {
+        _logger.LogTrace("-> RefreshCodeCountsAsync()");
         if (SelectedProduct == null || !SelectedProduct.IsLeaf)
         {
             AvailableCodesCount = 0;
@@ -441,6 +543,7 @@ public partial class ProductsViewModel : ObservableObject
             QuarantinedCodesCount = 0;
             TotalCodesCount = 0;
             CanCreateNewJob = false;
+            _logger.LogTrace("<- RefreshCodeCountsAsync() [no leaf selected]");
             return;
         }
 
@@ -453,17 +556,25 @@ public partial class ProductsViewModel : ObservableObject
         CanCreateNewJob = AvailableCodesCount > 0;
         _logger.LogInformation("Product '{Name}' pool: Available={Avail}, Printed={Printed}, Burned={Burned}, Quarantined={Quarantined}, Total={Total}",
             SelectedProduct.Name, AvailableCodesCount, PrintedCodesCount, BurnedCodesCount, QuarantinedCodesCount, TotalCodesCount);
+        _logger.LogTrace("<- RefreshCodeCountsAsync()");
     }
 
     private async Task RefreshUnassignedCountAsync()
     {
+        _logger.LogTrace("-> RefreshUnassignedCountAsync()");
         UnassignedCodesCount = await _codeManagement.GetUnassignedCountAsync();
+        _logger.LogTrace("<- RefreshUnassignedCountAsync() Count={Count}", UnassignedCodesCount);
     }
 
     private async Task LoadActivityHistoryAsync()
     {
+        _logger.LogTrace("-> LoadActivityHistoryAsync()");
         ActivityHistory.Clear();
-        if (SelectedProduct == null || !SelectedProduct.IsLeaf) return;
+        if (SelectedProduct == null || !SelectedProduct.IsLeaf)
+        {
+            _logger.LogTrace("<- LoadActivityHistoryAsync() [no leaf selected]");
+            return;
+        }
 
         // Import events from audit log
         var imports = await _db.AuditLog
@@ -502,6 +613,7 @@ public partial class ProductsViewModel : ObservableObject
 
         foreach (var item in merged)
             ActivityHistory.Add(item);
+        _logger.LogTrace("<- LoadActivityHistoryAsync() Items={Count}", ActivityHistory.Count);
     }
 }
 

@@ -35,10 +35,13 @@ public partial class RecoveryViewModel : ObservableObject
         _printJobService = printJobService;
         _logger = logger;
         _loc = loc;
+        _logger.LogTrace("-> RecoveryViewModel()");
+        _logger.LogTrace("<- RecoveryViewModel()");
     }
 
     public void LoadItems(IEnumerable<RecoveryItem> recoveryItems)
     {
+        _logger.LogTrace("-> LoadItems()");
         Items.Clear();
         foreach (var item in recoveryItems)
             Items.Add(new RecoveryItemViewModel(item, _loc));
@@ -52,12 +55,24 @@ public partial class RecoveryViewModel : ObservableObject
                 "Recovery: Job #{JobId} (Product='{Product}', Printer='{Printer}', AppConfirmed={App}, PrinterConfirmed={Printer}, Delta={Delta})",
                 vm.JobId, vm.ProductName, vm.PrinterName, vm.AppConfirmed, vm.PrinterConfirmed, vm.Delta);
         }
+        _logger.LogTrace("<- LoadItems() Count={Count}", Items.Count);
+    }
+
+    partial void OnSelectedItemChanged(RecoveryItemViewModel? value)
+    {
+        _logger.LogTrace("-> OnSelectedItemChanged(JobId={JobId})", value?.JobId);
+        _logger.LogTrace("<- OnSelectedItemChanged()");
     }
 
     [RelayCommand]
     private async Task ResumeAsync()
     {
-        if (SelectedItem == null) return;
+        _logger.LogTrace("-> ResumeAsync()");
+        if (SelectedItem == null)
+        {
+            _logger.LogTrace("<- ResumeAsync() [no selection]");
+            return;
+        }
         _logger.LogInformation("Recovery: Resuming Job #{JobId}", SelectedItem.Item.Job.Id);
         await _printJobService.ResumeJobAsync(SelectedItem.Item.Job.Id);
         SelectedItem.Status = _loc["Status_Resumed"];
@@ -66,12 +81,18 @@ public partial class RecoveryViewModel : ObservableObject
         HasItems = Items.Count > 0;
         AllResolved = !HasItems;
         if (AllResolved) _logger.LogInformation("Recovery: All stale jobs resolved");
+        _logger.LogTrace("<- ResumeAsync() RemainingItems={Count}", Items.Count);
     }
 
     [RelayCommand]
     private async Task AbortAsync()
     {
-        if (SelectedItem == null) return;
+        _logger.LogTrace("-> AbortAsync()");
+        if (SelectedItem == null)
+        {
+            _logger.LogTrace("<- AbortAsync() [no selection]");
+            return;
+        }
         _logger.LogInformation("Recovery: Aborting Job #{JobId}", SelectedItem.Item.Job.Id);
         await _printJobService.CancelJobAsync(SelectedItem.Item.Job.Id);
         SelectedItem.Status = _loc["Status_Aborted"];
@@ -80,6 +101,7 @@ public partial class RecoveryViewModel : ObservableObject
         HasItems = Items.Count > 0;
         AllResolved = !HasItems;
         if (AllResolved) _logger.LogInformation("Recovery: All stale jobs resolved");
+        _logger.LogTrace("<- AbortAsync() RemainingItems={Count}", Items.Count);
     }
 }
 

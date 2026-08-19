@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CodePrintManager.Application.Models;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
@@ -24,6 +25,8 @@ public class JobExecutor
     private int _previousCounter;
     private int _crossCheckTick;
     private bool _needsInspection;
+    private int _pollCycleCount;
+    private readonly Stopwatch _jobTimer = new();
 
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
     public event EventHandler<JobCompletedEvent>? Completed;
@@ -52,43 +55,61 @@ public class JobExecutor
         _logger = logger;
         _loc = loc;
         _counterOffset = counterOffset;
+        _logger.LogTrace("-> JobExecutor constructed (jobId={JobId}, qty={Qty}, confirmed={Confirmed}, offset={Offset})",
+            job.Id, job.Quantity, job.CodesConfirmed, counterOffset);
     }
 
     public void Start()
     {
-        _logger.LogInformation("Executor started: Job {JobId} (qty={Qty}, confirmed={Confirmed})",
-            _job.Id, _job.Quantity, _job.CodesConfirmed);
+        _logger.LogTrace("-> JobExecutor.Start() for Job {JobId}", _job.Id);
+        _logger.LogInformation("Executor STARTED: Job {JobId} (qty={Qty}, confirmed={Confirmed}, offset={Offset})",
+            _job.Id, _job.Quantity, _job.CodesConfirmed, _counterOffset);
         _cts = new CancellationTokenSource();
+        _pollCycleCount = 0;
+        _jobTimer.Start();
         _pollTask = PollLoopAsync(_cts.Token);
+        _logger.LogTrace("<- JobExecutor.Start() (poll loop launched)");
     }
 
     public async Task StopAsync()
     {
-        _logger.LogInformation("Executor stopped: Job {JobId}", _job.Id);
+        _logger.LogTrace("-> JobExecutor.StopAsync() for Job {JobId}", _job.Id);
+        _jobTimer.Stop();
+        _logger.LogInformation("Executor STOPPED: Job {JobId} (ran for {ElapsedSec:F1}s, {PollCycles} poll cycles)",
+            _job.Id, _jobTimer.Elapsed.TotalSeconds, _pollCycleCount);
         _cts?.Cancel();
         if (_pollTask != null)
             await _pollTask;
+        _logger.LogTrace("<- JobExecutor.StopAsync() completed");
     }
 
     private async Task PollLoopAsync(CancellationToken ct)
     {
+        _logger.LogTrace("-> PollLoopAsync() starting for Job {JobId}", _job.Id);
         while (!ct.IsCancellationRequested)
         {
             try
             {
+                _pollCycleCount++;
+                var cycleSw = Stopwatch.StartNew();
+
                 // After an IOException, run a full inspection before resuming normal polling.
                 if (_needsInspection)
                 {
+                    _logger.LogDebug("Job {JobId} poll #{Cycle}: running post-reconnect inspection", _job.Id, _pollCycleCount);
                     _needsInspection = false;
                     var shouldContinue = await RunPostReconnectInspectionAsync(ct);
                     if (!shouldContinue)
+                    {
+                        _logger.LogTrace("<- PollLoopAsync exiting (inspection escalated)");
                         return; // Inspection escalated — executor is done
+                    }
                 }
 
                 var snapshot = await ReadCountersAsync(ct);
                 var effectiveCounter = snapshot.Counter + _counterOffset;
-                _logger.LogDebug("Job {JobId} poll: counter={Counter} offset={Offset} effective={Effective} (prev={Previous})",
-                    _job.Id, snapshot.Counter, _counterOffset, effectiveCounter, _previousCounter);
+                _logger.LogDebug("Job {JobId} poll #{Cycle}: counter={Counter} offset={Offset} effective={Effective} (prev={Previous}) [{CycleMs}ms]",
+                    _job.Id, _pollCycleCount, snapshot.Counter, _counterOffset, effectiveCounter, _previousCounter, cycleSw.ElapsedMilliseconds);
                 DetectAnomalies(snapshot);
 
                 if (effectiveCounter > _job.CodesConfirmed)
@@ -96,17 +117,24 @@ public class JobExecutor
 
                 if (effectiveCounter >= _job.Quantity)
                 {
+                    _logger.LogDebug("Job {JobId} poll #{Cycle}: quantity reached, completing", _job.Id, _pollCycleCount);
                     await CompleteJobAsync();
+                    _logger.LogTrace("<- PollLoopAsync exiting (job completed)");
                     return;
                 }
 
                 _previousCounter = snapshot.Counter;
                 await Task.Delay(500, ct);
             }
-            catch (OperationCanceledException) { return; }
+            catch (OperationCanceledException)
+            {
+                _logger.LogTrace("<- PollLoopAsync cancelled (after {Cycles} cycles)", _pollCycleCount);
+                return;
+            }
             catch (IOException ex)
             {
-                _logger.LogError(ex, "Job {JobId} connection lost", _job.Id);
+                _logger.LogError(ex, "Job {JobId} CONNECTION LOST on poll #{Cycle} (connected={Connected})",
+                    _job.Id, _pollCycleCount, _adapter.IsConnected);
                 _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
                     _loc.Format("Alert_ConnectionLost", _job.Id),
                     printerId: _job.PrinterId, jobId: _job.Id);
@@ -115,10 +143,11 @@ public class JobExecutor
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Job {JobId} executor error", _job.Id);
+                _logger.LogError(ex, "Job {JobId} UNEXPECTED ERROR on poll #{Cycle}", _job.Id, _pollCycleCount);
                 await Task.Delay(2000, ct);
             }
         }
+        _logger.LogTrace("<- PollLoopAsync loop ended (token cancelled, {Cycles} total cycles)", _pollCycleCount);
     }
 
     /// <summary>
@@ -131,6 +160,8 @@ public class JobExecutor
     /// </summary>
     private async Task<bool> RunPostReconnectInspectionAsync(CancellationToken ct)
     {
+        _logger.LogTrace("-> RunPostReconnectInspectionAsync() for Job {JobId}", _job.Id);
+        var sw = Stopwatch.StartNew();
         _logger.LogInformation("Job {JobId}: running post-reconnect inspection", _job.Id);
 
         // --- Read all inspection data atomically ---
@@ -311,8 +342,10 @@ public class JobExecutor
             await CommitProgressAsync(lifetimeDelta.Value);
         }
 
-        _logger.LogInformation("Job {JobId}: post-reconnect inspection passed. Resuming normal polling.", _job.Id);
+        _logger.LogInformation("Job {JobId}: post-reconnect inspection PASSED in {ElapsedMs}ms. Resuming normal polling.",
+            _job.Id, sw.ElapsedMilliseconds);
         _previousCounter = currentCounter;
+        _logger.LogTrace("<- RunPostReconnectInspectionAsync = true ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
         return true;
     }
 
@@ -322,6 +355,7 @@ public class JobExecutor
     /// </summary>
     private async Task QuarantineRemainingCodesAsync()
     {
+        _logger.LogTrace("-> QuarantineRemainingCodesAsync() for Job {JobId}", _job.Id);
         var remainingCount = _job.Quantity - _job.CodesConfirmed;
         if (remainingCount > 0)
         {
@@ -329,6 +363,11 @@ public class JobExecutor
                 _job.Id, remainingCount);
             await _codePool.QuarantineCodesAsync(_job.Id, _job.CodesConfirmed, remainingCount);
         }
+        else
+        {
+            _logger.LogTrace("   QuarantineRemainingCodesAsync: no remaining codes to quarantine");
+        }
+        _logger.LogTrace("<- QuarantineRemainingCodesAsync completed");
     }
 
     /// <summary>
@@ -336,16 +375,22 @@ public class JobExecutor
     /// </summary>
     private async Task SetJobErrorAsync(string reason)
     {
+        _logger.LogTrace("-> SetJobErrorAsync(reason={Reason}) for Job {JobId}", reason, _job.Id);
         _job.Status = JobStatus.Error;
         _job.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        _logger.LogError("Job {JobId} set to Error: {Reason}", _job.Id, reason);
+        _jobTimer.Stop();
+        _logger.LogError("Job {JobId} set to ERROR: {Reason} (ran for {ElapsedSec:F1}s, {PollCycles} cycles)",
+            _job.Id, reason, _jobTimer.Elapsed.TotalSeconds, _pollCycleCount);
         Completed?.Invoke(this, new JobCompletedEvent(_job.Id, JobStatus.Error));
+        _logger.LogTrace("<- SetJobErrorAsync completed");
     }
 
     private async Task<PollSnapshot> ReadCountersAsync(CancellationToken ct)
     {
+        _logger.LogTrace("-> ReadCountersAsync() for Job {JobId}", _job.Id);
+        var sw = Stopwatch.StartNew();
         var counter = await _adapter.GetCurrentCounterAsync(ct);
         int? lifetimeDelta = null;
 
@@ -357,14 +402,19 @@ public class JobExecutor
                 _job.Id, lifetime, lifetimeDelta, counter);
         }
 
+        _logger.LogTrace("<- ReadCountersAsync = (counter={Counter}, lifetimeDelta={Delta}) in {ElapsedMs}ms",
+            counter, lifetimeDelta, sw.ElapsedMilliseconds);
         return new PollSnapshot(counter, lifetimeDelta);
     }
 
     private void DetectAnomalies(PollSnapshot snapshot)
     {
+        _logger.LogTrace("-> DetectAnomalies(counter={Counter}, lifetimeDelta={Delta}, prevCounter={Prev})",
+            snapshot.Counter, snapshot.LifetimeDelta, _previousCounter);
+
         if (snapshot.LifetimeDelta.HasValue && snapshot.LifetimeDelta != snapshot.Counter)
         {
-            _logger.LogWarning("Job {JobId} anomaly: counter mismatch SPGGCP={Counter}, SPGGTP delta={Delta}",
+            _logger.LogWarning("Job {JobId} ANOMALY: counter mismatch SPGGCP={Counter}, SPGGTP delta={Delta}",
                 _job.Id, snapshot.Counter, snapshot.LifetimeDelta);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
                 _loc.Format("Alert_CounterMismatch", snapshot.Counter, snapshot.LifetimeDelta),
@@ -374,40 +424,49 @@ public class JobExecutor
         var advance = snapshot.Counter - _previousCounter;
         if (_previousCounter > 0 && advance > 10)
         {
-            _logger.LogWarning("Job {JobId} anomaly: unexpected counter jump +{Advance}",
-                _job.Id, advance);
+            _logger.LogWarning("Job {JobId} ANOMALY: unexpected counter jump +{Advance} (prev={Prev}, now={Now})",
+                _job.Id, advance, _previousCounter, snapshot.Counter);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
                 _loc.Format("Alert_CounterJump", advance),
                 printerId: _job.PrinterId, jobId: _job.Id);
         }
+
+        _logger.LogTrace("<- DetectAnomalies completed");
     }
 
     private async Task CommitProgressAsync(int effectiveCounter)
     {
+        _logger.LogTrace("-> CommitProgressAsync(effectiveCounter={Counter}) for Job {JobId}", effectiveCounter, _job.Id);
+        var sw = Stopwatch.StartNew();
         await _codePool.MarkCodesPrintedAsync(_job.Id, _job.CodesConfirmed, effectiveCounter);
         _job.CodesConfirmed = effectiveCounter;
         await _db.SaveChangesAsync();
 
         var pct = _job.Quantity > 0 ? (int)(100.0 * effectiveCounter / _job.Quantity) : 0;
-        _logger.LogInformation("Job {JobId} progress: {Confirmed}/{Total} ({Pct}%)",
-            _job.Id, effectiveCounter, _job.Quantity, pct);
+        _logger.LogInformation("Job {JobId} progress: {Confirmed}/{Total} ({Pct}%) [commit took {ElapsedMs}ms]",
+            _job.Id, effectiveCounter, _job.Quantity, pct, sw.ElapsedMilliseconds);
 
         ProgressChanged?.Invoke(this,
             new JobProgressChangedEvent(_job.Id, effectiveCounter, _job.Quantity));
+        _logger.LogTrace("<- CommitProgressAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
     }
 
     private async Task CompleteJobAsync()
     {
+        _logger.LogTrace("-> CompleteJobAsync() for Job {JobId}", _job.Id);
         _job.Status = JobStatus.Completed;
         _job.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Job {JobId} completed ({Total}/{Total})", _job.Id, _job.Quantity, _job.Quantity);
+        _jobTimer.Stop();
+        _logger.LogInformation("Job {JobId} COMPLETED: {Total}/{Total} (total runtime: {ElapsedSec:F1}s, {PollCycles} cycles)",
+            _job.Id, _job.Quantity, _job.Quantity, _jobTimer.Elapsed.TotalSeconds, _pollCycleCount);
 
         _alerts.Raise(AlertSeverity.Info, _job.Printer.Name,
             _loc.Format("Alert_JobCompleted", _job.Id, _job.Quantity),
             printerId: _job.PrinterId, jobId: _job.Id);
 
         Completed?.Invoke(this, new JobCompletedEvent(_job.Id, JobStatus.Completed));
+        _logger.LogTrace("<- CompleteJobAsync completed");
     }
 }

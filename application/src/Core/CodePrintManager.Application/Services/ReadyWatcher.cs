@@ -23,6 +23,7 @@ public class ReadyWatcher
 
     private CancellationTokenSource? _cts;
     private Task? _watchTask;
+    private int _pollCount;
 
     /// <summary>
     /// Raised when the watcher detects that the printer started printing
@@ -41,30 +42,37 @@ public class ReadyWatcher
         _adapter = adapter;
         _alerts = alerts;
         _logger = logger;
+        _logger.LogTrace("-> ReadyWatcher constructed (jobId={JobId}, printerId={PrinterId})", job.Id, job.PrinterId);
     }
 
     public void Start()
     {
+        _logger.LogTrace("-> ReadyWatcher.Start() for Job {JobId}", _job.Id);
         _logger.LogInformation(
             "ReadyWatcher started: Job {JobId} on printer {PrinterId}",
             _job.Id, _job.PrinterId);
         _cts = new CancellationTokenSource();
+        _pollCount = 0;
         _watchTask = WatchLoopAsync(_cts.Token);
+        _logger.LogTrace("<- ReadyWatcher.Start() (watch loop launched)");
     }
 
     public async Task StopAsync()
     {
-        _logger.LogInformation("ReadyWatcher stopped: Job {JobId}", _job.Id);
+        _logger.LogTrace("-> ReadyWatcher.StopAsync() for Job {JobId}", _job.Id);
+        _logger.LogInformation("ReadyWatcher stopped: Job {JobId} (polled {PollCount} times)", _job.Id, _pollCount);
         _cts?.Cancel();
         if (_watchTask != null)
         {
             try { await _watchTask; }
             catch (OperationCanceledException) { }
         }
+        _logger.LogTrace("<- ReadyWatcher.StopAsync() completed");
     }
 
     private async Task WatchLoopAsync(CancellationToken ct)
     {
+        _logger.LogTrace("-> WatchLoopAsync() starting initial 2s delay");
         // Initial delay before first check (let things settle after Prepare)
         await Task.Delay(2000, ct);
 
@@ -72,15 +80,21 @@ public class ReadyWatcher
         {
             try
             {
+                _pollCount++;
+                _logger.LogTrace("   WatchLoopAsync poll #{PollCount} for Job {JobId}", _pollCount, _job.Id);
+
                 var status = await _adapter.GetStatusAsync(ct);
                 var currentCounter = await _adapter.GetCurrentCounterAsync(ct);
+
+                _logger.LogTrace("   WatchLoopAsync poll #{PollCount}: status={Status}, counter={Counter}",
+                    _pollCount, status, currentCounter);
 
                 if (status == PrinterStatus.Printing || currentCounter > 0)
                 {
                     _logger.LogWarning(
-                        "ReadyWatcher: external print detected for Job {JobId}! " +
-                        "Status={Status}, SPGGCP={Counter}",
-                        _job.Id, status, currentCounter);
+                        "ReadyWatcher: EXTERNAL PRINT DETECTED for Job {JobId}! " +
+                        "Status={Status}, SPGGCP={Counter} (detected on poll #{PollCount})",
+                        _job.Id, status, currentCounter, _pollCount);
 
                     _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
                         $"Printing started externally on '{_job.Printer.Name}'. " +
@@ -88,26 +102,32 @@ public class ReadyWatcher
                         printerId: _job.PrinterId, jobId: _job.Id);
 
                     ExternalPrintDetected?.Invoke(this, _job.Id);
+                    _logger.LogTrace("<- WatchLoopAsync exiting (external print detected)");
                     return; // Stop watching — the caller will spawn a JobExecutor
                 }
 
                 await Task.Delay(3000, ct);
             }
-            catch (OperationCanceledException) { return; }
-            catch (IOException)
+            catch (OperationCanceledException)
+            {
+                _logger.LogTrace("<- WatchLoopAsync cancelled");
+                return;
+            }
+            catch (IOException ex)
             {
                 // Printer disconnected — wait longer, retry
                 _logger.LogDebug(
-                    "ReadyWatcher: connection lost for Job {JobId}, will retry",
-                    _job.Id);
+                    "ReadyWatcher: connection lost for Job {JobId} on poll #{PollCount}: {Error}",
+                    _job.Id, _pollCount, ex.Message);
                 await Task.Delay(5000, ct);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
-                    "ReadyWatcher: error monitoring Job {JobId}", _job.Id);
+                    "ReadyWatcher: error monitoring Job {JobId} on poll #{PollCount}", _job.Id, _pollCount);
                 await Task.Delay(5000, ct);
             }
         }
+        _logger.LogTrace("<- WatchLoopAsync loop ended (token cancelled)");
     }
 }

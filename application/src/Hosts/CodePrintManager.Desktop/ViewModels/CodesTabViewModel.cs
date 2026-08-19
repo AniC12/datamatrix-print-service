@@ -123,17 +123,22 @@ public partial class CodesTabViewModel : ObservableObject
         _productService = productService;
         _logger = logger;
         _loc = loc;
+        _logger.LogTrace("-> CodesTabViewModel()");
 
         _searchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _searchDebounce.Tick += (s, e) =>
         {
+            _logger.LogTrace("-> SearchDebounce Tick handler");
             _searchDebounce.Stop();
             _ = LoadCodesAsync();
+            _logger.LogTrace("<- SearchDebounce Tick handler");
         };
+        _logger.LogTrace("<- CodesTabViewModel()");
     }
 
     public async Task LoadForProductAsync(int? productId)
     {
+        _logger.LogTrace("-> LoadForProductAsync(productId={ProductId})", productId);
         ProductId = productId;
         OnPropertyChanged(nameof(IsUnassignedMode));
         SelectedStatusFilterText = "All";
@@ -148,17 +153,21 @@ public partial class CodesTabViewModel : ObservableObject
 
         await LoadLeafProductsAsync();
         await LoadCodesAsync();
+        _logger.LogTrace("<- LoadForProductAsync()");
     }
 
     private async Task LoadLeafProductsAsync()
     {
+        _logger.LogTrace("-> LoadLeafProductsAsync()");
         LeafProducts.Clear();
         var roots = await _productService.GetTreeAsync();
         CollectLeafProducts(roots, ProductId);
+        _logger.LogTrace("<- LoadLeafProductsAsync() LeafCount={Count}", LeafProducts.Count);
     }
 
     private void CollectLeafProducts(IEnumerable<ProductNode> nodes, int? excludeId)
     {
+        _logger.LogTrace("-> CollectLeafProducts(excludeId={ExcludeId})", excludeId);
         foreach (var node in nodes)
         {
             if (node.IsLeaf && node.Id != excludeId)
@@ -166,18 +175,25 @@ public partial class CodesTabViewModel : ObservableObject
             if (node.Children.Count > 0)
                 CollectLeafProducts(node.Children, excludeId);
         }
+        _logger.LogTrace("<- CollectLeafProducts()");
     }
 
     private CodeStatus? ParseStatusFilter()
     {
+        _logger.LogTrace("-> ParseStatusFilter() SelectedStatusFilterText={Filter}", SelectedStatusFilterText);
+        CodeStatus? result;
         if (string.IsNullOrEmpty(SelectedStatusFilterText) || SelectedStatusFilterText == "All")
-            return null;
-        return Enum.TryParse<CodeStatus>(SelectedStatusFilterText, out var status) ? status : null;
+            result = null;
+        else
+            result = Enum.TryParse<CodeStatus>(SelectedStatusFilterText, out var status) ? status : null;
+        _logger.LogTrace("<- ParseStatusFilter() Result={Result}", result);
+        return result;
     }
 
     [RelayCommand]
     private async Task LoadCodesAsync()
     {
+        _logger.LogTrace("-> LoadCodesAsync() ProductId={ProductId}, Page={Page}, PageSize={PageSize}", ProductId, CurrentPage, SelectedPageSize);
         IsLoading = true;
         try
         {
@@ -216,80 +232,129 @@ public partial class CodesTabViewModel : ObservableObject
         {
             IsLoading = false;
         }
+        _logger.LogTrace("<- LoadCodesAsync() TotalCount={TotalCount}, CodesOnPage={CodesOnPage}", TotalCount, Codes.Count);
     }
 
     partial void OnSelectedStatusFilterTextChanged(string value)
     {
+        _logger.LogTrace("-> OnSelectedStatusFilterTextChanged(value={Value})", value);
         CurrentPage = 1;
         _ = LoadCodesAsync();
+        _logger.LogTrace("<- OnSelectedStatusFilterTextChanged()");
     }
 
     partial void OnSearchTextChanged(string value)
     {
+        _logger.LogTrace("-> OnSearchTextChanged(value={Value})", value);
         _searchDebounce.Stop();
         _searchDebounce.Start();
+        _logger.LogTrace("<- OnSearchTextChanged()");
     }
 
     partial void OnSelectedPageSizeChanged(int value)
     {
+        _logger.LogTrace("-> OnSelectedPageSizeChanged(value={Value})", value);
         CurrentPage = 1;
         _ = LoadCodesAsync();
+        _logger.LogTrace("<- OnSelectedPageSizeChanged()");
     }
 
     [RelayCommand]
     private async Task NextPageAsync()
     {
-        if (!CanGoNext) return;
+        _logger.LogTrace("-> NextPageAsync() CurrentPage={CurrentPage}", CurrentPage);
+        if (!CanGoNext)
+        {
+            _logger.LogTrace("<- NextPageAsync() [already on last page]");
+            return;
+        }
         CurrentPage++;
         await LoadCodesAsync();
+        _logger.LogTrace("<- NextPageAsync() NewPage={CurrentPage}", CurrentPage);
     }
 
     [RelayCommand]
     private async Task PreviousPageAsync()
     {
-        if (!CanGoPrevious) return;
+        _logger.LogTrace("-> PreviousPageAsync() CurrentPage={CurrentPage}", CurrentPage);
+        if (!CanGoPrevious)
+        {
+            _logger.LogTrace("<- PreviousPageAsync() [already on first page]");
+            return;
+        }
         CurrentPage--;
         await LoadCodesAsync();
+        _logger.LogTrace("<- PreviousPageAsync() NewPage={CurrentPage}", CurrentPage);
     }
 
     [RelayCommand]
     private void SelectAll()
     {
+        _logger.LogTrace("-> SelectAll()");
         foreach (var code in Codes)
             if (!code.IsReserved)
                 code.IsSelected = true;
         UpdateSelectionState();
+        _logger.LogTrace("<- SelectAll() SelectedCount={Count}", SelectedCount);
     }
 
     [RelayCommand]
     private void DeselectAll()
     {
+        _logger.LogTrace("-> DeselectAll()");
         foreach (var code in Codes)
             code.IsSelected = false;
         UpdateSelectionState();
+        _logger.LogTrace("<- DeselectAll()");
     }
 
     private void UpdateSelectionState()
     {
+        _logger.LogTrace("-> UpdateSelectionState()");
         var selected = Codes.Where(c => c.IsSelected).ToList();
         SelectedCount = selected.Count;
         HasSelection = SelectedCount > 0;
+        _logger.LogTrace("<- UpdateSelectionState() SelectedCount={Count}, HasSelection={HasSelection}", SelectedCount, HasSelection);
     }
 
     // Called from UI when individual checkboxes change
-    public void OnCodeSelectionChanged() => UpdateSelectionState();
+    public void OnCodeSelectionChanged()
+    {
+        _logger.LogTrace("-> OnCodeSelectionChanged()");
+        UpdateSelectionState();
+        _logger.LogTrace("<- OnCodeSelectionChanged()");
+    }
 
-    private IReadOnlyList<int> GetSelectedCodeIds() =>
-        Codes.Where(c => c.IsSelected).Select(c => c.Id).ToList();
+    private IReadOnlyList<int> GetSelectedCodeIds()
+    {
+        _logger.LogTrace("-> GetSelectedCodeIds()");
+        var ids = Codes.Where(c => c.IsSelected).Select(c => c.Id).ToList();
+        _logger.LogTrace("<- GetSelectedCodeIds() Count={Count}", ids.Count);
+        return ids;
+    }
 
-    private bool IsRiskyTransition(CodeStatus from, CodeStatus to) =>
-        to == CodeStatus.Available && from is CodeStatus.Printed or CodeStatus.Burned or CodeStatus.Quarantined;
+    private bool IsRiskyTransition(CodeStatus from, CodeStatus to)
+    {
+        _logger.LogTrace("-> IsRiskyTransition(from={From}, to={To})", from, to);
+        var result = to == CodeStatus.Available && from is CodeStatus.Printed or CodeStatus.Burned or CodeStatus.Quarantined;
+        _logger.LogTrace("<- IsRiskyTransition() Result={Result}", result);
+        return result;
+    }
 
     [RelayCommand]
     private async Task ApplyStatusChangeAsync()
     {
-        if (!HasSelection || SelectedNewStatus == null) return;
-        if (!Enum.TryParse<CodeStatus>(SelectedNewStatus, out var newStatus)) return;
+        _logger.LogTrace("-> ApplyStatusChangeAsync() SelectedNewStatus={Status}", SelectedNewStatus);
+        if (!HasSelection || SelectedNewStatus == null)
+        {
+            _logger.LogTrace("<- ApplyStatusChangeAsync() [no selection or no target status]");
+            return;
+        }
+        if (!Enum.TryParse<CodeStatus>(SelectedNewStatus, out var newStatus))
+        {
+            _logger.LogTrace("<- ApplyStatusChangeAsync() [invalid status parse]");
+            return;
+        }
 
         var ids = GetSelectedCodeIds();
         var hasRisky = Codes.Where(c => c.IsSelected).Any(c => IsRiskyTransition(c.Status, newStatus));
@@ -304,7 +369,11 @@ public partial class CodesTabViewModel : ObservableObject
 
         var result = System.Windows.MessageBox.Show(message, _loc["DialogTitle_ConfirmStatusChange"],
             System.Windows.MessageBoxButton.YesNo, icon);
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            _logger.LogTrace("<- ApplyStatusChangeAsync() [cancelled by user]");
+            return;
+        }
 
         try
         {
@@ -319,17 +388,27 @@ public partial class CodesTabViewModel : ObservableObject
             System.Windows.MessageBox.Show(_loc.Format("Error_ChangeStatusFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- ApplyStatusChangeAsync()");
     }
 
     [RelayCommand]
     private async Task ApplyBulkStatusChangeAsync()
     {
+        _logger.LogTrace("-> ApplyBulkStatusChangeAsync() SelectedNewStatus={Status}", SelectedNewStatus);
         var statusFilter = ParseStatusFilter();
-        if (statusFilter == null) return; // Bulk requires a specific status filter
+        if (statusFilter == null)
+        {
+            _logger.LogTrace("<- ApplyBulkStatusChangeAsync() [no status filter]");
+            return; // Bulk requires a specific status filter
+        }
 
         // Ask for target status
         var targetStatus = SelectedNewStatus;
-        if (targetStatus == null || !Enum.TryParse<CodeStatus>(targetStatus, out var toStatus)) return;
+        if (targetStatus == null || !Enum.TryParse<CodeStatus>(targetStatus, out var toStatus))
+        {
+            _logger.LogTrace("<- ApplyBulkStatusChangeAsync() [no target status or invalid parse]");
+            return;
+        }
 
         var hasRisky = IsRiskyTransition(statusFilter.Value, toStatus);
         var message = hasRisky
@@ -338,7 +417,11 @@ public partial class CodesTabViewModel : ObservableObject
 
         var result = System.Windows.MessageBox.Show(message, _loc["DialogTitle_ConfirmStatusChange"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            _logger.LogTrace("<- ApplyBulkStatusChangeAsync() [cancelled by user]");
+            return;
+        }
 
         try
         {
@@ -353,19 +436,29 @@ public partial class CodesTabViewModel : ObservableObject
             System.Windows.MessageBox.Show(_loc.Format("Error_ChangeStatusFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- ApplyBulkStatusChangeAsync()");
     }
 
     [RelayCommand]
     private async Task MoveSelectedAsync()
     {
-        if (!HasSelection || MoveTargetProduct == null) return;
+        _logger.LogTrace("-> MoveSelectedAsync() MoveTarget={Target}", MoveTargetProduct?.Name);
+        if (!HasSelection || MoveTargetProduct == null)
+        {
+            _logger.LogTrace("<- MoveSelectedAsync() [no selection or no target]");
+            return;
+        }
 
         var ids = GetSelectedCodeIds();
         var result = System.Windows.MessageBox.Show(
             _loc.Format("Dialog_ConfirmMoveCodes", ids.Count, MoveTargetProduct.Name),
             _loc["DialogTitle_ConfirmMove"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            _logger.LogTrace("<- MoveSelectedAsync() [cancelled by user]");
+            return;
+        }
 
         try
         {
@@ -380,19 +473,29 @@ public partial class CodesTabViewModel : ObservableObject
             System.Windows.MessageBox.Show(_loc.Format("Error_MoveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- MoveSelectedAsync()");
     }
 
     [RelayCommand]
     private async Task MoveAllFilteredAsync()
     {
+        _logger.LogTrace("-> MoveAllFilteredAsync() MoveTarget={Target}", MoveTargetProduct?.Name);
         var statusFilter = ParseStatusFilter();
-        if (statusFilter == null || MoveTargetProduct == null) return;
+        if (statusFilter == null || MoveTargetProduct == null)
+        {
+            _logger.LogTrace("<- MoveAllFilteredAsync() [no status filter or no target]");
+            return;
+        }
 
         var result = System.Windows.MessageBox.Show(
             _loc.Format("Dialog_ConfirmBulkMove", TotalCount, statusFilter, MoveTargetProduct.Name),
             _loc["DialogTitle_ConfirmBulkMove"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            _logger.LogTrace("<- MoveAllFilteredAsync() [cancelled by user]");
+            return;
+        }
 
         try
         {
@@ -407,19 +510,29 @@ public partial class CodesTabViewModel : ObservableObject
             System.Windows.MessageBox.Show(_loc.Format("Error_MoveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- MoveAllFilteredAsync()");
     }
 
     [RelayCommand]
     private async Task ArchiveSelectedAsync()
     {
-        if (!HasSelection) return;
+        _logger.LogTrace("-> ArchiveSelectedAsync()");
+        if (!HasSelection)
+        {
+            _logger.LogTrace("<- ArchiveSelectedAsync() [no selection]");
+            return;
+        }
 
         var ids = GetSelectedCodeIds();
         var result = System.Windows.MessageBox.Show(
             _loc.Format("Dialog_ConfirmArchiveCodes", ids.Count),
             _loc["DialogTitle_ConfirmArchive"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            _logger.LogTrace("<- ArchiveSelectedAsync() [cancelled by user]");
+            return;
+        }
 
         try
         {
@@ -434,19 +547,29 @@ public partial class CodesTabViewModel : ObservableObject
             System.Windows.MessageBox.Show(_loc.Format("Error_ArchiveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- ArchiveSelectedAsync()");
     }
 
     [RelayCommand]
     private async Task ArchiveAllFilteredAsync()
     {
+        _logger.LogTrace("-> ArchiveAllFilteredAsync()");
         var statusFilter = ParseStatusFilter();
-        if (statusFilter == null) return;
+        if (statusFilter == null)
+        {
+            _logger.LogTrace("<- ArchiveAllFilteredAsync() [no status filter]");
+            return;
+        }
 
         var result = System.Windows.MessageBox.Show(
             _loc.Format("Dialog_ConfirmBulkArchive", TotalCount, statusFilter),
             _loc["DialogTitle_ConfirmBulkArchive"],
             System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
-        if (result != System.Windows.MessageBoxResult.Yes) return;
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            _logger.LogTrace("<- ArchiveAllFilteredAsync() [cancelled by user]");
+            return;
+        }
 
         try
         {
@@ -461,12 +584,18 @@ public partial class CodesTabViewModel : ObservableObject
             System.Windows.MessageBox.Show(_loc.Format("Error_ArchiveCodesFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- ArchiveAllFilteredAsync()");
     }
 
     [RelayCommand]
     private async Task UndoAsync()
     {
-        if (_undoStack.Count == 0) return;
+        _logger.LogTrace("-> UndoAsync() StackCount={Count}", _undoStack.Count);
+        if (_undoStack.Count == 0)
+        {
+            _logger.LogTrace("<- UndoAsync() [empty stack]");
+            return;
+        }
 
         var operation = _undoStack.Pop();
         try
@@ -487,10 +616,12 @@ public partial class CodesTabViewModel : ObservableObject
             System.Windows.MessageBox.Show(_loc.Format("Error_UndoFailed", ex.Message), _loc["DialogTitle_Error"],
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
         }
+        _logger.LogTrace("<- UndoAsync()");
     }
 
     private void PushUndo(CodeOperation operation)
     {
+        _logger.LogTrace("-> PushUndo(operation={Description})", operation.Description);
         _undoStack.Push(operation);
         // Limit to 10 entries
         if (_undoStack.Count > 10)
@@ -502,5 +633,6 @@ public partial class CodesTabViewModel : ObservableObject
         }
         CanUndo = true;
         LastOperationSummary = operation.Description;
+        _logger.LogTrace("<- PushUndo() StackCount={Count}", _undoStack.Count);
     }
 }

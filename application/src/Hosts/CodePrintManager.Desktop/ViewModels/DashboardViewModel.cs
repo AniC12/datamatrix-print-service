@@ -42,20 +42,27 @@ public partial class DashboardViewModel : ObservableObject
         _logger = logger;
         _loc = loc;
 
+        _logger.LogTrace("-> DashboardViewModel()");
+
         _connectionManager.PrinterStatusChanged += OnPrinterStatusChanged;
         _eventBus.ProgressChanged += OnJobProgressChanged;
         _eventBus.Completed += OnJobCompleted;
         _loc.LanguageChanged += OnLanguageChanged;
+
+        _logger.LogTrace("<- DashboardViewModel()");
     }
 
     private void OnLanguageChanged()
     {
+        _logger.LogTrace("-> OnLanguageChanged()");
         System.Windows.Application.Current.Dispatcher.Invoke(() => _ = RefreshAsync());
+        _logger.LogTrace("<- OnLanguageChanged()");
     }
 
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        _logger.LogTrace("-> RefreshAsync()");
         _logger.LogInformation("Dashboard loading");
         // Load printers with their most recent job
         var printers = await _db.Printers.ToListAsync();
@@ -126,17 +133,21 @@ public partial class DashboardViewModel : ObservableObject
 
         _logger.LogInformation("Dashboard loaded: {CardCount} printer cards, {ActivityCount} recent entries",
             PrinterCards.Count, RecentActivity.Count);
+        _logger.LogTrace("<- RefreshAsync()");
     }
 
     [RelayCommand]
     private void NewJob()
     {
+        _logger.LogTrace("-> NewJob()");
         _logger.LogInformation("Dashboard: New Job clicked");
         NavigateToNewJobRequested?.Invoke(this, EventArgs.Empty);
+        _logger.LogTrace("<- NewJob()");
     }
 
     private async void OnStartPrintRequested(object? sender, int jobId)
     {
+        _logger.LogTrace("-> OnStartPrintRequested(jobId={JobId})", jobId);
         _logger.LogInformation("Dashboard: Start print requested for Job {JobId}", jobId);
         try
         {
@@ -144,10 +155,12 @@ public partial class DashboardViewModel : ObservableObject
             await RefreshAsync();
         }
         catch (Exception ex) { _logger.LogError(ex, "Dashboard: Start print failed for Job {JobId}", jobId); }
+        _logger.LogTrace("<- OnStartPrintRequested(jobId={JobId})", jobId);
     }
 
     private async void OnCancelJobRequested(object? sender, int jobId)
     {
+        _logger.LogTrace("-> OnCancelJobRequested(jobId={JobId})", jobId);
         _logger.LogInformation("Dashboard: Cancel requested for Job {JobId}", jobId);
         try
         {
@@ -155,10 +168,12 @@ public partial class DashboardViewModel : ObservableObject
             await RefreshAsync();
         }
         catch (Exception ex) { _logger.LogError(ex, "Dashboard: Cancel failed for Job {JobId}", jobId); }
+        _logger.LogTrace("<- OnCancelJobRequested(jobId={JobId})", jobId);
     }
 
     private async void OnPauseJobRequested(object? sender, int jobId)
     {
+        _logger.LogTrace("-> OnPauseJobRequested(jobId={JobId})", jobId);
         _logger.LogInformation("Dashboard: Pause requested for Job {JobId}", jobId);
         try
         {
@@ -166,10 +181,12 @@ public partial class DashboardViewModel : ObservableObject
             await RefreshAsync();
         }
         catch (Exception ex) { _logger.LogError(ex, "Dashboard: Pause failed for Job {JobId}", jobId); }
+        _logger.LogTrace("<- OnPauseJobRequested(jobId={JobId})", jobId);
     }
 
     private async void OnResumeJobRequested(object? sender, int jobId)
     {
+        _logger.LogTrace("-> OnResumeJobRequested(jobId={JobId})", jobId);
         _logger.LogInformation("Dashboard: Resume requested for Job {JobId}", jobId);
         try
         {
@@ -177,26 +194,32 @@ public partial class DashboardViewModel : ObservableObject
             await RefreshAsync();
         }
         catch (Exception ex) { _logger.LogError(ex, "Dashboard: Resume failed for Job {JobId}", jobId); }
+        _logger.LogTrace("<- OnResumeJobRequested(jobId={JobId})", jobId);
     }
 
     private void OnCardClicked(object? sender, int jobId)
     {
+        _logger.LogTrace("-> OnCardClicked(jobId={JobId})", jobId);
         _logger.LogDebug("Dashboard: Card clicked for Job {JobId}", jobId);
         NavigateToJobRequested?.Invoke(this, jobId);
+        _logger.LogTrace("<- OnCardClicked(jobId={JobId})", jobId);
     }
 
     private void OnPrinterStatusChanged(object? sender, PrinterStatusChangedEvent e)
     {
+        _logger.LogTrace("-> OnPrinterStatusChanged(PrinterId={PrinterId}, NewStatus={NewStatus})", e.PrinterId, e.NewStatus);
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             var card = PrinterCards.FirstOrDefault(c => c.PrinterId == e.PrinterId);
             if (card != null)
                 card.Status = e.NewStatus;
         });
+        _logger.LogTrace("<- OnPrinterStatusChanged(PrinterId={PrinterId})", e.PrinterId);
     }
 
     private void OnJobProgressChanged(object? sender, JobProgressChangedEvent e)
     {
+        _logger.LogTrace("-> OnJobProgressChanged(JobId={JobId}, Confirmed={Confirmed}, Total={Total})", e.JobId, e.Confirmed, e.Total);
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             var card = PrinterCards.FirstOrDefault(c => c.JobId == e.JobId);
@@ -207,10 +230,12 @@ public partial class DashboardViewModel : ObservableObject
                 card.JobStatus = JobStatus.Printing;
             }
         });
+        _logger.LogTrace("<- OnJobProgressChanged(JobId={JobId})", e.JobId);
     }
 
     private void OnJobCompleted(object? sender, JobCompletedEvent e)
     {
+        _logger.LogTrace("-> OnJobCompleted(JobId={JobId}, FinalStatus={FinalStatus})", e.JobId, e.FinalStatus);
         _logger.LogInformation("Dashboard: Job {JobId} completed", e.JobId);
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
@@ -221,6 +246,7 @@ public partial class DashboardViewModel : ObservableObject
                 card.Status = PrinterStatus.Idle;
             }
         });
+        _logger.LogTrace("<- OnJobCompleted(JobId={JobId})", e.JobId);
     }
 }
 

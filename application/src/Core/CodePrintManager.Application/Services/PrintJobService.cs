@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
@@ -6,6 +7,7 @@ using CodePrintManager.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Serilog.Context;
 
 namespace CodePrintManager.Application.Services;
 
@@ -51,6 +53,10 @@ public class PrintJobService : IPrintJobService
 
     public async Task<PrintJob> CreateJobAsync(int productId, int printerId, int quantity)
     {
+        _logger.LogTrace("-> CreateJobAsync(productId={ProductId}, printerId={PrinterId}, quantity={Quantity})",
+            productId, printerId, quantity);
+        var sw = Stopwatch.StartNew();
+
         if (quantity <= 0)
             throw new ArgumentOutOfRangeException(nameof(quantity), quantity,
                 _loc["Error_QuantityMustBePositive"]);
@@ -58,6 +64,8 @@ public class PrintJobService : IPrintJobService
         // Check available codes before creating the job
         var available = await _db.Codes
             .CountAsync(c => c.ProductId == productId && c.Status == CodeStatus.Available);
+        _logger.LogDebug("CreateJobAsync: available codes for product {ProductId} = {Available} (requested {Qty})",
+            productId, available, quantity);
         if (available < quantity)
             throw new InvalidOperationException(
                 _loc.Format("Error_NotEnoughCodes", quantity, available));
@@ -74,23 +82,30 @@ public class PrintJobService : IPrintJobService
         _db.PrintJobs.Add(job);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Job {JobId} created (Product={ProductId}, Printer={PrinterId}, Qty={Quantity})",
-            job.Id, productId, printerId, quantity);
+        _logger.LogInformation("Job {JobId} created (Product={ProductId}, Printer={PrinterId}, Qty={Quantity}) in {ElapsedMs}ms",
+            job.Id, productId, printerId, quantity, sw.ElapsedMilliseconds);
 
         await _audit.LogAsync("job_created", productId: productId, printerId: printerId, jobId: job.Id,
             details: new { quantity });
 
+        _logger.LogTrace("<- CreateJobAsync = Job {JobId} ({ElapsedMs}ms)", job.Id, sw.ElapsedMilliseconds);
         return job;
     }
 
     public async Task PrepareJobAsync(int jobId, CancellationToken ct = default, IProgress<string>? progress = null)
     {
+        _logger.LogTrace("-> PrepareJobAsync(jobId={JobId})", jobId);
+        var totalSw = Stopwatch.StartNew();
+
         var job = await _db.PrintJobs
             .Include(j => j.Product)
             .Include(j => j.Printer)
             .FirstAsync(j => j.Id == jobId);
 
-        _logger.LogInformation("Job {JobId} preparing", jobId);
+        using var _ = LogContext.PushProperty("JobId", jobId);
+        using var __ = LogContext.PushProperty("PrinterId", job.PrinterId);
+        _logger.LogInformation("Job {JobId} PREPARING (product='{Product}', printer='{Printer}', qty={Qty})",
+            jobId, job.Product?.Name, job.Printer?.Name, job.Quantity);
 
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
         await printerLock.WaitAsync(ct);
@@ -192,29 +207,33 @@ public class PrintJobService : IPrintJobService
 
             job.Status = JobStatus.Ready;
             await _db.SaveChangesAsync();
-            _logger.LogInformation("Job {JobId} prepared → Ready (baseline={Baseline})",
-                jobId, job.TotalBaseline);
+            totalSw.Stop();
+            _logger.LogInformation("Job {JobId} prepared -> Ready (baseline={Baseline}) TOTAL: {ElapsedMs}ms",
+                jobId, job.TotalBaseline, totalSw.ElapsedMilliseconds);
             progress?.Report("complete");
 
             // Start a ReadyWatcher to detect external print starts
             SpawnReadyWatcher(job, adapter);
+            _logger.LogTrace("<- PrepareJobAsync completed ({ElapsedMs}ms)", totalSw.ElapsedMilliseconds);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Job {JobId} preparation cancelled", jobId);
+            _logger.LogWarning("Job {JobId} preparation CANCELLED after {ElapsedMs}ms", jobId, totalSw.ElapsedMilliseconds);
             job.Status = JobStatus.Cancelled;
             await _db.SaveChangesAsync();
+            _logger.LogTrace("<- PrepareJobAsync CANCELLED");
             throw;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Job {JobId} preparation failed", jobId);
+            _logger.LogError(ex, "Job {JobId} preparation FAILED after {ElapsedMs}ms", jobId, totalSw.ElapsedMilliseconds);
             // Clean up: return any reserved codes and mark job as Cancelled
             // so the partial unique index doesn't block retries
             job.Status = JobStatus.Cancelled;
             job.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity);
+            _logger.LogTrace("<- PrepareJobAsync FAILED");
             throw;
         }
         finally
@@ -225,9 +244,15 @@ public class PrintJobService : IPrintJobService
 
     public async Task StartJobAsync(int jobId, CancellationToken ct = default)
     {
+        _logger.LogTrace("-> StartJobAsync(jobId={JobId})", jobId);
+        var sw = Stopwatch.StartNew();
+
         var job = await _db.PrintJobs
             .Include(j => j.Printer)
             .FirstAsync(j => j.Id == jobId);
+
+        using var _ = LogContext.PushProperty("JobId", jobId);
+        using var __ = LogContext.PushProperty("PrinterId", job.PrinterId);
 
         if (job.Status != JobStatus.Ready)
             throw new InvalidOperationException(_loc.Format("Error_JobNotReady", job.Status));
@@ -298,17 +323,24 @@ public class PrintJobService : IPrintJobService
         executor.Start();
 
         await _audit.LogAsync("job_started", printerId: job.PrinterId, jobId: jobId);
+        _logger.LogTrace("<- StartJobAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
     }
 
     public async Task CancelJobAsync(int jobId)
     {
+        _logger.LogTrace("-> CancelJobAsync(jobId={JobId})", jobId);
+        var sw = Stopwatch.StartNew();
+
         var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
+
+        using var _ = LogContext.PushProperty("JobId", jobId);
+        using var __ = LogContext.PushProperty("PrinterId", job.PrinterId);
 
         if (job.Status is JobStatus.Completed or JobStatus.Cancelled)
             throw new InvalidOperationException(
                 _loc.Format("Error_CannotCancelJob", job.Status));
 
-        _logger.LogInformation("Job {JobId} cancelling (status={Status}, confirmed={Confirmed})",
+        _logger.LogInformation("Job {JobId} CANCELLING (status={Status}, confirmed={Confirmed})",
             jobId, job.Status, job.CodesConfirmed);
 
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
@@ -365,10 +397,11 @@ public class PrintJobService : IPrintJobService
             job.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Job {JobId} cancelled (confirmed={Confirmed}/{Total})",
-                jobId, job.CodesConfirmed, job.Quantity);
+            _logger.LogInformation("Job {JobId} CANCELLED (confirmed={Confirmed}/{Total}) in {ElapsedMs}ms",
+                jobId, job.CodesConfirmed, job.Quantity, sw.ElapsedMilliseconds);
 
             await _audit.LogAsync("job_cancelled", jobId: jobId);
+            _logger.LogTrace("<- CancelJobAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
         }
         finally
         {
@@ -378,7 +411,13 @@ public class PrintJobService : IPrintJobService
 
     public async Task PauseJobAsync(int jobId)
     {
+        _logger.LogTrace("-> PauseJobAsync(jobId={JobId})", jobId);
+        var sw = Stopwatch.StartNew();
+
         var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
+
+        using var _ = LogContext.PushProperty("JobId", jobId);
+        using var __ = LogContext.PushProperty("PrinterId", job.PrinterId);
 
         if (job.Status != JobStatus.Printing)
             throw new InvalidOperationException(_loc.Format("Error_CannotPauseJob", job.Status));
@@ -390,6 +429,7 @@ public class PrintJobService : IPrintJobService
             // Stop the executor polling loop (but don't destroy progress)
             if (_jobRegistry.TryGet(jobId, out var executor) && executor != null)
             {
+                _logger.LogDebug("PauseJobAsync: stopping executor for Job {JobId}", jobId);
                 await executor.StopAsync();
                 _jobRegistry.TryRemove(jobId);
             }
@@ -398,12 +438,17 @@ public class PrintJobService : IPrintJobService
             var adapter = _connectionManager.GetAdapter(job.PrinterId);
             if (adapter != null)
             {
+                _logger.LogDebug("PauseJobAsync: sending StopPrint to printer for Job {JobId}", jobId);
                 await adapter.StopPrintAsync();
 
                 // Reconcile: the printer may have advanced past what the executor committed
                 var finalCounter = await adapter.GetCurrentCounterAsync();
+                _logger.LogDebug("PauseJobAsync: finalCounter={FinalCounter}, confirmed={Confirmed}",
+                    finalCounter, job.CodesConfirmed);
                 if (finalCounter > job.CodesConfirmed)
                 {
+                    _logger.LogDebug("PauseJobAsync: reconciling {Delta} additional prints",
+                        finalCounter - job.CodesConfirmed);
                     await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, finalCounter);
                     job.CodesConfirmed = finalCounter;
                 }
@@ -413,7 +458,9 @@ public class PrintJobService : IPrintJobService
             await _db.SaveChangesAsync();
 
             await _audit.LogAsync("job_paused", jobId: jobId, printerId: job.PrinterId);
-            _logger.LogInformation("Job {JobId} paused at {Confirmed}/{Total}", jobId, job.CodesConfirmed, job.Quantity);
+            _logger.LogInformation("Job {JobId} PAUSED at {Confirmed}/{Total} in {ElapsedMs}ms",
+                jobId, job.CodesConfirmed, job.Quantity, sw.ElapsedMilliseconds);
+            _logger.LogTrace("<- PauseJobAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
         }
         finally
         {
@@ -423,7 +470,8 @@ public class PrintJobService : IPrintJobService
 
     public async Task<List<PrintJob>> GetActiveJobsAsync()
     {
-        return await _db.PrintJobs
+        _logger.LogTrace("-> GetActiveJobsAsync()");
+        var result = await _db.PrintJobs
             .Include(j => j.Product)
             .Include(j => j.Printer)
             .Where(j => j.Status == JobStatus.Preparing
@@ -432,10 +480,13 @@ public class PrintJobService : IPrintJobService
                      || j.Status == JobStatus.Paused)
             .OrderByDescending(j => j.CreatedAt)
             .ToListAsync();
+        _logger.LogTrace("<- GetActiveJobsAsync = {Count} jobs", result.Count);
+        return result;
     }
 
     public async Task<List<PrintJob>> GetJobHistoryAsync(int? printerId = null, int? productId = null)
     {
+        _logger.LogTrace("-> GetJobHistoryAsync(printerId={PrinterId}, productId={ProductId})", printerId, productId);
         var query = _db.PrintJobs
             .Include(j => j.Product)
             .Include(j => j.Printer)
@@ -446,12 +497,15 @@ public class PrintJobService : IPrintJobService
         if (productId.HasValue)
             query = query.Where(j => j.ProductId == productId.Value);
 
-        return await query.OrderByDescending(j => j.CompletedAt).ToListAsync();
+        var result = await query.OrderByDescending(j => j.CompletedAt).ToListAsync();
+        _logger.LogTrace("<- GetJobHistoryAsync = {Count} jobs", result.Count);
+        return result;
     }
 
     public async Task<List<PrintJob>> GetStaleJobsAsync()
     {
-        return await _db.PrintJobs
+        _logger.LogTrace("-> GetStaleJobsAsync()");
+        var result = await _db.PrintJobs
             .Include(j => j.Product)
             .Include(j => j.Printer)
             .Where(j => j.Status == JobStatus.Preparing
@@ -459,19 +513,28 @@ public class PrintJobService : IPrintJobService
                      || j.Status == JobStatus.Printing
                      || j.Status == JobStatus.Paused)
             .ToListAsync();
+        _logger.LogTrace("<- GetStaleJobsAsync = {Count} stale jobs", result.Count);
+        return result;
     }
 
     public async Task ResumeJobAsync(int jobId, CancellationToken ct = default)
     {
+        _logger.LogTrace("-> ResumeJobAsync(jobId={JobId})", jobId);
+        var sw = Stopwatch.StartNew();
+
         var job = await _db.PrintJobs
             .Include(j => j.Product)
             .Include(j => j.Printer)
             .FirstAsync(j => j.Id == jobId);
 
+        using var _ = LogContext.PushProperty("JobId", jobId);
+        using var __ = LogContext.PushProperty("PrinterId", job.PrinterId);
+
         if (job.Status == JobStatus.Ready)
         {
             _logger.LogInformation("Job {JobId} resuming (status=Ready, delegating to StartJobAsync)", jobId);
             await StartJobAsync(jobId, ct);
+            _logger.LogTrace("<- ResumeJobAsync delegated to StartJobAsync ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
             return;
         }
 
@@ -616,8 +679,9 @@ public class PrintJobService : IPrintJobService
             await _audit.LogAsync("job_resumed", jobId: jobId, printerId: job.PrinterId,
                 details: new { remaining, newBaseline = job.TotalBaseline });
             _logger.LogInformation(
-                "Job {JobId} resumed via full Resume Procedure at {Confirmed}/{Total} (new baseline={Baseline})",
-                jobId, job.CodesConfirmed, job.Quantity, job.TotalBaseline);
+                "Job {JobId} RESUMED via full Resume Procedure at {Confirmed}/{Total} (new baseline={Baseline}) in {ElapsedMs}ms",
+                jobId, job.CodesConfirmed, job.Quantity, job.TotalBaseline, sw.ElapsedMilliseconds);
+            _logger.LogTrace("<- ResumeJobAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
         }
         finally
         {
@@ -629,25 +693,34 @@ public class PrintJobService : IPrintJobService
 
     private void SpawnReadyWatcher(PrintJob job, IPrinterAdapter adapter)
     {
+        _logger.LogTrace("-> SpawnReadyWatcher(jobId={JobId})", job.Id);
         var watcher = new ReadyWatcher(job, adapter, _alerts, _logger);
         watcher.ExternalPrintDetected += (_, jobId) =>
         {
+            _logger.LogDebug("ReadyWatcher ExternalPrintDetected event fired for Job {JobId}", jobId);
             _jobRegistry.TryRemoveWatcher(jobId);
             _ = HandleExternalPrintDetectedAsync(jobId);
         };
         _jobRegistry.RegisterWatcher(job.Id, watcher);
         watcher.Start();
         _logger.LogDebug("ReadyWatcher spawned for Job {JobId}", job.Id);
+        _logger.LogTrace("<- SpawnReadyWatcher completed");
     }
 
     private async Task StopReadyWatcherAsync(int jobId)
     {
+        _logger.LogTrace("-> StopReadyWatcherAsync(jobId={JobId})", jobId);
         if (_jobRegistry.TryGetWatcher(jobId, out var watcher) && watcher != null)
         {
             await watcher.StopAsync();
             _jobRegistry.TryRemoveWatcher(jobId);
-            _logger.LogDebug("ReadyWatcher stopped for Job {JobId}", jobId);
+            _logger.LogDebug("ReadyWatcher stopped and removed for Job {JobId}", jobId);
         }
+        else
+        {
+            _logger.LogTrace("   StopReadyWatcherAsync: no watcher found for Job {JobId}", jobId);
+        }
+        _logger.LogTrace("<- StopReadyWatcherAsync completed");
     }
 
     /// <summary>
@@ -656,19 +729,22 @@ public class PrintJobService : IPrintJobService
     /// </summary>
     private async Task HandleExternalPrintDetectedAsync(int jobId)
     {
+        _logger.LogTrace("-> HandleExternalPrintDetectedAsync(jobId={JobId})", jobId);
         try
         {
             _logger.LogWarning(
-                "External print detected for Job {JobId} — transitioning to Printing", jobId);
+                "EXTERNAL PRINT DETECTED for Job {JobId} - transitioning to Printing", jobId);
             await StartJobAsync(jobId);
+            _logger.LogTrace("<- HandleExternalPrintDetectedAsync completed");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Failed to transition Job {JobId} to Printing after external print detection", jobId);
+                "FAILED to transition Job {JobId} to Printing after external print detection", jobId);
             _alerts.Raise(AlertSeverity.Error, "System",
                 $"External printing detected on Job #{jobId} but failed to start tracking: {ex.Message}",
                 jobId: jobId);
+            _logger.LogTrace("<- HandleExternalPrintDetectedAsync FAILED");
         }
     }
 }

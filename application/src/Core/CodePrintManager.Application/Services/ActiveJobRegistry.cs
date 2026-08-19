@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace CodePrintManager.Application.Services;
 
@@ -11,32 +12,76 @@ public class ActiveJobRegistry
     private readonly ConcurrentDictionary<int, JobExecutor> _executors = new();
     private readonly ConcurrentDictionary<int, ReadyWatcher> _watchers = new();
     private readonly ConcurrentDictionary<int, SemaphoreSlim> _printerLocks = new();
+    private readonly ILogger<ActiveJobRegistry> _logger;
+
+    public ActiveJobRegistry(ILogger<ActiveJobRegistry> logger)
+    {
+        _logger = logger;
+    }
 
     public SemaphoreSlim GetPrinterLock(int printerId)
-        => _printerLocks.GetOrAdd(printerId, _ => new SemaphoreSlim(1, 1));
+    {
+        _logger.LogTrace("-> GetPrinterLock(printerId={PrinterId})", printerId);
+        var result = _printerLocks.GetOrAdd(printerId, _ => new SemaphoreSlim(1, 1));
+        _logger.LogTrace("<- GetPrinterLock = {Result}", result);
+        return result;
+    }
 
     // --- Executors ---
 
     public void Register(int jobId, JobExecutor executor)
-        => _executors[jobId] = executor;
+    {
+        _logger.LogTrace("-> Register(jobId={JobId}, executor={Executor})", jobId, executor);
+        _executors[jobId] = executor;
+        _logger.LogTrace("<- Register");
+    }
 
     public bool TryGet(int jobId, out JobExecutor? executor)
-        => _executors.TryGetValue(jobId, out executor);
+    {
+        _logger.LogTrace("-> TryGet(jobId={JobId})", jobId);
+        var found = _executors.TryGetValue(jobId, out executor);
+        _logger.LogTrace("<- TryGet = {Found} (key {Status})", found, found ? "found" : "not found");
+        return found;
+    }
 
     public bool TryRemove(int jobId)
-        => _executors.TryRemove(jobId, out _);
+    {
+        _logger.LogTrace("-> TryRemove(jobId={JobId})", jobId);
+        var removed = _executors.TryRemove(jobId, out _);
+        _logger.LogTrace("<- TryRemove = {Removed} (key {Status})", removed, removed ? "found" : "not found");
+        return removed;
+    }
 
     public JobExecutor? Get(int jobId)
-        => _executors.TryGetValue(jobId, out var e) ? e : null;
+    {
+        _logger.LogTrace("-> Get(jobId={JobId})", jobId);
+        var result = _executors.TryGetValue(jobId, out var e) ? e : null;
+        _logger.LogTrace("<- Get = {Result}", result?.ToString() ?? "null");
+        return result;
+    }
 
     // --- ReadyWatchers ---
 
     public void RegisterWatcher(int jobId, ReadyWatcher watcher)
-        => _watchers[jobId] = watcher;
+    {
+        _logger.LogTrace("-> RegisterWatcher(jobId={JobId}, watcher={Watcher})", jobId, watcher);
+        _watchers[jobId] = watcher;
+        _logger.LogTrace("<- RegisterWatcher");
+    }
 
     public bool TryGetWatcher(int jobId, out ReadyWatcher? watcher)
-        => _watchers.TryGetValue(jobId, out watcher);
+    {
+        _logger.LogTrace("-> TryGetWatcher(jobId={JobId})", jobId);
+        var found = _watchers.TryGetValue(jobId, out watcher);
+        _logger.LogTrace("<- TryGetWatcher = {Found} (key {Status})", found, found ? "found" : "not found");
+        return found;
+    }
 
     public bool TryRemoveWatcher(int jobId)
-        => _watchers.TryRemove(jobId, out _);
+    {
+        _logger.LogTrace("-> TryRemoveWatcher(jobId={JobId})", jobId);
+        var removed = _watchers.TryRemove(jobId, out _);
+        _logger.LogTrace("<- TryRemoveWatcher = {Removed} (key {Status})", removed, removed ? "found" : "not found");
+        return removed;
+    }
 }

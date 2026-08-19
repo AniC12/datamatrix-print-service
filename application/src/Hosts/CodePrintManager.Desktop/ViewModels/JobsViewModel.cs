@@ -90,56 +90,108 @@ public partial class JobsViewModel : ObservableObject
         _logger = logger;
         _loc = loc;
 
+        _logger.LogTrace("-> JobsViewModel()");
+
         _eventBus.ProgressChanged += OnJobProgressChanged;
         _eventBus.Completed += OnJobCompleted;
+
+        _logger.LogTrace("<- JobsViewModel()");
     }
 
     [RelayCommand]
     private async Task LoadJobsAsync()
     {
-        var active = await _printJobService.GetActiveJobsAsync();
+        _logger.LogTrace("-> LoadJobsAsync()");
+        try
+        {
+            var active = await _printJobService.GetActiveJobsAsync();
 
-        ActiveJobs.Clear();
-        foreach (var j in active)
-            ActiveJobs.Add(j);
+            ActiveJobs.Clear();
+            foreach (var j in active)
+                ActiveJobs.Add(j);
 
-        HasActiveJobs = ActiveJobs.Count > 0;
+            HasActiveJobs = ActiveJobs.Count > 0;
 
-        await LoadHistoryAsync();
-        await LoadFiltersAsync();
+            await LoadHistoryAsync();
+            await LoadFiltersAsync();
 
-        _logger.LogInformation("Jobs page loaded: {ActiveCount} active, {HistoryCount} history",
-            ActiveJobs.Count, JobHistory.Count);
+            _logger.LogInformation("Jobs page loaded: {ActiveCount} active, {HistoryCount} history",
+                ActiveJobs.Count, JobHistory.Count);
+            _logger.LogTrace("<- LoadJobsAsync()");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LoadJobsAsync failed");
+            _logger.LogTrace("<- LoadJobsAsync() [exception]");
+            throw;
+        }
     }
 
     private async Task LoadFiltersAsync()
     {
-        var printers = await _db.Printers.ToListAsync();
-        FilterPrinters.Clear();
-        foreach (var p in printers)
-            FilterPrinters.Add(p);
+        _logger.LogTrace("-> LoadFiltersAsync()");
+        try
+        {
+            var printers = await _db.Printers.ToListAsync();
+            FilterPrinters.Clear();
+            foreach (var p in printers)
+                FilterPrinters.Add(p);
 
-        var products = await _db.ProductNodes.Where(p => p.IsLeaf).ToListAsync();
-        FilterProducts.Clear();
-        foreach (var p in products)
-            FilterProducts.Add(p);
+            var products = await _db.ProductNodes.Where(p => p.IsLeaf).ToListAsync();
+            FilterProducts.Clear();
+            foreach (var p in products)
+                FilterProducts.Add(p);
+
+            _logger.LogTrace("<- LoadFiltersAsync()");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LoadFiltersAsync failed");
+            _logger.LogTrace("<- LoadFiltersAsync() [exception]");
+            throw;
+        }
     }
 
     private async Task LoadHistoryAsync()
     {
-        var history = await _printJobService.GetJobHistoryAsync(
+        _logger.LogTrace("-> LoadHistoryAsync(PrinterId={PrinterId}, ProductId={ProductId})",
             FilterPrinter?.Id, FilterProduct?.Id);
+        try
+        {
+            var history = await _printJobService.GetJobHistoryAsync(
+                FilterPrinter?.Id, FilterProduct?.Id);
 
-        JobHistory.Clear();
-        foreach (var j in history)
-            JobHistory.Add(j);
+            JobHistory.Clear();
+            foreach (var j in history)
+                JobHistory.Add(j);
+
+            _logger.LogTrace("<- LoadHistoryAsync() — {Count} items", JobHistory.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LoadHistoryAsync failed");
+            _logger.LogTrace("<- LoadHistoryAsync() [exception]");
+            throw;
+        }
     }
 
-    partial void OnFilterPrinterChanged(PrinterEntity? value) => _ = LoadHistoryAsync();
-    partial void OnFilterProductChanged(ProductNode? value) => _ = LoadHistoryAsync();
+    partial void OnFilterPrinterChanged(PrinterEntity? value)
+    {
+        _logger.LogTrace("-> OnFilterPrinterChanged(PrinterId={PrinterId})", value?.Id);
+        _ = LoadHistoryAsync();
+        _logger.LogTrace("<- OnFilterPrinterChanged()");
+    }
+
+    partial void OnFilterProductChanged(ProductNode? value)
+    {
+        _logger.LogTrace("-> OnFilterProductChanged(ProductId={ProductId})", value?.Id);
+        _ = LoadHistoryAsync();
+        _logger.LogTrace("<- OnFilterProductChanged()");
+    }
 
     partial void OnSelectedJobChanged(PrintJob? value)
     {
+        _logger.LogTrace("-> OnSelectedJobChanged(JobId={JobId})", value?.Id);
         if (value != null)
             _logger.LogInformation("Job selected: #{JobId} (Product='{Product}', Printer='{Printer}', Status={Status}, Progress={Confirmed}/{Total})",
                 value.Id, value.Product?.Name, value.Printer?.Name, value.Status, value.CodesConfirmed, value.Quantity);
@@ -151,6 +203,7 @@ public partial class JobsViewModel : ObservableObject
             JobDetailProgress = 0;
             JobDetailProgressText = string.Empty;
             JobDetailStatus = null;
+            _logger.LogTrace("<- OnSelectedJobChanged() — cleared details");
             return;
         }
 
@@ -171,10 +224,12 @@ public partial class JobsViewModel : ObservableObject
         PrepCodesReserved = prepared;
         PrepDataUploaded = prepared;
         PrepTemplateLoaded = prepared;
+        _logger.LogTrace("<- OnSelectedJobChanged()");
     }
 
     public void SelectJobById(int jobId)
     {
+        _logger.LogTrace("-> SelectJobById(jobId={JobId})", jobId);
         _ = LoadJobsAsync().ContinueWith(_ =>
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -183,61 +238,128 @@ public partial class JobsViewModel : ObservableObject
                     ?? JobHistory.FirstOrDefault(j => j.Id == jobId);
             });
         });
+        _logger.LogTrace("<- SelectJobById()");
     }
 
     [RelayCommand]
     private async Task StartPrintAsync()
     {
-        if (SelectedJob == null || SelectedJob.Status != JobStatus.Ready) return;
-        _logger.LogInformation("Jobs: Start print for Job {JobId}", SelectedJob.Id);
-        await _printJobService.StartJobAsync(SelectedJob.Id);
-        await LoadJobsAsync();
+        _logger.LogTrace("-> StartPrintAsync(SelectedJobId={JobId})", SelectedJob?.Id);
+        if (SelectedJob == null || SelectedJob.Status != JobStatus.Ready)
+        {
+            _logger.LogTrace("<- StartPrintAsync() — skipped (no selection or not Ready)");
+            return;
+        }
+        try
+        {
+            _logger.LogInformation("Jobs: Start print for Job {JobId}", SelectedJob.Id);
+            await _printJobService.StartJobAsync(SelectedJob.Id);
+            await LoadJobsAsync();
+            _logger.LogTrace("<- StartPrintAsync()");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "StartPrintAsync failed for Job {JobId}", SelectedJob?.Id);
+            _logger.LogTrace("<- StartPrintAsync() [exception]");
+            throw;
+        }
     }
 
     [RelayCommand]
     private async Task CancelJobAsync()
     {
-        if (SelectedJob == null) return;
-        _logger.LogInformation("Jobs: Cancel for Job {JobId}", SelectedJob.Id);
-        await _printJobService.CancelJobAsync(SelectedJob.Id);
-        await LoadJobsAsync();
+        _logger.LogTrace("-> CancelJobAsync(SelectedJobId={JobId})", SelectedJob?.Id);
+        if (SelectedJob == null)
+        {
+            _logger.LogTrace("<- CancelJobAsync() — skipped (no selection)");
+            return;
+        }
+        try
+        {
+            _logger.LogInformation("Jobs: Cancel for Job {JobId}", SelectedJob.Id);
+            await _printJobService.CancelJobAsync(SelectedJob.Id);
+            await LoadJobsAsync();
+            _logger.LogTrace("<- CancelJobAsync()");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CancelJobAsync failed for Job {JobId}", SelectedJob?.Id);
+            _logger.LogTrace("<- CancelJobAsync() [exception]");
+            throw;
+        }
     }
 
     [RelayCommand]
     private async Task PauseJobAsync()
     {
-        if (SelectedJob == null || SelectedJob.Status != JobStatus.Printing) return;
-        _logger.LogInformation("Jobs: Pause for Job {JobId}", SelectedJob.Id);
-        await _printJobService.PauseJobAsync(SelectedJob.Id);
-        await LoadJobsAsync();
+        _logger.LogTrace("-> PauseJobAsync(SelectedJobId={JobId})", SelectedJob?.Id);
+        if (SelectedJob == null || SelectedJob.Status != JobStatus.Printing)
+        {
+            _logger.LogTrace("<- PauseJobAsync() — skipped (no selection or not Printing)");
+            return;
+        }
+        try
+        {
+            _logger.LogInformation("Jobs: Pause for Job {JobId}", SelectedJob.Id);
+            await _printJobService.PauseJobAsync(SelectedJob.Id);
+            await LoadJobsAsync();
+            _logger.LogTrace("<- PauseJobAsync()");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PauseJobAsync failed for Job {JobId}", SelectedJob?.Id);
+            _logger.LogTrace("<- PauseJobAsync() [exception]");
+            throw;
+        }
     }
 
     [RelayCommand]
     private async Task ResumeJobAsync()
     {
-        if (SelectedJob == null || SelectedJob.Status != JobStatus.Paused) return;
-        _logger.LogInformation("Jobs: Resume for Job {JobId}", SelectedJob.Id);
-        await _printJobService.ResumeJobAsync(SelectedJob.Id);
-        await LoadJobsAsync();
+        _logger.LogTrace("-> ResumeJobAsync(SelectedJobId={JobId})", SelectedJob?.Id);
+        if (SelectedJob == null || SelectedJob.Status != JobStatus.Paused)
+        {
+            _logger.LogTrace("<- ResumeJobAsync() — skipped (no selection or not Paused)");
+            return;
+        }
+        try
+        {
+            _logger.LogInformation("Jobs: Resume for Job {JobId}", SelectedJob.Id);
+            await _printJobService.ResumeJobAsync(SelectedJob.Id);
+            await LoadJobsAsync();
+            _logger.LogTrace("<- ResumeJobAsync()");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ResumeJobAsync failed for Job {JobId}", SelectedJob?.Id);
+            _logger.LogTrace("<- ResumeJobAsync() [exception]");
+            throw;
+        }
     }
 
     [RelayCommand]
     private void NewJob()
     {
+        _logger.LogTrace("-> NewJob()");
         _logger.LogInformation("Jobs: New Job clicked");
         NavigateToNewJobRequested?.Invoke(this, EventArgs.Empty);
+        _logger.LogTrace("<- NewJob()");
     }
 
     [RelayCommand]
     private void ClearFilters()
     {
+        _logger.LogTrace("-> ClearFilters()");
         _logger.LogDebug("Jobs: Filters cleared");
         FilterPrinter = null;
         FilterProduct = null;
+        _logger.LogTrace("<- ClearFilters()");
     }
 
     private void OnJobProgressChanged(object? sender, JobProgressChangedEvent e)
     {
+        _logger.LogTrace("-> OnJobProgressChanged(JobId={JobId}, Confirmed={Confirmed}, Total={Total})",
+            e.JobId, e.Confirmed, e.Total);
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
             // Update the active job in the list and re-insert to trigger binding refresh
@@ -265,10 +387,13 @@ public partial class JobsViewModel : ObservableObject
                 JobDetailProgressText = _loc.Format("Status_ProgressDisplay", e.Confirmed, e.Total, pct);
             }
         });
+        _logger.LogTrace("<- OnJobProgressChanged()");
     }
 
     private void OnJobCompleted(object? sender, JobCompletedEvent e)
     {
+        _logger.LogTrace("-> OnJobCompleted(JobId={JobId}, FinalStatus={FinalStatus})",
+            e.JobId, e.FinalStatus);
         _logger.LogInformation("Jobs: Job {JobId} completed (live)", e.JobId);
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
@@ -291,5 +416,6 @@ public partial class JobsViewModel : ObservableObject
                 }
             }
         });
+        _logger.LogTrace("<- OnJobCompleted()");
     }
 }

@@ -108,6 +108,8 @@ public partial class PrintersViewModel : ObservableObject
         _logger = logger;
         _loc = loc;
 
+        _logger.LogTrace("-> PrintersViewModel(.ctor)");
+
         // Build available adapter types from registered factory
         AvailableAdapterTypes = adapterFactory is MockPrinterAdapterFactory
             ? new List<string> { "mock", "savema_tto" }
@@ -115,6 +117,7 @@ public partial class PrintersViewModel : ObservableObject
 
         _connectionManager.PrinterStatusChanged += (_, e) =>
         {
+            _logger.LogTrace("-> PrinterStatusChanged(PrinterId={PrinterId}, NewStatus={NewStatus})", e.PrinterId, e.NewStatus);
             var app = System.Windows.Application.Current;
             if (app != null)
             {
@@ -129,12 +132,16 @@ public partial class PrintersViewModel : ObservableObject
                 if (SelectedPrinter?.Id == e.PrinterId)
                     SelectedPrinterStatus = e.NewStatus;
             }
+            _logger.LogTrace("<- PrinterStatusChanged");
         };
+
+        _logger.LogTrace("<- PrintersViewModel(.ctor)");
     }
 
     [RelayCommand]
     private async Task LoadPrintersAsync()
     {
+        _logger.LogTrace("-> LoadPrintersAsync()");
         var printers = await _db.Printers.ToListAsync();
         Printers.Clear();
         foreach (var p in printers)
@@ -144,42 +151,60 @@ public partial class PrintersViewModel : ObservableObject
 
         if (SelectedPrinter == null && Printers.Count > 0)
             SelectedPrinter = Printers[0];
+        _logger.LogTrace("<- LoadPrintersAsync");
     }
 
     partial void OnSelectedPrinterChanged(PrinterEntity? value)
     {
-        if (value == null) return;
+        _logger.LogTrace("-> OnSelectedPrinterChanged(value={PrinterName}, Id={PrinterId})", value?.Name, value?.Id);
+        if (value == null)
+        {
+            _logger.LogTrace("<- OnSelectedPrinterChanged (value is null)");
+            return;
+        }
         _ = OnPrinterSelectedAsync(value);
+        _logger.LogTrace("<- OnSelectedPrinterChanged");
     }
 
     private async Task OnPrinterSelectedAsync(PrinterEntity printer)
     {
-        // Query actual printer status instead of assuming Idle
-        var adapter = _connectionManager.GetAdapter(printer.Id);
-        if (adapter != null)
+        _logger.LogTrace("-> OnPrinterSelectedAsync(printer={Name}, Id={Id})", printer.Name, printer.Id);
+        try
         {
-            try
+            // Query actual printer status instead of assuming Idle
+            var adapter = _connectionManager.GetAdapter(printer.Id);
+            if (adapter != null)
             {
-                SelectedPrinterStatus = await adapter.GetStatusAsync();
+                try
+                {
+                    SelectedPrinterStatus = await adapter.GetStatusAsync();
+                }
+                catch
+                {
+                    SelectedPrinterStatus = PrinterStatus.Idle;
+                }
             }
-            catch
+            else
             {
-                SelectedPrinterStatus = PrinterStatus.Idle;
+                SelectedPrinterStatus = PrinterStatus.Offline;
             }
-        }
-        else
-        {
-            SelectedPrinterStatus = PrinterStatus.Offline;
-        }
 
-        _logger.LogInformation("Printer selected: '{Name}' (Id={Id}, Status={Status})",
-            printer.Name, printer.Id, SelectedPrinterStatus);
-        await RefreshStorageAsync();
+            _logger.LogInformation("Printer selected: '{Name}' (Id={Id}, Status={Status})",
+                printer.Name, printer.Id, SelectedPrinterStatus);
+            await RefreshStorageAsync();
+            _logger.LogTrace("<- OnPrinterSelectedAsync");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "OnPrinterSelectedAsync failed for printer '{Name}' (Id={Id})", printer.Name, printer.Id);
+            _logger.LogTrace("<- OnPrinterSelectedAsync (exception)");
+        }
     }
 
     [RelayCommand]
     private void ShowAddPrinter()
     {
+        _logger.LogTrace("-> ShowAddPrinter()");
         IsAddingPrinter = true;
         SelectedPrinter = null;
         NewPrinterName = string.Empty;
@@ -187,23 +212,33 @@ public partial class PrintersViewModel : ObservableObject
         NewPrinterPort = 9100;
         NewPrinterAdapterType = _adapterFactory is MockPrinterAdapterFactory ? "mock" : "savema_tto";
         _logger.LogInformation("Printers: Add Printer form opened (default adapter={AdapterType})", NewPrinterAdapterType);
+        _logger.LogTrace("<- ShowAddPrinter");
     }
 
     [RelayCommand]
     private void CancelAddPrinter()
     {
+        _logger.LogTrace("-> CancelAddPrinter()");
         _logger.LogDebug("Printers: Add Printer cancelled");
         IsAddingPrinter = false;
         if (SelectedPrinter == null && Printers.Count > 0)
             SelectedPrinter = Printers[0];
+        _logger.LogTrace("<- CancelAddPrinter");
     }
 
     private bool CanConfirmAddPrinter()
-        => !string.IsNullOrWhiteSpace(NewPrinterName) && !string.IsNullOrWhiteSpace(NewPrinterIp);
+    {
+        _logger.LogTrace("-> CanConfirmAddPrinter()");
+        var result = !string.IsNullOrWhiteSpace(NewPrinterName) && !string.IsNullOrWhiteSpace(NewPrinterIp);
+        _logger.LogTrace("<- CanConfirmAddPrinter = {Result}", result);
+        return result;
+    }
 
     [RelayCommand(CanExecute = nameof(CanConfirmAddPrinter))]
     private async Task ConfirmAddPrinterAsync()
     {
+        _logger.LogTrace("-> ConfirmAddPrinterAsync(Name={Name}, Ip={Ip}, Port={Port}, AdapterType={AdapterType})",
+            NewPrinterName, NewPrinterIp, NewPrinterPort, NewPrinterAdapterType);
         var printer = new PrinterEntity
         {
             Name = NewPrinterName.Trim(),
@@ -222,24 +257,48 @@ public partial class PrintersViewModel : ObservableObject
 
         // Auto-connect the newly added printer
         _ = _connectionManager.ConnectAsync(printer);
+        _logger.LogTrace("<- ConfirmAddPrinterAsync");
     }
 
-    private bool CanConnectPrinter() => SelectedPrinter != null && SelectedPrinterStatus == PrinterStatus.Offline;
+    private bool CanConnectPrinter()
+    {
+        _logger.LogTrace("-> CanConnectPrinter()");
+        var result = SelectedPrinter != null && SelectedPrinterStatus == PrinterStatus.Offline;
+        _logger.LogTrace("<- CanConnectPrinter = {Result}", result);
+        return result;
+    }
 
     [RelayCommand(CanExecute = nameof(CanConnectPrinter))]
     private async Task ConnectPrinterAsync()
     {
-        if (SelectedPrinter == null) return;
+        _logger.LogTrace("-> ConnectPrinterAsync(Printer={Name}, Id={Id})", SelectedPrinter?.Name, SelectedPrinter?.Id);
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- ConnectPrinterAsync (SelectedPrinter is null)");
+            return;
+        }
         _logger.LogInformation("Printers: Connect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.ConnectAsync(SelectedPrinter);
+        _logger.LogTrace("<- ConnectPrinterAsync");
     }
 
-    private bool CanDisconnectPrinter() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+    private bool CanDisconnectPrinter()
+    {
+        _logger.LogTrace("-> CanDisconnectPrinter()");
+        var result = SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+        _logger.LogTrace("<- CanDisconnectPrinter = {Result}", result);
+        return result;
+    }
 
     [RelayCommand(CanExecute = nameof(CanDisconnectPrinter))]
     private async Task DisconnectPrinterAsync()
     {
-        if (SelectedPrinter == null) return;
+        _logger.LogTrace("-> DisconnectPrinterAsync(Printer={Name}, Id={Id})", SelectedPrinter?.Name, SelectedPrinter?.Id);
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- DisconnectPrinterAsync (SelectedPrinter is null)");
+            return;
+        }
 
         // Warn if printer has active jobs
         var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused };
@@ -250,38 +309,59 @@ public partial class PrintersViewModel : ObservableObject
             if (!_dialog.Confirm(
                 _loc.Format("Dialog_ConfirmDisconnectActiveJobs", SelectedPrinter.Name),
                 _loc["DialogTitle_ActiveJobsWarning"]))
+            {
+                _logger.LogTrace("<- DisconnectPrinterAsync (user cancelled active-jobs warning)");
                 return;
+            }
         }
 
         _logger.LogInformation("Printers: Disconnect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
         SelectedPrinterStatus = PrinterStatus.Offline;
+        _logger.LogTrace("<- DisconnectPrinterAsync");
     }
 
     [RelayCommand]
     private void EditPrinter()
     {
-        if (SelectedPrinter == null) return;
+        _logger.LogTrace("-> EditPrinter()");
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- EditPrinter (SelectedPrinter is null)");
+            return;
+        }
         EditPrinterName = SelectedPrinter.Name;
         EditPrinterIp = SelectedPrinter.IpAddress;
         EditPrinterPort = SelectedPrinter.Port;
         IsEditingPrinter = true;
         _logger.LogDebug("Printers: Edit mode opened for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
+        _logger.LogTrace("<- EditPrinter");
     }
 
     [RelayCommand]
     private void CancelEditPrinter()
     {
+        _logger.LogTrace("-> CancelEditPrinter()");
         IsEditingPrinter = false;
         _logger.LogDebug("Printers: Edit mode cancelled");
+        _logger.LogTrace("<- CancelEditPrinter");
     }
 
     [RelayCommand]
     private async Task SaveEditPrinterAsync()
     {
-        if (SelectedPrinter == null) return;
-        if (string.IsNullOrWhiteSpace(EditPrinterName) || string.IsNullOrWhiteSpace(EditPrinterIp))
+        _logger.LogTrace("-> SaveEditPrinterAsync(EditName={Name}, EditIp={Ip}, EditPort={Port})",
+            EditPrinterName, EditPrinterIp, EditPrinterPort);
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- SaveEditPrinterAsync (SelectedPrinter is null)");
             return;
+        }
+        if (string.IsNullOrWhiteSpace(EditPrinterName) || string.IsNullOrWhiteSpace(EditPrinterIp))
+        {
+            _logger.LogTrace("<- SaveEditPrinterAsync (validation failed: empty name or IP)");
+            return;
+        }
 
         var oldName = SelectedPrinter.Name;
         SelectedPrinter.Name = EditPrinterName.Trim();
@@ -302,12 +382,18 @@ public partial class PrintersViewModel : ObservableObject
         var selectedId = SelectedPrinter.Id;
         await LoadPrintersAsync();
         SelectedPrinter = Printers.FirstOrDefault(p => p.Id == selectedId);
+        _logger.LogTrace("<- SaveEditPrinterAsync");
     }
 
     [RelayCommand]
     private async Task DeletePrinterAsync()
     {
-        if (SelectedPrinter == null) return;
+        _logger.LogTrace("-> DeletePrinterAsync(Printer={Name}, Id={Id})", SelectedPrinter?.Name, SelectedPrinter?.Id);
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- DeletePrinterAsync (SelectedPrinter is null)");
+            return;
+        }
 
         // Block deletion if printer has active jobs
         var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused };
@@ -318,13 +404,17 @@ public partial class PrintersViewModel : ObservableObject
             _dialog.ShowWarning(
                 _loc.Format("Error_PrinterHasActiveJobs", SelectedPrinter.Name),
                 _loc["DialogTitle_PrinterInUse"]);
+            _logger.LogTrace("<- DeletePrinterAsync (blocked: printer has active jobs)");
             return;
         }
 
         if (!_dialog.Confirm(
             _loc.Format("Dialog_ConfirmDeletePrinter", SelectedPrinter.Name),
             _loc["DialogTitle_ConfirmDelete"]))
+        {
+            _logger.LogTrace("<- DeletePrinterAsync (user cancelled confirmation)");
             return;
+        }
 
         _logger.LogInformation("Printers: Printer deleted '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
@@ -335,21 +425,37 @@ public partial class PrintersViewModel : ObservableObject
             details: $"Deleted printer \"{SelectedPrinter.Name}\" ({SelectedPrinter.IpAddress}:{SelectedPrinter.Port})");
         SelectedPrinter = null;
         await LoadPrintersAsync();
+        _logger.LogTrace("<- DeletePrinterAsync");
     }
 
-    private bool CanRefreshStorage() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+    private bool CanRefreshStorage()
+    {
+        _logger.LogTrace("-> CanRefreshStorage()");
+        var result = SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+        _logger.LogTrace("<- CanRefreshStorage = {Result}", result);
+        return result;
+    }
 
     [RelayCommand(CanExecute = nameof(CanRefreshStorage))]
     private async Task RefreshStorageAsync()
     {
+        _logger.LogTrace("-> RefreshStorageAsync(Printer={Name}, Id={Id})", SelectedPrinter?.Name, SelectedPrinter?.Id);
         TemplateFiles.Clear();
         CsvFiles.Clear();
         SelectedDeleteCount = 0;
 
-        if (SelectedPrinter == null) return;
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- RefreshStorageAsync (SelectedPrinter is null)");
+            return;
+        }
 
         var adapter = _connectionManager.GetAdapter(SelectedPrinter.Id);
-        if (adapter == null) return;
+        if (adapter == null)
+        {
+            _logger.LogTrace("<- RefreshStorageAsync (adapter is null)");
+            return;
+        }
 
         try
         {
@@ -391,31 +497,58 @@ public partial class PrintersViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Printers: Storage refresh failed for Printer {Id}", SelectedPrinter?.Id);
+            _logger.LogTrace("<- RefreshStorageAsync (exception)");
+            return;
         }
+        _logger.LogTrace("<- RefreshStorageAsync");
     }
 
     private void UpdateDeleteCount()
     {
+        _logger.LogTrace("-> UpdateDeleteCount()");
         SelectedDeleteCount = TemplateFiles.Count(f => f.IsSelected) + CsvFiles.Count(f => f.IsSelected);
+        _logger.LogTrace("<- UpdateDeleteCount = {Count}", SelectedDeleteCount);
     }
 
-    private bool CanDeleteSelectedFiles() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+    private bool CanDeleteSelectedFiles()
+    {
+        _logger.LogTrace("-> CanDeleteSelectedFiles()");
+        var result = SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+        _logger.LogTrace("<- CanDeleteSelectedFiles = {Result}", result);
+        return result;
+    }
 
     [RelayCommand(CanExecute = nameof(CanDeleteSelectedFiles))]
     private async Task DeleteSelectedFilesAsync()
     {
-        if (SelectedPrinter == null) return;
+        _logger.LogTrace("-> DeleteSelectedFilesAsync(Printer={Name}, Id={Id})", SelectedPrinter?.Name, SelectedPrinter?.Id);
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- DeleteSelectedFilesAsync (SelectedPrinter is null)");
+            return;
+        }
         var adapter = _connectionManager.GetAdapter(SelectedPrinter.Id);
-        if (adapter == null) return;
+        if (adapter == null)
+        {
+            _logger.LogTrace("<- DeleteSelectedFilesAsync (adapter is null)");
+            return;
+        }
 
         var deleteCount = TemplateFiles.Count(f => f.IsSelected && !f.IsProtected)
                         + CsvFiles.Count(f => f.IsSelected && !f.IsProtected);
-        if (deleteCount == 0) return;
+        if (deleteCount == 0)
+        {
+            _logger.LogTrace("<- DeleteSelectedFilesAsync (no files selected for deletion)");
+            return;
+        }
 
         if (!_dialog.Confirm(
             _loc.Format("Dialog_ConfirmDeleteFiles", deleteCount, SelectedPrinter.Name),
             _loc["DialogTitle_ConfirmDelete"]))
+        {
+            _logger.LogTrace("<- DeleteSelectedFilesAsync (user cancelled confirmation)");
             return;
+        }
 
         var deletedFiles = new List<string>();
 
@@ -441,14 +574,26 @@ public partial class PrintersViewModel : ObservableObject
         }
 
         await RefreshStorageAsync();
+        _logger.LogTrace("<- DeleteSelectedFilesAsync");
     }
 
-    private bool CanVerifyPrinter() => SelectedPrinter != null;
+    private bool CanVerifyPrinter()
+    {
+        _logger.LogTrace("-> CanVerifyPrinter()");
+        var result = SelectedPrinter != null;
+        _logger.LogTrace("<- CanVerifyPrinter = {Result}", result);
+        return result;
+    }
 
     [RelayCommand(CanExecute = nameof(CanVerifyPrinter))]
     private async Task VerifyPrinterAsync()
     {
-        if (SelectedPrinter == null) return;
+        _logger.LogTrace("-> VerifyPrinterAsync(Printer={Name}, Id={Id})", SelectedPrinter?.Name, SelectedPrinter?.Id);
+        if (SelectedPrinter == null)
+        {
+            _logger.LogTrace("<- VerifyPrinterAsync (SelectedPrinter is null)");
+            return;
+        }
         _logger.LogInformation("Printers: Verify started for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
 
         var adapter = _connectionManager.GetAdapter(SelectedPrinter.Id);
@@ -458,6 +603,7 @@ public partial class PrintersViewModel : ObservableObject
             VerifyResults.Add(new VerifyResultItem(_loc["Verify_Connection"], VerifyStatus.Fail, _loc["Verify_PrinterNotConnected"]));
             HasVerifyResults = true;
             VerifyOverallStatus = _loc["Verify_Failed"];
+            _logger.LogTrace("<- VerifyPrinterAsync (adapter is null)");
             return;
         }
 
@@ -578,6 +724,7 @@ public partial class PrintersViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Printers: Verify failed for Printer {Id}", SelectedPrinter.Id);
+            _logger.LogTrace("<- VerifyPrinterAsync (exception)");
             VerifyResults.Add(new VerifyResultItem(_loc["DialogTitle_Error"], VerifyStatus.Fail,
                 _loc.Format("Error_VerificationFailed", ex.Message)));
             VerifyOverallStatus = _loc["DialogTitle_Error"];
@@ -587,15 +734,24 @@ public partial class PrintersViewModel : ObservableObject
             IsVerifying = false;
             HasVerifyResults = true;
         }
+        _logger.LogTrace("<- VerifyPrinterAsync");
     }
 
-    private bool CanNewJob() => SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+    private bool CanNewJob()
+    {
+        _logger.LogTrace("-> CanNewJob()");
+        var result = SelectedPrinter != null && SelectedPrinterStatus != PrinterStatus.Offline;
+        _logger.LogTrace("<- CanNewJob = {Result}", result);
+        return result;
+    }
 
     [RelayCommand(CanExecute = nameof(CanNewJob))]
     private void NewJob()
     {
+        _logger.LogTrace("-> NewJob(Printer={Name}, Id={Id})", SelectedPrinter?.Name, SelectedPrinter?.Id);
         if (SelectedPrinter != null)
             NavigateToNewJobRequested?.Invoke(this, SelectedPrinter.Id);
+        _logger.LogTrace("<- NewJob");
     }
 }
 

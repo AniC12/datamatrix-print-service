@@ -22,29 +22,39 @@ public class ProductService : IProductService
 
     public async Task<List<ProductNode>> GetTreeAsync()
     {
-        return await _db.ProductNodes
+        _logger.LogTrace("-> GetTreeAsync()");
+        var result = await _db.ProductNodes
             .Include(n => n.Children)
             .Where(n => n.ParentId == null)
             .OrderBy(n => n.Name)
             .ToListAsync();
+        _logger.LogTrace("<- GetTreeAsync = {Count} roots", result.Count);
+        return result;
     }
 
     public async Task<List<ProductNode>> GetRootsAsync()
     {
-        return await _db.ProductNodes
+        _logger.LogTrace("-> GetRootsAsync()");
+        var result = await _db.ProductNodes
             .Include(n => n.Children)
             .Where(n => n.ParentId == null)
             .OrderBy(n => n.Name)
             .ToListAsync();
+        _logger.LogTrace("<- GetRootsAsync = {Count} roots", result.Count);
+        return result;
     }
 
     public async Task<ProductNode?> GetByIdAsync(int id)
     {
-        return await _db.ProductNodes.FindAsync(id);
+        _logger.LogTrace("-> GetByIdAsync(id={Id})", id);
+        var result = await _db.ProductNodes.FindAsync(id);
+        _logger.LogTrace("<- GetByIdAsync = {Result}", result != null ? $"ProductNode(Id={result.Id}, Name={result.Name})" : "null");
+        return result;
     }
 
     public async Task<ProductNode> CreateFolderAsync(string name, int? parentId)
     {
+        _logger.LogTrace("-> CreateFolderAsync(name={Name}, parentId={ParentId})", name, parentId);
         var node = new ProductNode
         {
             Name = name,
@@ -56,11 +66,13 @@ public class ProductService : IProductService
         _db.ProductNodes.Add(node);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Folder created: '{Name}' (Id={Id}, Parent={ParentId})", name, node.Id, parentId);
+        _logger.LogTrace("<- CreateFolderAsync = ProductNode(Id={Id}, Name={Name})", node.Id, node.Name);
         return node;
     }
 
     public async Task<ProductNode> CreateProductAsync(string name, int? parentId, string templateFile, string printerCsvName)
     {
+        _logger.LogTrace("-> CreateProductAsync(name={Name}, parentId={ParentId}, templateFile={TemplateFile}, printerCsvName={PrinterCsvName})", name, parentId, templateFile, printerCsvName);
         var node = new ProductNode
         {
             Name = name,
@@ -75,19 +87,23 @@ public class ProductService : IProductService
         await _db.SaveChangesAsync();
         _logger.LogInformation("Product created: '{Name}' (Id={Id}, Template={Template}, CSV={Csv})",
             name, node.Id, templateFile, printerCsvName);
+        _logger.LogTrace("<- CreateProductAsync = ProductNode(Id={Id}, Name={Name})", node.Id, node.Name);
         return node;
     }
 
     public async Task UpdateAsync(ProductNode product)
     {
+        _logger.LogTrace("-> UpdateAsync(product.Id={Id}, product.Name={Name})", product.Id, product.Name);
         product.UpdatedAt = DateTime.UtcNow;
         _db.ProductNodes.Update(product);
         await _db.SaveChangesAsync();
         _logger.LogInformation("Product updated: Id={Id}", product.Id);
+        _logger.LogTrace("<- UpdateAsync");
     }
 
     public async Task<bool> CanDeleteAsync(int id)
     {
+        _logger.LogTrace("-> CanDeleteAsync(id={Id})", id);
         // Check for active jobs on this product
         var hasActiveJobs = await _db.PrintJobs
             .AnyAsync(j => j.ProductId == id &&
@@ -95,6 +111,7 @@ public class ProductService : IProductService
         if (hasActiveJobs)
         {
             _logger.LogDebug("Product {Id} cannot be deleted: has active jobs", id);
+            _logger.LogTrace("<- CanDeleteAsync = false (active jobs)");
             return false;
         }
 
@@ -104,21 +121,30 @@ public class ProductService : IProductService
         if (hasReservedCodes)
         {
             _logger.LogDebug("Product {Id} cannot be deleted: has reserved codes", id);
+            _logger.LogTrace("<- CanDeleteAsync = false (reserved codes)");
             return false;
         }
 
+        _logger.LogTrace("<- CanDeleteAsync = true");
         return true;
     }
 
     public async Task<int> GetCodeCountAsync(int productId)
     {
-        return await _db.Codes.CountAsync(c => c.ProductId == productId);
+        _logger.LogTrace("-> GetCodeCountAsync(productId={ProductId})", productId);
+        var result = await _db.Codes.CountAsync(c => c.ProductId == productId);
+        _logger.LogTrace("<- GetCodeCountAsync = {Count}", result);
+        return result;
     }
 
     public async Task DeleteAsync(int id)
     {
+        _logger.LogTrace("-> DeleteAsync(id={Id})", id);
         if (!await CanDeleteAsync(id))
+        {
+            _logger.LogTrace("<- DeleteAsync FAILED: cannot delete product {Id}", id);
             throw new InvalidOperationException(_loc["Error_CannotDeleteProduct"]);
+        }
 
         var node = await _db.ProductNodes.FindAsync(id);
         if (node != null)
@@ -127,5 +153,6 @@ public class ProductService : IProductService
             await _db.SaveChangesAsync();
             _logger.LogInformation("Product deleted: Id={Id}", id);
         }
+        _logger.LogTrace("<- DeleteAsync");
     }
 }

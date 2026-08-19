@@ -23,6 +23,8 @@ public class AlertService : IAlertService
     public void Raise(AlertSeverity severity, string source, string message,
                       int? printerId = null, int? jobId = null)
     {
+        _logger.LogTrace("-> Raise(severity={Severity}, source={Source}, message={Message}, printerId={PrinterId}, jobId={JobId})",
+            severity, source, message, printerId, jobId);
         // Log at the matching severity level
         var logMsg = "Alert [{Severity}] {Source}: {Message} (Printer={PrinterId}, Job={JobId})";
         switch (severity)
@@ -61,16 +63,22 @@ public class AlertService : IAlertService
         // Auto-dismiss info alerts after 30s
         if (severity == AlertSeverity.Info)
             ScheduleDismiss(alert.Id, TimeSpan.FromSeconds(30));
+
+        _logger.LogTrace("<- Raise");
     }
 
     public void Dismiss(Guid alertId)
     {
+        _logger.LogTrace("-> Dismiss(alertId={AlertId})", alertId);
         AlertDismissed?.Invoke(this, alertId);
+        _logger.LogTrace("<- Dismiss");
     }
 
     private async void ScheduleDismiss(Guid alertId, TimeSpan delay)
     {
+        _logger.LogTrace("-> ScheduleDismiss(alertId={AlertId}, delay={Delay})", alertId, delay);
         await Task.Delay(delay);
         Dismiss(alertId);
+        _logger.LogTrace("<- ScheduleDismiss");
     }
 }

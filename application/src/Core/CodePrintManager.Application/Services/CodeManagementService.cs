@@ -25,6 +25,7 @@ public class CodeManagementService : ICodeManagementService
     public async Task<CodePage> GetCodesPageAsync(int? productId, CodeStatus? statusFilter,
         string? searchText, int page, int pageSize)
     {
+        _logger.LogTrace("-> GetCodesPageAsync(productId={ProductId}, statusFilter={StatusFilter}, searchText={SearchText}, page={Page}, pageSize={PageSize})", productId, statusFilter, searchText, page, pageSize);
         var query = _db.Codes.AsQueryable();
 
         // Filter by product (null = unassigned)
@@ -46,7 +47,9 @@ public class CodeManagementService : ICodeManagementService
             var allCodes = await query
                 .OrderBy(c => c.ImportOrder)
                 .ToListAsync();
-            return new CodePage(allCodes, totalCount, 1, totalCount, 1);
+            var resultAll = new CodePage(allCodes, totalCount, 1, totalCount, 1);
+            _logger.LogTrace("<- GetCodesPageAsync = CodePage(TotalCount={TotalCount}, Page=1, AllItems)", totalCount);
+            return resultAll;
         }
 
         var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling((double)totalCount / pageSize);
@@ -58,16 +61,22 @@ public class CodeManagementService : ICodeManagementService
             .Take(pageSize)
             .ToListAsync();
 
-        return new CodePage(codes, totalCount, page, pageSize, totalPages);
+        var result = new CodePage(codes, totalCount, page, pageSize, totalPages);
+        _logger.LogTrace("<- GetCodesPageAsync = CodePage(TotalCount={TotalCount}, Page={Page}, PageSize={PageSize}, TotalPages={TotalPages})", totalCount, page, pageSize, totalPages);
+        return result;
     }
 
     public async Task<int> GetUnassignedCountAsync()
     {
-        return await _db.Codes.CountAsync(c => c.ProductId == null);
+        _logger.LogTrace("-> GetUnassignedCountAsync()");
+        var result = await _db.Codes.CountAsync(c => c.ProductId == null);
+        _logger.LogTrace("<- GetUnassignedCountAsync = {Count}", result);
+        return result;
     }
 
     public async Task<CodeOperation> ChangeStatusAsync(IReadOnlyList<int> codeIds, CodeStatus newStatus)
     {
+        _logger.LogTrace("-> ChangeStatusAsync(codeIds=[{CodeIdCount} items], newStatus={NewStatus})", codeIds.Count, newStatus);
         var codes = await _db.Codes
             .Where(c => codeIds.Contains(c.Id) && c.Status != CodeStatus.Reserved)
             .ToListAsync();
@@ -93,14 +102,17 @@ public class CodeManagementService : ICodeManagementService
             productId: codes.FirstOrDefault()?.ProductId,
             details: new { codeCount = codes.Count, newStatus = newStatus.ToString(), codeIds = codes.Select(c => c.Id).ToList() });
 
-        return new CodeOperation(
+        var result = new CodeOperation(
             "status_change", codes.Select(c => c.Id).ToList(),
             previousStatuses, previousProductIds,
             newStatus, null, now, description);
+        _logger.LogTrace("<- ChangeStatusAsync = CodeOperation(affected={AffectedCount})", result.AffectedCodeIds.Count);
+        return result;
     }
 
     public async Task<CodeOperation> ChangeStatusBulkAsync(int? productId, CodeStatus fromStatus, CodeStatus toStatus)
     {
+        _logger.LogTrace("-> ChangeStatusBulkAsync(productId={ProductId}, fromStatus={FromStatus}, toStatus={ToStatus})", productId, fromStatus, toStatus);
         var query = productId.HasValue
             ? _db.Codes.Where(c => c.ProductId == productId.Value)
             : _db.Codes.Where(c => c.ProductId == null);
@@ -129,19 +141,25 @@ public class CodeManagementService : ICodeManagementService
             productId: productId,
             details: new { codeCount = codes.Count, fromStatus = fromStatus.ToString(), toStatus = toStatus.ToString() });
 
-        return new CodeOperation(
+        var result = new CodeOperation(
             "status_change", codes.Select(c => c.Id).ToList(),
             previousStatuses, previousProductIds,
             toStatus, null, now, description);
+        _logger.LogTrace("<- ChangeStatusBulkAsync = CodeOperation(affected={AffectedCount})", result.AffectedCodeIds.Count);
+        return result;
     }
 
     public async Task<CodeOperation> MoveCodesAsync(IReadOnlyList<int> codeIds, int targetProductId)
     {
+        _logger.LogTrace("-> MoveCodesAsync(codeIds=[{CodeIdCount} items], targetProductId={TargetProductId})", codeIds.Count, targetProductId);
         // Validate target is a leaf product
         var target = await _db.ProductNodes.FindAsync(targetProductId)
             ?? throw new InvalidOperationException(_loc.Format("Error_TargetProductNotFound", targetProductId));
         if (!target.IsLeaf)
+        {
+            _logger.LogTrace("<- MoveCodesAsync FAILED: target is not a leaf product");
             throw new InvalidOperationException(_loc["Error_CodesOnlyMoveToLeaf"]);
+        }
 
         var codes = await _db.Codes
             .Where(c => codeIds.Contains(c.Id) && c.Status != CodeStatus.Reserved)
@@ -162,18 +180,24 @@ public class CodeManagementService : ICodeManagementService
             productId: targetProductId,
             details: new { codeCount = codes.Count, targetProductId, targetName = target.Name, codeIds = codes.Select(c => c.Id).ToList() });
 
-        return new CodeOperation(
+        var result = new CodeOperation(
             "move", codes.Select(c => c.Id).ToList(),
             previousStatuses, previousProductIds,
             null, targetProductId, now, description);
+        _logger.LogTrace("<- MoveCodesAsync = CodeOperation(affected={AffectedCount})", result.AffectedCodeIds.Count);
+        return result;
     }
 
     public async Task<CodeOperation> MoveCodesBulkAsync(int? sourceProductId, CodeStatus statusFilter, int targetProductId)
     {
+        _logger.LogTrace("-> MoveCodesBulkAsync(sourceProductId={SourceProductId}, statusFilter={StatusFilter}, targetProductId={TargetProductId})", sourceProductId, statusFilter, targetProductId);
         var target = await _db.ProductNodes.FindAsync(targetProductId)
             ?? throw new InvalidOperationException(_loc.Format("Error_TargetProductNotFound", targetProductId));
         if (!target.IsLeaf)
+        {
+            _logger.LogTrace("<- MoveCodesBulkAsync FAILED: target is not a leaf product");
             throw new InvalidOperationException(_loc["Error_CodesOnlyMoveToLeaf"]);
+        }
 
         var query = sourceProductId.HasValue
             ? _db.Codes.Where(c => c.ProductId == sourceProductId.Value)
@@ -198,14 +222,17 @@ public class CodeManagementService : ICodeManagementService
             productId: targetProductId,
             details: new { codeCount = codes.Count, sourceProductId, statusFilter = statusFilter.ToString(), targetProductId, targetName = target.Name });
 
-        return new CodeOperation(
+        var result = new CodeOperation(
             "move", codes.Select(c => c.Id).ToList(),
             previousStatuses, previousProductIds,
             null, targetProductId, now, description);
+        _logger.LogTrace("<- MoveCodesBulkAsync = CodeOperation(affected={AffectedCount})", result.AffectedCodeIds.Count);
+        return result;
     }
 
     public async Task<CodeOperation> ArchiveCodesAsync(IReadOnlyList<int> codeIds, string reason)
     {
+        _logger.LogTrace("-> ArchiveCodesAsync(codeIds=[{CodeIdCount} items], reason={Reason})", codeIds.Count, reason);
         var codes = await _db.Codes
             .Where(c => codeIds.Contains(c.Id) && c.Status != CodeStatus.Reserved)
             .ToListAsync();
@@ -241,14 +268,17 @@ public class CodeManagementService : ICodeManagementService
             productId: codes.FirstOrDefault()?.ProductId,
             details: new { codeCount = codes.Count, reason, codeIds = codes.Select(c => c.Id).ToList() });
 
-        return new CodeOperation(
+        var result = new CodeOperation(
             "archive", codes.Select(c => c.Id).ToList(),
             previousStatuses, previousProductIds,
             null, null, now, description);
+        _logger.LogTrace("<- ArchiveCodesAsync = CodeOperation(affected={AffectedCount})", result.AffectedCodeIds.Count);
+        return result;
     }
 
     public async Task<CodeOperation> ArchiveCodesBulkAsync(int? productId, CodeStatus statusFilter, string reason)
     {
+        _logger.LogTrace("-> ArchiveCodesBulkAsync(productId={ProductId}, statusFilter={StatusFilter}, reason={Reason})", productId, statusFilter, reason);
         var query = productId.HasValue
             ? _db.Codes.Where(c => c.ProductId == productId.Value)
             : _db.Codes.Where(c => c.ProductId == null);
@@ -298,14 +328,17 @@ public class CodeManagementService : ICodeManagementService
             productId: productId,
             details: new { codeCount = codes.Count, reason });
 
-        return new CodeOperation(
+        var result = new CodeOperation(
             "archive", codes.Select(c => c.Id).ToList(),
             previousStatuses, previousProductIds,
             null, null, now, description);
+        _logger.LogTrace("<- ArchiveCodesBulkAsync = CodeOperation(affected={AffectedCount})", result.AffectedCodeIds.Count);
+        return result;
     }
 
     public async Task UnassignCodesAsync(int productId)
     {
+        _logger.LogTrace("-> UnassignCodesAsync(productId={ProductId})", productId);
         var codes = await _db.Codes
             .Where(c => c.ProductId == productId && c.Status != CodeStatus.Reserved)
             .ToListAsync();
@@ -319,10 +352,12 @@ public class CodeManagementService : ICodeManagementService
         await _audit.LogAsync("admin_unassign",
             productId: productId,
             details: new { codeCount = codes.Count });
+        _logger.LogTrace("<- UnassignCodesAsync (unassigned {Count} codes)", codes.Count);
     }
 
     public async Task<UndoResult> UndoOperationAsync(CodeOperation operation)
     {
+        _logger.LogTrace("-> UndoOperationAsync(operationType={OperationType}, affectedCodes={AffectedCount})", operation.OperationType, operation.AffectedCodeIds.Count);
         var reverted = 0;
         var skipped = 0;
         var skipReasons = new List<string>();
@@ -445,6 +480,8 @@ public class CodeManagementService : ICodeManagementService
         await _audit.LogAsync("admin_undo",
             details: new { operationType = operation.OperationType, reverted, skipped });
 
-        return new UndoResult(reverted, skipped, message);
+        var result = new UndoResult(reverted, skipped, message);
+        _logger.LogTrace("<- UndoOperationAsync = UndoResult(reverted={Reverted}, skipped={Skipped})", result.Reverted, result.Skipped);
+        return result;
     }
 }
