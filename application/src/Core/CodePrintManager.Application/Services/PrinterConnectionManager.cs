@@ -242,6 +242,33 @@ public class PrinterConnectionManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// Attempts a single reconnect to the printer. Returns true if connected successfully.
+    /// Used by job preparation to recover from connection drops after template activation.
+    /// </summary>
+    public async Task<bool> TryReconnectAsync(int printerId, CancellationToken ct = default)
+    {
+        _logger.LogTrace("-> TryReconnectAsync(printerId={PrinterId})", printerId);
+        if (!_adapters.TryGetValue(printerId, out var adapter))
+            return false;
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var printer = await db.Printers.FindAsync(new object[] { printerId }, ct);
+        if (printer == null)
+            return false;
+
+        var success = await adapter.ConnectAsync(printer.IpAddress, printer.Port, ct);
+        if (success)
+        {
+            _logger.LogInformation("TryReconnect: printer '{Name}' (Id={PrinterId}) reconnected", printer.Name, printerId);
+            PrinterStatusChanged?.Invoke(this,
+                new PrinterStatusChangedEvent(printerId, PrinterStatus.Offline, PrinterStatus.Idle));
+        }
+        _logger.LogTrace("<- TryReconnectAsync = {Success}", success);
+        return success;
+    }
+
     public void Dispose()
     {
         _logger.LogTrace("-> Dispose()");

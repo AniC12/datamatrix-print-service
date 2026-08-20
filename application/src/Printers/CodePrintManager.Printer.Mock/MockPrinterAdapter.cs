@@ -101,8 +101,8 @@ public class MockPrinterAdapter : IPrinterAdapter
     public Task<bool> ActivateTemplateAsync(string name, CancellationToken ct = default)
     {
         _activeTemplate = name;
-        // Activating a template resets the current counter (per SPPL spec)
-        _currentCounter = 0;
+        // Real hardware: SPGGCP is cumulative and does NOT reset on SPLLTF.
+        // The application uses baseline-delta tracking to handle this.
         return Task.FromResult(true);
     }
 
@@ -182,7 +182,19 @@ public class MockPrinterAdapter : IPrinterAdapter
         _injectedError = null;
     }
 
-    // Simulate power cycle: reset current counter but keep lifetime
+    // Set counters to specific values (for testing cumulative SPGGCP scenarios).
+    // Simulates a printer that has been used before — both counters start high.
+    public void SetCounters(int currentCounter, int lifetimeCounter)
+    {
+        _currentCounter = currentCounter;
+        _lifetimeCounter = lifetimeCounter;
+        _logger.LogInformation("Mock: Counters set to current={Current}, lifetime={Lifetime}",
+            currentCounter, lifetimeCounter);
+    }
+
+    // Simulate power cycle: reset current counter but keep lifetime.
+    // Power-cycle reset behavior is plausible (unconfirmed on real hardware)
+    // and useful for testing the backward-movement detection path.
     public void SimulatePowerCycle()
     {
         StopPrintInternal();

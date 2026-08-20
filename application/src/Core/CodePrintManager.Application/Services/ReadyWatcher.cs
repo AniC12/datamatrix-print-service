@@ -20,6 +20,7 @@ public class ReadyWatcher
     private readonly IPrinterAdapter _adapter;
     private readonly IAlertService _alerts;
     private readonly ILogger _logger;
+    private readonly int _spggcpBaseline;
 
     private CancellationTokenSource? _cts;
     private Task? _watchTask;
@@ -32,17 +33,25 @@ public class ReadyWatcher
     /// </summary>
     public event EventHandler<int>? ExternalPrintDetected;
 
+    /// <param name="spggcpBaseline">
+    /// SPGGCP value recorded right after template activation during Prepare.
+    /// SPGGCP is cumulative on real hardware (does NOT reset on SPLLTF),
+    /// so external printing is detected as currentCounter > baseline.
+    /// </param>
     public ReadyWatcher(
         PrintJob job,
         IPrinterAdapter adapter,
         IAlertService alerts,
-        ILogger logger)
+        ILogger logger,
+        int spggcpBaseline = 0)
     {
         _job = job;
         _adapter = adapter;
         _alerts = alerts;
         _logger = logger;
-        _logger.LogTrace("-> ReadyWatcher constructed (jobId={JobId}, printerId={PrinterId})", job.Id, job.PrinterId);
+        _spggcpBaseline = spggcpBaseline;
+        _logger.LogTrace("-> ReadyWatcher constructed (jobId={JobId}, printerId={PrinterId}, spggcpBaseline={Baseline})",
+            job.Id, job.PrinterId, spggcpBaseline);
     }
 
     public void Start()
@@ -89,7 +98,7 @@ public class ReadyWatcher
                 _logger.LogTrace("   WatchLoopAsync poll #{PollCount}: status={Status}, counter={Counter}",
                     _pollCount, status, currentCounter);
 
-                if (status == PrinterStatus.Printing || currentCounter > 0)
+                if (status == PrinterStatus.Printing || currentCounter > _spggcpBaseline)
                 {
                     _logger.LogWarning(
                         "ReadyWatcher: EXTERNAL PRINT DETECTED for Job {JobId}! " +

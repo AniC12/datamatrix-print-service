@@ -71,7 +71,7 @@ Understanding what survives a printer power cycle vs. what is volatile is critic
 
 | Item | SPPL Command to Read | Notes |
 |------|---------------------|-------|
-| **Current print count (SPGGCP)** | `~SPGGCP^` | Resets to 0 when ANY template is loaded (`SPLLTF`). Also resets on power cycle. From SPPL docs: "This counter resets when load any template." |
+| **Current print count (SPGGCP)** | `~SPGGCP^` | **Empirically cumulative on tested firmware — does NOT reset on `SPLLTF`.** SPPL docs state "This counter resets when load any template" but real hardware contradicts this. Power-cycle reset behavior is unconfirmed. The application uses a baseline-delta approach: records SPGGCP before each session and tracks `SPGGCP_now - baseline` as the effective counter. |
 | **Active data buffer** | N/A (no read command) | When a template with a CSV field is loaded, the CSV data is read into a runtime buffer. This buffer is volatile. Lost on power cycle. |
 | **CSV row pointer** | N/A (no read command) | The internal pointer tracking which CSV row to print next. Behavior after power cycle is undocumented — assume lost. |
 | **Active template selection** | `~SPLGAT^` | Which template is currently loaded. After power cycle, the printer may auto-load the last template (firmware-dependent) or show INIT state with no template. |
@@ -341,13 +341,15 @@ Step 3: Compare with app records
 
 Step 4: Read current counter (if printer is RUNNING or WAITING)
   → SPGGCP
-  → If SPGGCP == 0 and lifetime_delta > 0:
-      The printer was power-cycled (or template was reloaded) since our job started.
+  → SPGGCP is cumulative (does NOT reset on SPLLTF on real hardware).
+  → Compare against _previousCounter (last known value before disconnect):
+  → If SPGGCP < _previousCounter:
+      The printer was power-cycled (or firmware-level reset) since our job started.
       Data buffer is LOST. Row pointer is LOST.
-  → If SPGGCP > 0 and SPGGCP == lifetime_delta:
-      No power cycle. Normal state. Data buffer is intact.
-  → If SPGGCP > 0 and SPGGCP != lifetime_delta:
-      Someone reloaded a template after some prints. Complex state.
+  → If SPGGCP >= _previousCounter:
+      No power cycle detected via counter. Cross-check with SPGGTP delta.
+  → Note: For startup recovery (no stored _previousCounter), use indirect
+    signals: CSV missing, template mismatch, or SPGGCP == 0.
 
 Step 5: Read active template
   → SPLGAT
@@ -812,7 +814,7 @@ Read `SPGGSN` (serial number) on reconnect and compare with a stored value. If t
                                │                       │
                     ┌──────────┼──────────┐      Scenario 8:
                     ▼                     ▼      Conservative abort
-              SPGGCP consistent    SPGGCP == 0   Quarantine unrecorded
+              SPGGCP consistent    SPGGCP backward   Quarantine unrecorded
               with delta           (power cycle)
                     │                     │
               No power cycle        Power cycle
@@ -868,8 +870,9 @@ Step 5: Check template is still in storage
 
 Step 6: Reload template
   - SPLLTF{template_name}
-  - This resets SPGGCP to 0, reloads the data buffer from the new CSV
+  - Reloads the data buffer from the new CSV
   - Row pointer starts at row 1 (which is now the first UNPRINTED code)
+  - NOTE: SPGGCP does NOT reset on SPLLTF (cumulative on real hardware)
 
 Step 7: Record new lifetime baseline
   - Read SPGGTP again AFTER template reload
@@ -882,10 +885,16 @@ Step 8: Set print quantity
 Step 9: Start printing
   - SPPSAP
 
+Step 7b: Record SPGGCP baseline
+  - Read SPGGCP AFTER template reload
+  - SPGGCP is cumulative — it does NOT reset on SPLLTF
+  - Store as currentCounterBaseline for the executor
+
 Step 10: Spawn new JobExecutor
-  - Poll loop resumes from counter 0 (SPGGCP was reset by SPLLTF)
+  - counterOffset = CodesConfirmed - currentCounterBaseline
+  - effective = raw_SPGGCP + offset = CodesConfirmed + (SPGGCP_now - baseline)
   - Codes are marked printed in order from the remaining set
-  - ProgressChanged events fire with (confirmed + current_counter, quantity)
+  - ProgressChanged events fire with (CodesConfirmed + session_delta, quantity)
 ```
 
 **Why a fresh TotalBaseline?** After the resume, we have a new "session." The old baseline is stale (it covers prints from the original session plus possibly external prints). A fresh baseline after `SPLLTF` gives us a clean anchor for cross-checking the resumed segment.
@@ -933,8 +942,8 @@ Correct approach:
 **Mitigation:**
 - Each resume is a clean break. The old TotalBaseline is replaced with the new one.
 - `CodesConfirmed` is cumulative and always reflects the true total of printed codes across all sessions.
-- The poll loop always starts from 0 (SPGGCP reset by SPLLTF on resume).
-- Math: `total_printed = old_confirmed + new_SPGGCP`
+- The poll loop uses baseline-delta tracking (SPGGCP does NOT reset on SPLLTF).
+- Math: `total_printed = old_confirmed + (new_SPGGCP - new_baseline)`
 
 ### 11.3 Very Long Disconnection (Hours/Days)
 
@@ -1077,6 +1086,20 @@ Because `TotalBaseline` is recorded during Prepare (not during Start), Ready job
 **Implementation rule:** The cancel flow's DB mutations (mark codes Printed, quarantine boundary, return remaining, set job Cancelled) must execute in a **single transaction**. No DB state is changed until all network calls have completed or definitively failed. This guarantees that a connection drop during cancel leaves the DB in a clean pre-cancel state, and standard recovery handles the rest.
 
 **UX note:** The operator clicked Cancel but the job is still `Printing` in the DB after the connection drop. On reconnect, the recovery dialog shows Resume/Abort — which may confuse the operator ("I already cancelled this"). Mitigation: store a lightweight `CancelRequested` flag in the DB before starting the network calls. The recovery dialog can then default to Abort and display: "A cancel was in progress when the connection was lost."
+
+### 11.11 Scenario 7B Limitation with Cumulative SPGGCP
+
+**Scenario:** While a job is RUNNING and our app is disconnected, someone reloads **our same template** on the printer and starts printing from row 1.
+
+**Problem:** With cumulative SPGGCP, both SPGGTP and SPGGCP advance in lockstep. The divergence check (`lifetimeDelta > effectiveCounter`) cannot detect this because the delta from external prints shows up equally in both counters. The template-match check (`SPLGAT`) is also blind since the active template is still "our" template.
+
+**Impact:** On reconnect, the app would think it printed more codes than it actually did. It would mark codes as Printed that were actually printed **twice** (duplicate codes on physical products).
+
+**Why this is a hardware limitation:** There is no SPPL command that distinguishes "our session's prints" from "someone else's prints using the same template." Both counters are global.
+
+**Mitigation:** This scenario requires deliberate human action (someone physically goes to the printer, reloads the same template, and starts printing) while the app is disconnected. It's an extremely rare edge case. The operator should be trained to never reload a template on a printer that has an active app-managed job.
+
+**Detection gap acknowledged:** The application documents this as a known limitation. No automated detection is possible with current hardware.
 
 ---
 

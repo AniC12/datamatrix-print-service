@@ -276,10 +276,15 @@ public partial class App : System.Windows.Application
             var expectedCsv = job.Product?.PrinterCsvName;
             var csvPresent = expectedCsv == null || csvFiles.Contains(expectedCsv);
 
-            // Power cycle detection: SPGGCP == 0 but lifetime shows prints happened
-            var powerCycled = currentCounter == 0
+            // Power cycle detection: SPGGCP is cumulative on real hardware (does NOT
+            // reset on SPLLTF), so we can't use SPGGCP == 0 as a reliable signal.
+            // Instead, detect power cycle via indirect signals:
+            //   - CSV file is missing (volatile storage lost on power cycle)
+            //   - SPGGTP delta > 0 but CSV is gone (prints happened before power loss)
+            // Also keep SPGGCP == 0 as a secondary signal (may reset on some firmware).
+            var powerCycled = (currentCounter == 0 || !csvPresent)
                 && job.TotalBaseline.HasValue
-                && printerConfirmed > 0;
+                && (job.Status == JobStatus.Printing || job.Status == JobStatus.Ready);
 
             // Build recommendation
             string recommendation;

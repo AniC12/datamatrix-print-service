@@ -136,7 +136,7 @@ public class RecoveryScenarioTests : IntegrationTestBase
         var printerId = await SetupPrinterAsync("MultiResumePrinter");
         var productId = await SetupProductAsync("MultiResumeProduct", "mr.csv");
         await ImportCodesAsync(productId, 20);
-        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 60 });
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 300 });
 
         var createResp = await Client.PostAsJsonAsync("/api/jobs", new
             { ProductId = productId, PrinterId = printerId, Quantity = 10 });

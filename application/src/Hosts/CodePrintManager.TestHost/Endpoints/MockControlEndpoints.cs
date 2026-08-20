@@ -66,6 +66,15 @@ public static class MockControlEndpoints
             return Results.Ok(new { Status = "Power cycle simulated", CurrentCounter = 0 });
         });
 
+        group.MapPost("/{id:int}/set-counters", (int id, SetCountersRequest req, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SetCounters(req.CurrentCounter, req.LifetimeCounter);
+            return Results.Ok(new { CurrentCounter = req.CurrentCounter, LifetimeCounter = req.LifetimeCounter });
+        });
+
         group.MapPost("/{id:int}/set-serial", (int id, SetSerialRequest req, PrinterConnectionManager connMgr) =>
         {
             var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
@@ -88,3 +97,4 @@ public static class MockControlEndpoints
 public record InjectErrorRequest(string Status);
 public record SetSpeedRequest(int Ms);
 public record SetSerialRequest(string Serial);
+public record SetCountersRequest(int CurrentCounter, int LifetimeCounter);

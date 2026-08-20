@@ -22,7 +22,7 @@ public class JobExecutor
     private readonly int _counterOffset;
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
-    private int _previousCounter;
+    private int _previousCounter = -1;
     private int _crossCheckTick;
     private bool _needsInspection;
     private int _pollCycleCount;
@@ -33,9 +33,9 @@ public class JobExecutor
 
     /// <param name="counterOffset">
     /// Offset to add to the raw SPGGCP counter to get the effective job-level counter.
-    /// Set to job.CodesConfirmed when resuming after a full Resume Procedure (template
-    /// reload resets SPGGCP to 0, but the job already has confirmed codes).
-    /// Default 0 for fresh starts.
+    /// SPGGCP is cumulative on real hardware (does NOT reset on SPLLTF).
+    /// For fresh starts: offset = -spggcpBaseline (so effective starts at 0).
+    /// For resumes: offset = CodesConfirmed - spggcpBaseline.
     /// </param>
     public JobExecutor(
         PrintJob job,
@@ -110,6 +110,24 @@ public class JobExecutor
                 var effectiveCounter = snapshot.Counter + _counterOffset;
                 _logger.LogDebug("Job {JobId} poll #{Cycle}: counter={Counter} offset={Offset} effective={Effective} (prev={Previous}) [{CycleMs}ms]",
                     _job.Id, _pollCycleCount, snapshot.Counter, _counterOffset, effectiveCounter, _previousCounter, cycleSw.ElapsedMilliseconds);
+
+                // Defense-in-depth: detect backward SPGGCP movement during normal polling.
+                // On real hardware, power cycles cause TCP disconnect first (handled by Check 4
+                // in RunPostReconnectInspectionAsync). This catches edge cases where the counter
+                // goes backward without a network disruption.
+                if (_previousCounter >= 0 && snapshot.Counter < _previousCounter)
+                {
+                    _logger.LogError(
+                        "Job {JobId}: SPGGCP went backward ({Previous} → {Current}). " +
+                        "Possible power cycle or firmware reset. Halting job.",
+                        _job.Id, _previousCounter, snapshot.Counter);
+                    _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                        $"SPGGCP went backward ({_previousCounter} → {snapshot.Counter}). Job #{_job.Id} halted.",
+                        printerId: _job.PrinterId, jobId: _job.Id);
+                    await SetJobErrorAsync("SPGGCP went backward — possible power cycle");
+                    return;
+                }
+
                 DetectAnomalies(snapshot);
 
                 if (effectiveCounter > _job.CodesConfirmed)
@@ -271,9 +289,10 @@ public class JobExecutor
         var effectiveDelta = lifetimeDelta ?? (currentCounter + _counterOffset);
 
         // --- Check 4: Power cycle / template reload detection ---
-        // SPGGCP == 0 means the current-session counter was reset (power cycle or template reload).
-        // If lifetime delta > confirmed, prints happened but the row pointer is lost.
-        if (currentCounter == 0 && _previousCounter > 0)
+        // SPGGCP is cumulative on real hardware (does NOT reset on SPLLTF).
+        // A backward movement (currentCounter < previousCounter) indicates a power cycle
+        // or firmware-level reset. We also check currentCounter == 0 as a secondary signal.
+        if (_previousCounter >= 0 && currentCounter < _previousCounter)
         {
             _logger.LogWarning(
                 "Job {JobId}: SPGGCP reset to 0 (was {Previous}). Power cycle or template reload detected.",
@@ -310,8 +329,11 @@ public class JobExecutor
             return false;
         }
 
-        // --- Check 5: Scenario 7B — RUNNING + template match + SPGGCP reset ---
-        // Printer is running but counter seems inconsistent with our tracking.
+        // --- Check 5: Scenario 7B — RUNNING + counter divergence ---
+        // If SPGGTP delta exceeds effective SPGGCP delta, external prints occurred.
+        // NOTE: With cumulative SPGGCP, if someone reloads our SAME template while
+        // running, both counters advance in lockstep — this check CANNOT detect that
+        // scenario. This is a known hardware limitation.
         // This is a warning-only scenario (do NOT stop the printer).
         if (status == PrinterStatus.Printing && lifetimeDelta.HasValue)
         {
@@ -412,17 +434,21 @@ public class JobExecutor
         _logger.LogTrace("-> DetectAnomalies(counter={Counter}, lifetimeDelta={Delta}, prevCounter={Prev})",
             snapshot.Counter, snapshot.LifetimeDelta, _previousCounter);
 
-        if (snapshot.LifetimeDelta.HasValue && snapshot.LifetimeDelta != snapshot.Counter)
+        // Cross-check: compare SPGGTP delta against effective counter (SPGGCP + offset),
+        // not raw SPGGCP. Both should track the same session delta.
+        var effectiveForCheck = snapshot.Counter + _counterOffset;
+        if (snapshot.LifetimeDelta.HasValue && snapshot.LifetimeDelta != effectiveForCheck)
         {
-            _logger.LogWarning("Job {JobId} ANOMALY: counter mismatch SPGGCP={Counter}, SPGGTP delta={Delta}",
-                _job.Id, snapshot.Counter, snapshot.LifetimeDelta);
+            _logger.LogWarning("Job {JobId} ANOMALY: counter mismatch effective={Effective}, SPGGTP delta={Delta} (raw SPGGCP={Raw})",
+                _job.Id, effectiveForCheck, snapshot.LifetimeDelta, snapshot.Counter);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
-                _loc.Format("Alert_CounterMismatch", snapshot.Counter, snapshot.LifetimeDelta),
+                _loc.Format("Alert_CounterMismatch", effectiveForCheck, snapshot.LifetimeDelta),
                 printerId: _job.PrinterId, jobId: _job.Id);
         }
 
+        // Counter jump detection: skip on first poll (_previousCounter == -1 sentinel)
         var advance = snapshot.Counter - _previousCounter;
-        if (_previousCounter > 0 && advance > 10)
+        if (_previousCounter >= 0 && advance > 10)
         {
             _logger.LogWarning("Job {JobId} ANOMALY: unexpected counter jump +{Advance} (prev={Prev}, now={Now})",
                 _job.Id, advance, _previousCounter, snapshot.Counter);
@@ -454,6 +480,18 @@ public class JobExecutor
     private async Task CompleteJobAsync()
     {
         _logger.LogTrace("-> CompleteJobAsync() for Job {JobId}", _job.Id);
+
+        // Stop the printer to prevent further prints beyond the job quantity
+        try
+        {
+            await _adapter.StopPrintAsync();
+            _logger.LogDebug("Job {JobId}: printer stopped on completion", _job.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Job {JobId}: failed to stop printer on completion (non-fatal)", _job.Id);
+        }
+
         _job.Status = JobStatus.Completed;
         _job.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

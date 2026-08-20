@@ -161,9 +161,11 @@ public class PrintJobService : IPrintJobService
             progress?.Report("loading_template");
             var templateName = job.Product.TemplateFile
                 ?? throw new InvalidOperationException(_loc["Error_NoTemplateConfigured"]);
-            _logger.LogDebug("Job {JobId}: checking template '{Template}'", jobId, templateName);
+            // Use filename only for comparison — printer stores filenames, not full paths
+            var templateFileName = Path.GetFileName(templateName);
+            _logger.LogDebug("Job {JobId}: checking template '{Template}' (filename='{FileName}')", jobId, templateName, templateFileName);
             var templates = await adapter.ListTemplatesAsync(ct);
-            if (!templates.Contains(templateName))
+            if (!templates.Contains(templateFileName))
             {
                 // Attempt to upload .rox file from disk
                 if (File.Exists(templateName))
@@ -191,7 +193,7 @@ public class PrintJobService : IPrintJobService
 
             // Activate template (resets counter, loads CSV buffer)
             ct.ThrowIfCancellationRequested();
-            var activateOk = await adapter.ActivateTemplateAsync(templateName, ct);
+            var activateOk = await adapter.ActivateTemplateAsync(templateFileName, ct);
             if (!activateOk)
                 throw new InvalidOperationException(_loc["Error_TemplateActivationFailed"]);
             _logger.LogDebug("Job {JobId}: template activated", jobId);
@@ -201,9 +203,39 @@ public class PrintJobService : IPrintJobService
             // Record TotalBaseline during Prepare so Ready jobs have a
             // SPGGTP anchor for recovery inspection. The lifetime counter
             // won't change until actual printing occurs.
-            job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
-            _logger.LogDebug("Job {JobId}: TotalBaseline recorded during Prepare = {Baseline}",
-                jobId, job.TotalBaseline);
+            // NOTE: Real Savema printers may drop the TCP connection after
+            // template activation (SPLLTF). Retry with reconnect if needed.
+            int totalBaseline;
+            try
+            {
+                totalBaseline = await adapter.GetTotalCounterAsync(ct);
+            }
+            catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException)
+            {
+                _logger.LogWarning("Job {JobId}: connection lost after template activation, waiting for reconnect...", jobId);
+                // Wait for the printer to come back (up to 5 seconds)
+                for (int attempt = 0; attempt < 10; attempt++)
+                {
+                    await Task.Delay(500, ct);
+                    if (await _connectionManager.TryReconnectAsync(job.PrinterId, ct))
+                    {
+                        _logger.LogInformation("Job {JobId}: reconnected after template activation (attempt {Attempt})", jobId, attempt + 1);
+                        adapter = _connectionManager.GetAdapter(job.PrinterId)
+                            ?? throw new InvalidOperationException(_loc.Format("Error_PrinterNotConnected", job.Printer.Name));
+                        break;
+                    }
+                    if (attempt == 9)
+                        throw new InvalidOperationException(_loc.Format("Error_PrinterNotConnected", job.Printer.Name));
+                }
+                totalBaseline = await adapter.GetTotalCounterAsync(ct);
+            }
+            job.TotalBaseline = totalBaseline;
+            // Also read SPGGCP baseline for the ReadyWatcher.
+            // SPGGCP is cumulative on real hardware — the watcher needs this
+            // baseline to detect external prints as counter > baseline.
+            var spggcpBaseline = await adapter.GetCurrentCounterAsync(ct);
+            _logger.LogDebug("Job {JobId}: TotalBaseline recorded during Prepare = {Baseline}, SPGGCP baseline = {CpBaseline}",
+                jobId, job.TotalBaseline, spggcpBaseline);
 
             job.Status = JobStatus.Ready;
             await _db.SaveChangesAsync();
@@ -213,7 +245,7 @@ public class PrintJobService : IPrintJobService
             progress?.Report("complete");
 
             // Start a ReadyWatcher to detect external print starts
-            SpawnReadyWatcher(job, adapter);
+            SpawnReadyWatcher(job, adapter, spggcpBaseline);
             _logger.LogTrace("<- PrepareJobAsync completed ({ElapsedMs}ms)", totalSw.ElapsedMilliseconds);
         }
         catch (OperationCanceledException)
@@ -271,6 +303,13 @@ public class PrintJobService : IPrintJobService
         // printer may have been used between Prepare and Start, so we refresh.)
         job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
 
+        // Read SPGGCP baseline BEFORE starting print.
+        // Real Savema printers do NOT reset SPGGCP on SPLLTF — the value is cumulative.
+        // We subtract this baseline in the executor to track only new prints.
+        var currentCounterBaseline = await adapter.GetCurrentCounterAsync(ct);
+        _logger.LogInformation("Job {JobId}: SPGGCP baseline = {Baseline} (will be subtracted from poll readings)",
+            jobId, currentCounterBaseline);
+
         // Set quantity and start
         await adapter.SetPrintQuantityAsync(job.Quantity, ct);
         await adapter.StartPrintAsync(ct);
@@ -279,8 +318,8 @@ public class PrintJobService : IPrintJobService
         job.StartedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Job {JobId} started (baseline={Baseline}, qty={Quantity})",
-            jobId, job.TotalBaseline, job.Quantity);
+        _logger.LogInformation("Job {JobId} started (SPGGTP baseline={TotalBaseline}, SPGGCP baseline={CounterBaseline}, qty={Quantity})",
+            jobId, job.TotalBaseline, currentCounterBaseline, job.Quantity);
 
         // Spawn job executor with its own DbContext scope (outlives the calling scope)
         IServiceScope? executorScope = null;
@@ -305,7 +344,8 @@ public class PrintJobService : IPrintJobService
             executorCodePool = _codePool;
         }
 
-        var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc);
+        var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
+            counterOffset: -currentCounterBaseline);
         executor.ProgressChanged += (_, e) =>
         {
             _eventBus.RaiseProgressChanged(this, e);
@@ -319,7 +359,8 @@ public class PrintJobService : IPrintJobService
             JobCompleted?.Invoke(this, e);
         };
         _jobRegistry.Register(jobId, executor);
-        _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope})", jobId, _scopeFactory != null);
+        _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope}, counterOffset={Offset})",
+            jobId, _scopeFactory != null, -currentCounterBaseline);
         executor.Start();
 
         await _audit.LogAsync("job_started", printerId: job.PrinterId, jobId: jobId);
@@ -617,15 +658,44 @@ public class PrintJobService : IPrintJobService
 
             ct.ThrowIfCancellationRequested();
 
-            // Step 6: Reload template (resets SPGGCP to 0, reloads data buffer from new CSV)
+            // Step 6: Reload template (reloads data buffer from new CSV)
             var activateOk = await adapter.ActivateTemplateAsync(templateFileName, ct);
             if (!activateOk)
                 throw new InvalidOperationException(_loc["Error_TemplateActivationFailed"]);
-            _logger.LogDebug("Job {JobId}: template reloaded, SPGGCP reset to 0", jobId);
+            _logger.LogDebug("Job {JobId}: template reloaded", jobId);
 
-            // Step 7: Record fresh lifetime baseline
-            job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
-            _logger.LogDebug("Job {JobId}: fresh TotalBaseline = {Baseline}", jobId, job.TotalBaseline);
+            // Step 7: Record fresh lifetime baseline + SPGGCP baseline.
+            // NOTE: Real Savema printers may drop the TCP connection after
+            // template activation (SPLLTF). Retry with reconnect if needed.
+            int totalBaseline;
+            int currentCounterBaseline;
+            try
+            {
+                totalBaseline = await adapter.GetTotalCounterAsync(ct);
+                currentCounterBaseline = await adapter.GetCurrentCounterAsync(ct);
+            }
+            catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException)
+            {
+                _logger.LogWarning("Job {JobId}: connection lost after template activation during resume, waiting for reconnect...", jobId);
+                for (int attempt = 0; attempt < 10; attempt++)
+                {
+                    await Task.Delay(500, ct);
+                    if (await _connectionManager.TryReconnectAsync(job.PrinterId, ct))
+                    {
+                        _logger.LogInformation("Job {JobId}: reconnected after template activation (attempt {Attempt})", jobId, attempt + 1);
+                        adapter = _connectionManager.GetAdapter(job.PrinterId)
+                            ?? throw new InvalidOperationException(_loc.Format("Error_PrinterNotConnected", job.Printer.Name));
+                        break;
+                    }
+                    if (attempt == 9)
+                        throw new InvalidOperationException(_loc.Format("Error_PrinterNotConnected", job.Printer.Name));
+                }
+                totalBaseline = await adapter.GetTotalCounterAsync(ct);
+                currentCounterBaseline = await adapter.GetCurrentCounterAsync(ct);
+            }
+            job.TotalBaseline = totalBaseline;
+            _logger.LogDebug("Job {JobId}: fresh TotalBaseline = {Baseline}, SPGGCP baseline = {CpBaseline}",
+                jobId, job.TotalBaseline, currentCounterBaseline);
 
             // Step 8: Set print quantity
             await adapter.SetPrintQuantityAsync(remaining, ct);
@@ -637,10 +707,11 @@ public class PrintJobService : IPrintJobService
             await _db.SaveChangesAsync();
 
             // Step 10: Spawn new JobExecutor with counter offset.
-            // After the full Resume Procedure, SPGGCP was reset to 0 by template reload.
-            // The executor needs to add this offset to raw counter values to map back to
-            // the job-level CodesConfirmed/Quantity space.
-            var counterOffset = job.CodesConfirmed;
+            // SPGGCP is cumulative (does NOT reset on template reload on real hardware).
+            // Offset maps raw SPGGCP to job-level space:
+            //   effective = raw_SPGGCP + offset = raw_SPGGCP + (CodesConfirmed - baseline)
+            //             = CodesConfirmed + (raw_SPGGCP - baseline) = CodesConfirmed + session_delta
+            var counterOffset = job.CodesConfirmed - currentCounterBaseline;
 
             IServiceScope? executorScope = null;
             AppDbContext executorDb;
@@ -691,10 +762,10 @@ public class PrintJobService : IPrintJobService
 
     // --- ReadyWatcher helpers ---
 
-    private void SpawnReadyWatcher(PrintJob job, IPrinterAdapter adapter)
+    private void SpawnReadyWatcher(PrintJob job, IPrinterAdapter adapter, int spggcpBaseline = 0)
     {
-        _logger.LogTrace("-> SpawnReadyWatcher(jobId={JobId})", job.Id);
-        var watcher = new ReadyWatcher(job, adapter, _alerts, _logger);
+        _logger.LogTrace("-> SpawnReadyWatcher(jobId={JobId}, spggcpBaseline={Baseline})", job.Id, spggcpBaseline);
+        var watcher = new ReadyWatcher(job, adapter, _alerts, _logger, spggcpBaseline);
         watcher.ExternalPrintDetected += (_, jobId) =>
         {
             _logger.LogDebug("ReadyWatcher ExternalPrintDetected event fired for Job {JobId}", jobId);
@@ -747,4 +818,5 @@ public class PrintJobService : IPrintJobService
             _logger.LogTrace("<- HandleExternalPrintDetectedAsync FAILED");
         }
     }
+
 }

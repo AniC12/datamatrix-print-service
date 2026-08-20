@@ -359,7 +359,17 @@ public partial class ProductsViewModel : ObservableObject
 
         var filePath = dialog.FileName;
         var lines = await System.IO.File.ReadAllLinesAsync(filePath);
-        var codes = lines.Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        var codes = lines
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l =>
+            {
+                // Handle standard CSV quoting: "value with ""quotes""" → value with "quotes"
+                var trimmed = l.Trim();
+                if (trimmed.Length >= 2 && trimmed.StartsWith('"') && trimmed.EndsWith('"'))
+                    return trimmed[1..^1].Replace("\"\"", "\"");
+                return trimmed;
+            })
+            .ToList();
         var batchName = System.IO.Path.GetFileNameWithoutExtension(filePath);
         _logger.LogInformation("Products: Importing CSV '{FileName}' ({LineCount} lines) for Product {Id}",
             System.IO.Path.GetFileName(filePath), codes.Count, SelectedProduct.Id);
