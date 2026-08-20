@@ -362,21 +362,17 @@ public partial class JobsViewModel : ObservableObject
             e.JobId, e.Confirmed, e.Total);
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            // Update the active job in the list and re-insert to trigger binding refresh
-            var index = -1;
+            // Update the job entity in-place (for data integrity).
+            // Do NOT replace the item in the collection (ActiveJobs[i] = job) because
+            // that fires CollectionChanged/Replace which causes WPF ListBox to deselect
+            // the item, hiding the detail pane while printing.
             for (int i = 0; i < ActiveJobs.Count; i++)
             {
                 if (ActiveJobs[i].Id == e.JobId)
                 {
-                    index = i;
+                    ActiveJobs[i].CodesConfirmed = e.Confirmed;
                     break;
                 }
-            }
-            if (index >= 0)
-            {
-                var job = ActiveJobs[index];
-                job.CodesConfirmed = e.Confirmed;
-                ActiveJobs[index] = job; // triggers CollectionChanged → re-binds list item
             }
 
             // Update detail view if this is the selected job
