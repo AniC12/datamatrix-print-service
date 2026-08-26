@@ -304,8 +304,8 @@ public class PrintJobService : IPrintJobService
         job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
 
         // Read SPGGCP baseline BEFORE starting print.
-        // Real Savema printers do NOT reset SPGGCP on SPLLTF — the value is cumulative.
-        // We subtract this baseline in the executor to track only new prints.
+        // SPGGCP behavior varies by firmware: some reset on SPLLTF, some are cumulative.
+        // We always record a baseline so the executor can compute session-only delta.
         var currentCounterBaseline = await adapter.GetCurrentCounterAsync(ct);
         _logger.LogInformation("Job {JobId}: SPGGCP baseline = {Baseline} (will be subtracted from poll readings)",
             jobId, currentCounterBaseline);
@@ -707,8 +707,8 @@ public class PrintJobService : IPrintJobService
             await _db.SaveChangesAsync();
 
             // Step 10: Spawn new JobExecutor with counter offset.
-            // SPGGCP is cumulative (does NOT reset on template reload on real hardware).
-            // Offset maps raw SPGGCP to job-level space:
+            // SPGGCP may or may not reset on SPLLTF depending on firmware version.
+            // We always baseline it so the offset formula works either way:
             //   effective = raw_SPGGCP + offset = raw_SPGGCP + (CodesConfirmed - baseline)
             //             = CodesConfirmed + (raw_SPGGCP - baseline) = CodesConfirmed + session_delta
             var counterOffset = job.CodesConfirmed - currentCounterBaseline;

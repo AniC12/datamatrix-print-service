@@ -146,7 +146,7 @@ Job #47:
 1. **Reload template** — always call `SPLLTF` even if already active. This:
    - Loads fresh CSV data into the data buffer (ensures new codes are used)
    - Resets CSV row pointer to row 1
-   - **Note:** SPGGCP does NOT reset on `SPLLTF` (cumulative on real hardware). The app records a SPGGCP baseline after reload for delta tracking.
+   - **Note:** SPGGCP behavior on `SPLLTF` varies by firmware version (some reset to 0, some are cumulative). The app always records a SPGGCP baseline after reload for delta tracking, so the formula works regardless.
    - **On FAIL**: transition job to `error`, codes stay `reserved`. Read `SPPSTA` for diagnostics. UI shows: *"Template load failed. Printer state: {state}."* with **[Retry]** and **[Cancel Job]**. Retry re-checks `SPPSTA == WAITING` then re-attempts `SPLLTF`. Cancel returns all reserved codes to `available` (no burn needed — nothing was printed).
 2. **Record lifetime counter** — read `SPGGTP` as `total_baseline` (cross-check, survives power cycle)
 3. **Set print quantity** — `SPPSLQ{N}` (limited print count)
@@ -155,7 +155,7 @@ Job #47:
 
 #### Step 6: Monitor
 - Poll `SPGGCP` at regular interval (e.g., every 500ms)
-- `codes_printed = SPGGCP - spggcp_baseline` (SPGGCP is cumulative, NOT reset by template reload)
+- `codes_printed = SPGGCP - spggcp_baseline` (baseline-delta approach works regardless of firmware reset behavior)
 - **Cross-check**: periodically verify `SPGGTP - total_baseline == SPGGCP - spggcp_baseline`
 - **Tertiary check**: `quantity - SPPGLQ == SPGGCP` (if firmware supports)
 - Mark codes as `printed` in order (first N codes from the reserved list)

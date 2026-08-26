@@ -71,7 +71,7 @@ Understanding what survives a printer power cycle vs. what is volatile is critic
 
 | Item | SPPL Command to Read | Notes |
 |------|---------------------|-------|
-| **Current print count (SPGGCP)** | `~SPGGCP^` | **Empirically cumulative on tested firmware — does NOT reset on `SPLLTF`.** SPPL docs state "This counter resets when load any template" but real hardware contradicts this. Power-cycle reset behavior is unconfirmed. The application uses a baseline-delta approach: records SPGGCP before each session and tracks `SPGGCP_now - baseline` as the effective counter. |
+| **Current print count (SPGGCP)** | `~SPGGCP^` | **Behavior on `SPLLTF` varies by firmware version.** SPPL docs state "This counter resets when load any template"; tested firmware (serial 26050155) confirms reset on SPLLTF. Other firmware may be cumulative. Power-cycle reset behavior is unconfirmed. The application uses a baseline-delta approach: records SPGGCP before each session and tracks `SPGGCP_now - baseline` as the effective counter, which works regardless of reset behavior. |
 | **Active data buffer** | N/A (no read command) | When a template with a CSV field is loaded, the CSV data is read into a runtime buffer. This buffer is volatile. Lost on power cycle. |
 | **CSV row pointer** | N/A (no read command) | The internal pointer tracking which CSV row to print next. Behavior after power cycle is undocumented — assume lost. |
 | **Active template selection** | `~SPLGAT^` | Which template is currently loaded. After power cycle, the printer may auto-load the last template (firmware-dependent) or show INIT state with no template. |
@@ -341,7 +341,7 @@ Step 3: Compare with app records
 
 Step 4: Read current counter (if printer is RUNNING or WAITING)
   → SPGGCP
-  → SPGGCP is cumulative (does NOT reset on SPLLTF on real hardware).
+  → SPGGCP may or may not reset on SPLLTF (firmware-dependent). Baseline-delta tracking handles both.
   → Compare against _previousCounter (last known value before disconnect):
   → If SPGGCP < _previousCounter:
       The printer was power-cycled (or firmware-level reset) since our job started.
@@ -872,7 +872,7 @@ Step 6: Reload template
   - SPLLTF{template_name}
   - Reloads the data buffer from the new CSV
   - Row pointer starts at row 1 (which is now the first UNPRINTED code)
-  - NOTE: SPGGCP does NOT reset on SPLLTF (cumulative on real hardware)
+  - NOTE: SPGGCP may or may not reset on SPLLTF (firmware-dependent); baseline-delta handles both
 
 Step 7: Record new lifetime baseline
   - Read SPGGTP again AFTER template reload
@@ -887,7 +887,7 @@ Step 9: Start printing
 
 Step 7b: Record SPGGCP baseline
   - Read SPGGCP AFTER template reload
-  - SPGGCP is cumulative — it does NOT reset on SPLLTF
+  - SPGGCP may or may not reset on SPLLTF (firmware-dependent)
   - Store as currentCounterBaseline for the executor
 
 Step 10: Spawn new JobExecutor
@@ -942,7 +942,7 @@ Correct approach:
 **Mitigation:**
 - Each resume is a clean break. The old TotalBaseline is replaced with the new one.
 - `CodesConfirmed` is cumulative and always reflects the true total of printed codes across all sessions.
-- The poll loop uses baseline-delta tracking (SPGGCP does NOT reset on SPLLTF).
+- The poll loop uses baseline-delta tracking (works regardless of whether SPGGCP resets on SPLLTF).
 - Math: `total_printed = old_confirmed + (new_SPGGCP - new_baseline)`
 
 ### 11.3 Very Long Disconnection (Hours/Days)
@@ -1091,7 +1091,7 @@ Because `TotalBaseline` is recorded during Prepare (not during Start), Ready job
 
 **Scenario:** While a job is RUNNING and our app is disconnected, someone reloads **our same template** on the printer and starts printing from row 1.
 
-**Problem:** With cumulative SPGGCP, both SPGGTP and SPGGCP advance in lockstep. The divergence check (`lifetimeDelta > effectiveCounter`) cannot detect this because the delta from external prints shows up equally in both counters. The template-match check (`SPLGAT`) is also blind since the active template is still "our" template.
+**Problem:** Both SPGGTP and SPGGCP advance in lockstep when printing with the same template. The divergence check (`lifetimeDelta > sessionCounter`) cannot detect this because the delta from external prints shows up equally in both counters. The template-match check (`SPLGAT`) is also blind since the active template is still "our" template.
 
 **Impact:** On reconnect, the app would think it printed more codes than it actually did. It would mark codes as Printed that were actually printed **twice** (duplicate codes on physical products).
 

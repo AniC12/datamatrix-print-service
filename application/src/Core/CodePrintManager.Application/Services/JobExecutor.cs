@@ -33,7 +33,7 @@ public class JobExecutor
 
     /// <param name="counterOffset">
     /// Offset to add to the raw SPGGCP counter to get the effective job-level counter.
-    /// SPGGCP is cumulative on real hardware (does NOT reset on SPLLTF).
+    /// SPGGCP may or may not reset on SPLLTF depending on firmware; we always baseline it.
     /// For fresh starts: offset = -spggcpBaseline (so effective starts at 0).
     /// For resumes: offset = CodesConfirmed - spggcpBaseline.
     /// </param>
@@ -289,9 +289,9 @@ public class JobExecutor
         var effectiveDelta = lifetimeDelta ?? (currentCounter + _counterOffset);
 
         // --- Check 4: Power cycle / template reload detection ---
-        // SPGGCP is cumulative on real hardware (does NOT reset on SPLLTF).
-        // A backward movement (currentCounter < previousCounter) indicates a power cycle
-        // or firmware-level reset. We also check currentCounter == 0 as a secondary signal.
+        // SPGGCP behavior on SPLLTF varies by firmware (some reset, some don't).
+        // A backward movement (currentCounter < previousCounter) indicates a power cycle,
+        // firmware-level reset, or external template reload.
         if (_previousCounter >= 0 && currentCounter < _previousCounter)
         {
             _logger.LogWarning(
@@ -330,21 +330,20 @@ public class JobExecutor
         }
 
         // --- Check 5: Scenario 7B — RUNNING + counter divergence ---
-        // If SPGGTP delta exceeds effective SPGGCP delta, external prints occurred.
-        // NOTE: With cumulative SPGGCP, if someone reloads our SAME template while
-        // running, both counters advance in lockstep — this check CANNOT detect that
-        // scenario. This is a known hardware limitation.
+        // If SPGGTP delta exceeds raw SPGGCP, external prints occurred.
+        // Both are session-only (baselined at the same Start/Resume moment).
+        // NOTE: If someone reloads our SAME template while running, both counters
+        // advance in lockstep — this check CANNOT detect that scenario.
         // This is a warning-only scenario (do NOT stop the printer).
         if (status == PrinterStatus.Printing && lifetimeDelta.HasValue)
         {
-            var effectiveCounter = currentCounter + _counterOffset;
-            if (lifetimeDelta.Value > effectiveCounter)
+            if (lifetimeDelta.Value > currentCounter)
             {
-                var discrepancy = lifetimeDelta.Value - effectiveCounter;
+                var discrepancy = lifetimeDelta.Value - currentCounter;
                 _logger.LogWarning(
-                    "Job {JobId}: printer RUNNING but lifetime delta ({Delta}) exceeds counter ({Counter}). " +
+                    "Job {JobId}: printer RUNNING but lifetime delta ({Delta}) exceeds SPGGCP ({Counter}). " +
                     "Possible external prints or template reload while running.",
-                    _job.Id, lifetimeDelta, effectiveCounter);
+                    _job.Id, lifetimeDelta, currentCounter);
                 _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
                     $"WARNING: Lifetime counter discrepancy while printing. " +
                     $"SPGGTP delta={lifetimeDelta}, SPGGCP={currentCounter}. " +
@@ -355,13 +354,18 @@ public class JobExecutor
         }
 
         // --- All checks passed: reconcile any missed progress ---
-        if (lifetimeDelta.HasValue && lifetimeDelta.Value > _job.CodesConfirmed)
+        // lifetimeDelta is session-only. Convert to effective counter (add offset)
+        // for comparison with CodesConfirmed which spans all sessions.
+        var effectiveFromLifetime = lifetimeDelta.HasValue
+            ? lifetimeDelta.Value + _counterOffset
+            : (int?)null;
+        if (effectiveFromLifetime.HasValue && effectiveFromLifetime.Value > _job.CodesConfirmed)
         {
-            var catchUp = lifetimeDelta.Value - _job.CodesConfirmed;
+            var catchUp = effectiveFromLifetime.Value - _job.CodesConfirmed;
             _logger.LogInformation(
-                "Job {JobId}: catching up {CatchUp} missed prints after reconnect (lifetime delta={Delta})",
-                _job.Id, catchUp, lifetimeDelta);
-            await CommitProgressAsync(lifetimeDelta.Value);
+                "Job {JobId}: catching up {CatchUp} missed prints after reconnect (lifetime delta={Delta}, effective={Effective})",
+                _job.Id, catchUp, lifetimeDelta, effectiveFromLifetime.Value);
+            await CommitProgressAsync(effectiveFromLifetime.Value);
         }
 
         _logger.LogInformation("Job {JobId}: post-reconnect inspection PASSED in {ElapsedMs}ms. Resuming normal polling.",
@@ -434,15 +438,18 @@ public class JobExecutor
         _logger.LogTrace("-> DetectAnomalies(counter={Counter}, lifetimeDelta={Delta}, prevCounter={Prev})",
             snapshot.Counter, snapshot.LifetimeDelta, _previousCounter);
 
-        // Cross-check: compare SPGGTP delta against effective counter (SPGGCP + offset),
-        // not raw SPGGCP. Both should track the same session delta.
-        var effectiveForCheck = snapshot.Counter + _counterOffset;
-        if (snapshot.LifetimeDelta.HasValue && snapshot.LifetimeDelta != effectiveForCheck)
+        // Cross-check: compare SPGGTP delta against raw SPGGCP (session-only prints).
+        // Both TotalBaseline and SPGGCP baseline are recorded at the same moment
+        // (during Start or Resume), so lifetimeDelta and snapshot.Counter both
+        // represent prints in THIS session only. Do NOT add _counterOffset here —
+        // it includes CodesConfirmed from previous sessions whose TotalBaseline
+        // has already been superseded.
+        if (snapshot.LifetimeDelta.HasValue && snapshot.LifetimeDelta != snapshot.Counter)
         {
-            _logger.LogWarning("Job {JobId} ANOMALY: counter mismatch effective={Effective}, SPGGTP delta={Delta} (raw SPGGCP={Raw})",
-                _job.Id, effectiveForCheck, snapshot.LifetimeDelta, snapshot.Counter);
+            _logger.LogWarning("Job {JobId} ANOMALY: counter mismatch SPGGCP={Counter}, SPGGTP delta={Delta} (offset={Offset})",
+                _job.Id, snapshot.Counter, snapshot.LifetimeDelta, _counterOffset);
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
-                _loc.Format("Alert_CounterMismatch", effectiveForCheck, snapshot.LifetimeDelta),
+                _loc.Format("Alert_CounterMismatch", snapshot.Counter, snapshot.LifetimeDelta),
                 printerId: _job.PrinterId, jobId: _job.Id);
         }
 
