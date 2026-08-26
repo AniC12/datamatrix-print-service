@@ -17,6 +17,7 @@ public partial class PrintersViewModel : ObservableObject
 {
     private readonly AppDbContext _db;
     private readonly PrinterConnectionManager _connectionManager;
+    private readonly IPrintJobService _printJobService;
     private readonly IAuditService _audit;
     private readonly IPrinterAdapterFactory _adapterFactory;
     private readonly IDialogService _dialog;
@@ -96,12 +97,13 @@ public partial class PrintersViewModel : ObservableObject
 
     public event EventHandler<int>? NavigateToNewJobRequested;
 
-    public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IAuditService audit,
-        IPrinterAdapterFactory adapterFactory, IDialogService dialog, ILogger<PrintersViewModel> logger,
-        ILocalizationService loc)
+    public PrintersViewModel(AppDbContext db, PrinterConnectionManager connectionManager, IPrintJobService printJobService,
+        IAuditService audit, IPrinterAdapterFactory adapterFactory, IDialogService dialog,
+        ILogger<PrintersViewModel> logger, ILocalizationService loc)
     {
         _db = db;
         _connectionManager = connectionManager;
+        _printJobService = printJobService;
         _audit = audit;
         _adapterFactory = adapterFactory;
         _dialog = dialog;
@@ -279,6 +281,11 @@ public partial class PrintersViewModel : ObservableObject
         }
         _logger.LogInformation("Printers: Connect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         await _connectionManager.ConnectAsync(SelectedPrinter);
+
+        // Respawn ReadyWatchers for any Ready jobs on this printer.
+        // After a manual disconnect/reconnect the old watchers were stopped
+        // because they held a reference to the now-disposed adapter.
+        await _printJobService.RespawnWatchersForPrinterAsync(SelectedPrinter.Id);
         _logger.LogTrace("<- ConnectPrinterAsync");
     }
 

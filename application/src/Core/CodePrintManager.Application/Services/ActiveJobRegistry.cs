@@ -84,4 +84,29 @@ public class ActiveJobRegistry
         _logger.LogTrace("<- TryRemoveWatcher = {Removed} (key {Status})", removed, removed ? "found" : "not found");
         return removed;
     }
+
+    /// <summary>
+    /// Stops and removes all ReadyWatchers for jobs on the given printer.
+    /// Called when a printer is manually disconnected so watchers don't poll a stale adapter.
+    /// Returns the job IDs whose watchers were stopped (for potential respawn on reconnect).
+    /// </summary>
+    public async Task<List<int>> StopWatchersForPrinterAsync(int printerId)
+    {
+        _logger.LogTrace("-> StopWatchersForPrinterAsync(printerId={PrinterId})", printerId);
+        var stoppedJobIds = new List<int>();
+
+        foreach (var (jobId, watcher) in _watchers)
+        {
+            if (watcher.PrinterId == printerId)
+            {
+                await watcher.StopAsync();
+                _watchers.TryRemove(jobId, out _);
+                stoppedJobIds.Add(jobId);
+                _logger.LogDebug("ReadyWatcher stopped for Job {JobId} (printer disconnect)", jobId);
+            }
+        }
+
+        _logger.LogTrace("<- StopWatchersForPrinterAsync: stopped {Count} watcher(s)", stoppedJobIds.Count);
+        return stoppedJobIds;
+    }
 }

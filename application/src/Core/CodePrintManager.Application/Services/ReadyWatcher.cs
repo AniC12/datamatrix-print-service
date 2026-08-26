@@ -26,6 +26,9 @@ public class ReadyWatcher
     private Task? _watchTask;
     private int _pollCount;
 
+    /// <summary>The printer ID this watcher is monitoring.</summary>
+    public int PrinterId => _job.PrinterId;
+
     /// <summary>
     /// Raised when the watcher detects that the printer started printing
     /// (SPPSTA = Printing or SPGGCP > 0).

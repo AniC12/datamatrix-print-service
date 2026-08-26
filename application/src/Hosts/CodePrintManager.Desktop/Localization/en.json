@@ -341,6 +341,7 @@
   "Error_PreparationFailed": "Preparation failed: {0}",
   "Error_StartPrintFailed": "Error starting print: {0}",
   "Error_PrinterHasActiveJobs": "Printer \"{0}\" has active jobs",
+  "Error_ProductHasActiveJob": "This product already has an active job. Complete or cancel it first.",
   "Error_DeletePrinterFailed": "Failed to delete printer: {0}",
   "Error_ChangePrinterStatusFailed": "Failed to change printer status: {0}",
   "Error_UploadCsvFailed": "Failed to upload CSV: {0}",
@@ -384,13 +385,6 @@
   "Error_NoCsvFilename": "Product has no CSV filename configured",
   "Error_NoRemainingCodes": "Job #{0} has no remaining reserved codes to resume",
   "Error_SerialMismatch": "Hardware swap detected — printer serial number does not match. Resolve before operating.",
-  "Error_CsvUploadFailed": "CSV upload failed: SPLCDF returned FAIL",
-  "Error_CsvVerificationFailed": "CSV verification failed: file not found on printer",
-  "Error_NoTemplateConfigured": "Product has no template configured",
-  "Error_TemplateUploadFailed": "Template upload failed: SPLRTF returned FAIL",
-  "Error_TemplateNotFound": "Template '{0}' not found on printer and .rox file not found on disk.",
-  "Error_TemplateActivationFailed": "Template activation failed: SPLLTF returned FAIL",
-  "Error_JobNotReady": "Job {0} is not in Ready state",
   "Error_JobNotPrinting": "Job {0} is not in Printing state",
   "Error_JobNotPaused": "Job {0} is not in Paused state",
   "Error_JobNotPreparing": "Job {0} is not in Preparing state",
@@ -398,7 +392,6 @@
   "Error_JobNotCancelled": "Job {0} is not in Cancelled state",
   "Error_JobNotError": "Job {0} is not in Error state",
   "Error_ValidationError": "Row {0}: {1} — '{2}'",
-  "Error_TargetProductNotFound": "Target product {0} not found.",
   "Error_CodesOnlyToLeaf": "Codes can only be moved to leaf products.",
   "Error_DeleteBlocked": "Has active jobs or reserved codes",
   "Error_DeleteProductWithActiveJobs": "Cannot delete product with active jobs or reserved codes.",
@@ -406,12 +399,10 @@
   "Error_CodeEmpty": "Code is empty or whitespace",
   "Error_CodeContainsForbidden": "Code contains forbidden sequence '{0}'",
 
-  "Alert_TemplateUploadFailed": "Template upload failed. Load it manually via Sayasis.",
   "Alert_ConnectionLost": "Connection lost. Job #{0} paused.",
   "Alert_CounterMismatch": "Counter mismatch: SPGGCP={0}, SPGGTP delta={1}",
   "Alert_CounterJump": "Unexpected counter jump (+{0})",
   "Alert_JobCompleted": "Job #{0} completed ({1}/{1})",
-  "Alert_LowStock": "{0}: only {1} codes remaining.",
 
   "Language_Label": "Language"
 }

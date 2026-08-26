@@ -48,6 +48,30 @@ public partial class ProductsView : UserControl
         return null;
     }
 
+    private void OnCodeCheckboxChanged(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox cb && cb.DataContext is CodeItemViewModel)
+        {
+            // Walk up to find the CodesTabViewModel (DataContext of the ScrollViewer parent)
+            var parent = cb;
+            FrameworkElement? element = cb;
+            while (element != null)
+            {
+                if (element.DataContext is CodesTabViewModel codesVm)
+                {
+                    codesVm.OnCodeSelectionChanged();
+                    return;
+                }
+                element = element.Parent as FrameworkElement
+                    ?? System.Windows.Media.VisualTreeHelper.GetParent(element) as FrameworkElement;
+            }
+
+            // Fallback: try via ProductsViewModel
+            if (DataContext is ProductsViewModel vm)
+                vm.CodesTab.OnCodeSelectionChanged();
+        }
+    }
+
     /// <summary>
     /// Clicking the empty background of the TreeView clears the selection,
     /// allowing the user to add folders/products at root level.

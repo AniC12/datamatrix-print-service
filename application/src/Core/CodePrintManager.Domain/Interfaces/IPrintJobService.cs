@@ -13,4 +13,9 @@ public interface IPrintJobService
     Task<List<PrintJob>> GetJobHistoryAsync(int? printerId = null, int? productId = null);
     Task<List<PrintJob>> GetStaleJobsAsync();
     Task ResumeJobAsync(int jobId, CancellationToken ct = default);
+    /// <summary>
+    /// Respawns ReadyWatchers for any Ready jobs on the given printer.
+    /// Called after a manual reconnect so watchers use the new adapter instance.
+    /// </summary>
+    Task RespawnWatchersForPrinterAsync(int printerId, CancellationToken ct = default);
 }

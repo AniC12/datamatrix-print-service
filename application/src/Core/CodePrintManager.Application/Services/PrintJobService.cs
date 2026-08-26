@@ -51,6 +51,11 @@ public class PrintJobService : IPrintJobService
         _scopeFactory = scopeFactory;
     }
 
+    private static readonly JobStatus[] ActiveStatuses =
+    {
+        JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused
+    };
+
     public async Task<PrintJob> CreateJobAsync(int productId, int printerId, int quantity)
     {
         _logger.LogTrace("-> CreateJobAsync(productId={ProductId}, printerId={PrinterId}, quantity={Quantity})",
@@ -60,6 +65,20 @@ public class PrintJobService : IPrintJobService
         if (quantity <= 0)
             throw new ArgumentOutOfRangeException(nameof(quantity), quantity,
                 _loc["Error_QuantityMustBePositive"]);
+
+        // Check for existing active job on this product
+        var existingProductJob = await _db.PrintJobs
+            .AnyAsync(j => j.ProductId == productId && ActiveStatuses.Contains(j.Status));
+        if (existingProductJob)
+            throw new InvalidOperationException(
+                _loc["Error_ProductHasActiveJob"]);
+
+        // Check for existing active job on this printer
+        var existingPrinterJob = await _db.PrintJobs
+            .AnyAsync(j => j.PrinterId == printerId && ActiveStatuses.Contains(j.Status));
+        if (existingPrinterJob)
+            throw new InvalidOperationException(
+                _loc.Format("Error_PrinterHasActiveJobs", printerId));
 
         // Check available codes before creating the job
         var available = await _db.Codes
@@ -80,7 +99,17 @@ public class PrintJobService : IPrintJobService
         };
 
         _db.PrintJobs.Add(job);
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Detach the entity so it doesn't poison future SaveChangesAsync calls
+            // on this long-lived DbContext.
+            _db.Entry(job).State = EntityState.Detached;
+            throw;
+        }
 
         _logger.LogInformation("Job {JobId} created (Product={ProductId}, Printer={PrinterId}, Qty={Quantity}) in {ElapsedMs}ms",
             job.Id, productId, printerId, quantity, sw.ElapsedMilliseconds);
@@ -792,6 +821,43 @@ public class PrintJobService : IPrintJobService
             _logger.LogTrace("   StopReadyWatcherAsync: no watcher found for Job {JobId}", jobId);
         }
         _logger.LogTrace("<- StopReadyWatcherAsync completed");
+    }
+
+    public async Task RespawnWatchersForPrinterAsync(int printerId, CancellationToken ct = default)
+    {
+        _logger.LogTrace("-> RespawnWatchersForPrinterAsync(printerId={PrinterId})", printerId);
+
+        var adapter = _connectionManager.GetAdapter(printerId);
+        if (adapter == null || !adapter.IsConnected)
+        {
+            _logger.LogDebug("RespawnWatchersForPrinterAsync: printer {PrinterId} not connected, skipping", printerId);
+            _logger.LogTrace("<- RespawnWatchersForPrinterAsync (not connected)");
+            return;
+        }
+
+        var readyJobs = await _db.PrintJobs
+            .Include(j => j.Printer)
+            .Where(j => j.PrinterId == printerId && j.Status == JobStatus.Ready)
+            .ToListAsync(ct);
+
+        foreach (var job in readyJobs)
+        {
+            // Skip if a watcher already exists (shouldn't happen, but be safe)
+            if (_jobRegistry.TryGetWatcher(job.Id, out _))
+            {
+                _logger.LogDebug("RespawnWatchersForPrinterAsync: watcher already exists for Job {JobId}, skipping", job.Id);
+                continue;
+            }
+
+            // Read fresh SPGGCP baseline from the new adapter
+            var spggcpBaseline = await adapter.GetCurrentCounterAsync(ct);
+            SpawnReadyWatcher(job, adapter, spggcpBaseline);
+            _logger.LogInformation(
+                "ReadyWatcher respawned for Job {JobId} on printer {PrinterId} after reconnect (SPGGCP baseline={Baseline})",
+                job.Id, printerId, spggcpBaseline);
+        }
+
+        _logger.LogTrace("<- RespawnWatchersForPrinterAsync: respawned {Count} watcher(s)", readyJobs.Count);
     }
 
     /// <summary>

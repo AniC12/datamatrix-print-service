@@ -170,6 +170,7 @@
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
                                                           IsEnabled="{Binding IsReserved, Converter={StaticResource InverseBoolConverter}}"
+                                                          Checked="OnCodeCheckboxChanged" Unchecked="OnCodeCheckboxChanged"
                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
@@ -456,6 +457,7 @@
                                                     <DataTemplate>
                                                         <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
                                                                   IsEnabled="{Binding IsReserved, Converter={StaticResource InverseBoolConverter}}"
+                                                                  Checked="OnCodeCheckboxChanged" Unchecked="OnCodeCheckboxChanged"
                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>

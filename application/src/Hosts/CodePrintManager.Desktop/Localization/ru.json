@@ -341,6 +341,7 @@
   "Error_PreparationFailed": "Ошибка подготовки: {0}",
   "Error_StartPrintFailed": "Ошибка запуска печати: {0}",
   "Error_PrinterHasActiveJobs": "У принтера \"{0}\" есть активные задания",
+  "Error_ProductHasActiveJob": "У этого продукта уже есть активное задание. Сначала завершите или отмените его.",
   "Error_DeletePrinterFailed": "Не удалось удалить принтер: {0}",
   "Error_ChangePrinterStatusFailed": "Не удалось изменить статус принтера: {0}",
   "Error_UploadCsvFailed": "Не удалось загрузить CSV: {0}",
@@ -384,13 +385,6 @@
   "Error_NoCsvFilename": "Для продукта не задано имя CSV-файла",
   "Error_NoRemainingCodes": "Задание #{0} не имеет оставшихся зарезервированных кодов для возобновления",
   "Error_SerialMismatch": "Обнаружена замена оборудования — серийный номер принтера не совпадает. Устраните перед продолжением.",
-  "Error_CsvUploadFailed": "Ошибка загрузки CSV: SPLCDF вернул FAIL",
-  "Error_CsvVerificationFailed": "Ошибка проверки CSV: файл не найден на принтере",
-  "Error_NoTemplateConfigured": "Для продукта не задан шаблон",
-  "Error_TemplateUploadFailed": "Ошибка загрузки шаблона: SPLRTF вернул FAIL",
-  "Error_TemplateNotFound": "Шаблон «{0}» не найден на принтере и .rox файл не найден на диске.",
-  "Error_TemplateActivationFailed": "Ошибка активации шаблона: SPLLTF вернул FAIL",
-  "Error_JobNotReady": "Задание {0} не в состоянии «Готово»",
   "Error_JobNotPrinting": "Задание {0} не в состоянии «Печать»",
   "Error_JobNotPaused": "Задание {0} не в состоянии «Пауза»",
   "Error_JobNotPreparing": "Задание {0} не в состоянии «Подготовка»",
@@ -398,7 +392,6 @@
   "Error_JobNotCancelled": "Задание {0} не в состоянии «Отменено»",
   "Error_JobNotError": "Задание {0} не в состоянии «Ошибка»",
   "Error_ValidationError": "Строка {0}: {1} — «{2}»",
-  "Error_TargetProductNotFound": "Целевой продукт {0} не найден.",
   "Error_CodesOnlyToLeaf": "Коды можно перемещать только в конечные продукты.",
   "Error_DeleteBlocked": "Есть активные задания или зарезервированные коды",
   "Error_DeleteProductWithActiveJobs": "Невозможно удалить продукт с активными заданиями или зарезервированными кодами.",
@@ -406,12 +399,10 @@
   "Error_CodeEmpty": "Код пуст или содержит только пробелы",
   "Error_CodeContainsForbidden": "Код содержит запрещённую последовательность «{0}»",
 
-  "Alert_TemplateUploadFailed": "Ошибка загрузки шаблона. Загрузите его вручную через Sayasis.",
   "Alert_ConnectionLost": "Соединение потеряно. Задание #{0} приостановлено.",
   "Alert_CounterMismatch": "Несоответствие счётчика: SPGGCP={0}, дельта SPGGTP={1}",
   "Alert_CounterJump": "Неожиданный скачок счётчика (+{0})",
   "Alert_JobCompleted": "Задание #{0} завершено ({1}/{1})",
-  "Alert_LowStock": "{0}: осталось только {1} кодов.",
 
   "Language_Label": "Язык"
 }

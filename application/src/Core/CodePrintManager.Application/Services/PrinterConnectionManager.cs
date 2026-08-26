@@ -22,6 +22,7 @@ public class PrinterConnectionManager : IDisposable
     private readonly IEnumerable<IPrinterAdapterFactory> _factories;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAlertService _alerts;
+    private readonly ActiveJobRegistry _jobRegistry;
     private readonly ILogger<PrinterConnectionManager> _logger;
 
     public event EventHandler<PrinterStatusChangedEvent>? PrinterStatusChanged;
@@ -30,11 +31,13 @@ public class PrinterConnectionManager : IDisposable
         IEnumerable<IPrinterAdapterFactory> factories,
         IServiceScopeFactory scopeFactory,
         IAlertService alerts,
+        ActiveJobRegistry jobRegistry,
         ILogger<PrinterConnectionManager> logger)
     {
         _factories = factories;
         _scopeFactory = scopeFactory;
         _alerts = alerts;
+        _jobRegistry = jobRegistry;
         _logger = logger;
         _logger.LogTrace("-> PrinterConnectionManager constructed");
     }
@@ -93,6 +96,13 @@ public class PrinterConnectionManager : IDisposable
     {
         _logger.LogTrace("-> DisconnectAsync(printerId={PrinterId})", printerId);
         _logger.LogInformation("Disconnecting printer Id={PrinterId}", printerId);
+
+        // Stop any ReadyWatchers for this printer before disposing the adapter.
+        // They hold a direct reference to the adapter and would poll a disposed object.
+        var stoppedJobIds = await _jobRegistry.StopWatchersForPrinterAsync(printerId);
+        if (stoppedJobIds.Count > 0)
+            _logger.LogInformation("Stopped {Count} ReadyWatcher(s) for printer {PrinterId} on disconnect: jobs [{JobIds}]",
+                stoppedJobIds.Count, printerId, string.Join(", ", stoppedJobIds));
 
         if (_reconnectCts.TryRemove(printerId, out var cts))
         {

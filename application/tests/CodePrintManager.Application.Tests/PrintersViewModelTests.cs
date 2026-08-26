@@ -56,8 +56,10 @@ public class PrintersViewModelTests : IDisposable
         var connLogger = Substitute.For<ILogger<PrinterConnectionManager>>();
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
         var alerts = Substitute.For<IAlertService>();
+        var registryLogger = Substitute.For<ILogger<ActiveJobRegistry>>();
+        var jobRegistry = new ActiveJobRegistry(registryLogger);
         _connectionManager = new PrinterConnectionManager(
-            new IPrinterAdapterFactory[] { _mockFactory }, scopeFactory, alerts, connLogger);
+            new IPrinterAdapterFactory[] { _mockFactory }, scopeFactory, alerts, jobRegistry, connLogger);
 
         // Default: dialogs confirm (return true) unless overridden in specific tests
         _dialog.Confirm(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
@@ -67,7 +69,8 @@ public class PrintersViewModelTests : IDisposable
         loc.Format(Arg.Any<string>(), Arg.Any<object[]>())
             .Returns(ci => string.Format(ci.Arg<string>(), ci.Arg<object[]>()));
 
-        _vm = new PrintersViewModel(_db, _connectionManager, _audit, _mockFactory, _dialog, _logger, loc);
+        var printJobService = Substitute.For<IPrintJobService>();
+        _vm = new PrintersViewModel(_db, _connectionManager, printJobService, _audit, _mockFactory, _dialog, _logger, loc);
     }
 
     public void Dispose()
