@@ -137,12 +137,12 @@ public partial class JobsViewModel : ObservableObject
         _logger.LogTrace("-> LoadFiltersAsync()");
         try
         {
-            var printers = await _db.Printers.ToListAsync();
+            var printers = await _db.Printers.AsNoTracking().ToListAsync();
             FilterPrinters.Clear();
             foreach (var p in printers)
                 FilterPrinters.Add(p);
 
-            var products = await _db.ProductNodes.Where(p => p.IsLeaf).ToListAsync();
+            var products = await _db.ProductNodes.AsNoTracking().Where(p => p.IsLeaf).ToListAsync();
             FilterProducts.Clear();
             foreach (var p in products)
                 FilterProducts.Add(p);

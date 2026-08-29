@@ -122,12 +122,12 @@ public partial class NewJobViewModel : ObservableObject
         _logger.LogTrace("-> LoadAsync()");
         try
         {
-            var products = await _db.ProductNodes.Where(p => p.IsLeaf).ToListAsync();
+            var products = await _db.ProductNodes.AsNoTracking().Where(p => p.IsLeaf).ToListAsync();
             Products.Clear();
             foreach (var p in products)
                 Products.Add(p);
 
-            var printers = await _db.Printers.ToListAsync();
+            var printers = await _db.Printers.AsNoTracking().ToListAsync();
             Printers.Clear();
             foreach (var p in printers)
                 Printers.Add(p);

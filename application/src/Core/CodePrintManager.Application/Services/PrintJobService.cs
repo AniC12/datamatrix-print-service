@@ -553,6 +553,7 @@ public class PrintJobService : IPrintJobService
     {
         _logger.LogTrace("-> GetActiveJobsAsync()");
         var result = await _db.PrintJobs
+            .AsNoTracking()
             .Include(j => j.Product)
             .Include(j => j.Printer)
             .Where(j => j.Status == JobStatus.Preparing
@@ -569,6 +570,7 @@ public class PrintJobService : IPrintJobService
     {
         _logger.LogTrace("-> GetJobHistoryAsync(printerId={PrinterId}, productId={ProductId})", printerId, productId);
         var query = _db.PrintJobs
+            .AsNoTracking()
             .Include(j => j.Product)
             .Include(j => j.Printer)
             .Where(j => j.Status == JobStatus.Completed || j.Status == JobStatus.Cancelled);
@@ -587,6 +589,7 @@ public class PrintJobService : IPrintJobService
     {
         _logger.LogTrace("-> GetStaleJobsAsync()");
         var result = await _db.PrintJobs
+            .AsNoTracking()
             .Include(j => j.Product)
             .Include(j => j.Printer)
             .Where(j => j.Status == JobStatus.Preparing

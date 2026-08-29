@@ -65,13 +65,14 @@ public partial class DashboardViewModel : ObservableObject
         _logger.LogTrace("-> RefreshAsync()");
         _logger.LogInformation("Dashboard loading");
         // Load printers with their most recent job
-        var printers = await _db.Printers.ToListAsync();
+        var printers = await _db.Printers.AsNoTracking().ToListAsync();
         PrinterCards.Clear();
 
         foreach (var p in printers)
         {
             // Get the most recent job for this printer
             var latestJob = await _db.PrintJobs
+                .AsNoTracking()
                 .Include(j => j.Product)
                 .Include(j => j.Printer)
                 .Where(j => j.PrinterId == p.Id)
@@ -111,6 +112,7 @@ public partial class DashboardViewModel : ObservableObject
         var printerNames = await _db.Printers.ToDictionaryAsync(p => p.Id, p => p.Name);
 
         var recentEntries = await _db.AuditLog
+            .AsNoTracking()
             .Where(a => a.EventType != "job_created")
             .OrderByDescending(a => a.CreatedAt)
             .Take(20)

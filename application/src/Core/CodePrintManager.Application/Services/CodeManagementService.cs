@@ -26,7 +26,7 @@ public class CodeManagementService : ICodeManagementService
         string? searchText, int page, int pageSize)
     {
         _logger.LogTrace("-> GetCodesPageAsync(productId={ProductId}, statusFilter={StatusFilter}, searchText={SearchText}, page={Page}, pageSize={PageSize})", productId, statusFilter, searchText, page, pageSize);
-        var query = _db.Codes.AsQueryable();
+        var query = _db.Codes.AsNoTracking().AsQueryable();
 
         // Filter by product (null = unassigned)
         query = productId.HasValue

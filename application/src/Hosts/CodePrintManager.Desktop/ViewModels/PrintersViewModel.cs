@@ -469,7 +469,7 @@ public partial class PrintersViewModel : ObservableObject
             // Get templates from printer + the currently active template
             var templates = await adapter.ListTemplatesAsync();
             var activeTemplateName = await adapter.GetActiveTemplateAsync();
-            var products = await _db.ProductNodes.Where(p => p.IsLeaf).ToListAsync();
+            var products = await _db.ProductNodes.AsNoTracking().Where(p => p.IsLeaf).ToListAsync();
 
             foreach (var t in templates)
             {
@@ -622,6 +622,7 @@ public partial class PrintersViewModel : ObservableObject
         {
             // Get the active job for this printer (if any)
             var activeJob = await _db.PrintJobs
+                .AsNoTracking()
                 .Include(j => j.Product)
                 .Where(j => j.PrinterId == SelectedPrinter.Id &&
                     (j.Status == JobStatus.Printing || j.Status == JobStatus.Ready || j.Status == JobStatus.Preparing || j.Status == JobStatus.Paused))
