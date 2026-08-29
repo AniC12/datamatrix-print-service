@@ -14,6 +14,14 @@ public class Printer
     /// Used to detect hardware swaps at the same IP/port.
     /// </summary>
     public string? SerialNumber { get; set; }
+
+    /// <summary>
+    /// Number of boundary codes to quarantine when cancelling/aborting a job mid-print.
+    /// 0 = no boundary quarantine (operator accepts the risk of the boundary code).
+    /// 1 = quarantine the single code at the print boundary (safest default for production).
+    /// Higher values provide extra margin for printers with known buffering behavior.
+    /// </summary>
+    public int QuarantineMargin { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

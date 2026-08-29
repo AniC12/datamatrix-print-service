@@ -412,12 +412,17 @@ public class JobExecutor
                     "Job {JobId}: {Unrecorded} unrecorded prints detected via SPGGTP delta",
                     _job.Id, unrecorded);
 
-                // Mark the unrecorded prints, then quarantine the boundary
-                if (unrecorded > 1)
+                // Mark the unrecorded prints (all but the last are definitely printed)
+                var margin = _job.Printer.QuarantineMargin;
+                var definitelyPrinted = Math.Max(0, unrecorded - margin);
+                if (definitelyPrinted > 0)
                     await _codePool.MarkCodesPrintedAsync(_job.Id, _job.CodesConfirmed,
-                        _job.CodesConfirmed + unrecorded - 1);
-                // Quarantine the boundary code (might or might not have printed)
-                await _codePool.QuarantineCodeAsync(_job.Id, _job.CodesConfirmed + unrecorded - 1);
+                        _job.CodesConfirmed + definitelyPrinted);
+                // Quarantine the boundary codes per per-printer QuarantineMargin
+                var quarantineCount = Math.Min(margin, unrecorded);
+                if (quarantineCount > 0)
+                    await _codePool.QuarantineCodesAsync(_job.Id,
+                        _job.CodesConfirmed + definitelyPrinted, quarantineCount);
                 _job.CodesConfirmed = _job.CodesConfirmed + unrecorded;
             }
             else if (lifetimeDelta.HasValue && lifetimeDelta.Value == _job.CodesConfirmed)

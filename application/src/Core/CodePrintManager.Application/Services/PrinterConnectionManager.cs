@@ -79,10 +79,37 @@ public class PrinterConnectionManager : IDisposable
             return;
         }
 
+        // Cancel any existing reconnect loop to prevent it from using
+        // the old adapter after we dispose it (race condition prevention)
+        if (_reconnectCts.TryRemove(printer.Id, out var existingCts))
+        {
+            _logger.LogDebug("Cancelling existing reconnect loop for printer {PrinterId}", printer.Id);
+            existingCts.Cancel();
+        }
+
+        // Dispose the old adapter to avoid TcpClient leaks (e.g., rapid reconnect clicks)
+        if (_adapters.TryRemove(printer.Id, out var existing))
+        {
+            _logger.LogDebug("Disposing existing adapter for printer {PrinterId} before creating new one", printer.Id);
+            try { existing.Dispose(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Error disposing old adapter for printer {PrinterId}", printer.Id); }
+        }
+
         var adapter = CreateAdapter(printer.AdapterType);
         _adapters[printer.Id] = adapter;
 
-        var success = await adapter.ConnectAsync(printer.IpAddress, printer.Port, ct);
+        bool success;
+        try
+        {
+            success = await adapter.ConnectAsync(printer.IpAddress, printer.Port, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled — clean up the adapter we just stored
+            _adapters.TryRemove(printer.Id, out _);
+            adapter.Dispose();
+            throw;
+        }
         var status = success ? PrinterStatus.Idle : PrinterStatus.Offline;
         PrinterStatusChanged?.Invoke(this, new PrinterStatusChangedEvent(printer.Id, PrinterStatus.Offline, status));
 
@@ -126,6 +153,8 @@ public class PrinterConnectionManager : IDisposable
         {
             await adapter.DisconnectAsync();
             _logger.LogDebug("Adapter removed for printer {PrinterId}", printerId);
+            PrinterStatusChanged?.Invoke(this,
+                new PrinterStatusChangedEvent(printerId, PrinterStatus.Idle, PrinterStatus.Offline));
         }
 
         _disconnectedSince.TryRemove(printerId, out _);
@@ -284,6 +313,7 @@ public class PrinterConnectionManager : IDisposable
         if (success)
         {
             _logger.LogInformation("TryReconnect: printer '{Name}' (Id={PrinterId}) reconnected", printer.Name, printerId);
+            await CheckSerialNumberAsync(printerId, adapter);
             PrinterStatusChanged?.Invoke(this,
                 new PrinterStatusChangedEvent(printerId, PrinterStatus.Offline, PrinterStatus.Idle));
         }

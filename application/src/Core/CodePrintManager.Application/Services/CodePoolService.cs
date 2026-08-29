@@ -41,6 +41,7 @@ public class CodePoolService : ICodePoolService
         var errors = new List<string>();
         var duplicates = 0;
         var imported = 0;
+        var seenInBatch = new HashSet<string>(StringComparer.Ordinal);
 
         // Get current max import order for this product
         var maxOrder = await _db.Codes
@@ -56,6 +57,14 @@ public class CodePoolService : ICodePoolService
             if (validationError != null)
             {
                 errors.Add($"Row {i + 1}: {validationError} — '{code}'");
+                continue;
+            }
+
+            // Check within-batch uniqueness (before DB check to avoid
+            // adding two identical entities that crash on SaveChangesAsync)
+            if (!seenInBatch.Add(code))
+            {
+                duplicates++;
                 continue;
             }
 

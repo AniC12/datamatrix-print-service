@@ -40,7 +40,7 @@ public class AlertService : IAlertService
         // text, because messages contain dynamic values that change on each call.
         if (deduplicationKey != null)
         {
-            var fullKey = $"{source}:{printerId}:{deduplicationKey}";
+            var fullKey = $"{source}:{printerId}:{jobId}:{deduplicationKey}";
             var now = DateTime.UtcNow;
             if (_lastAlertTimes.TryGetValue(fullKey, out var lastTime)
                 && now - lastTime < DeduplicationWindow)
@@ -109,9 +109,16 @@ public class AlertService : IAlertService
 
     private async void ScheduleDismiss(Guid alertId, TimeSpan delay)
     {
-        _logger.LogTrace("-> ScheduleDismiss(alertId={AlertId}, delay={Delay})", alertId, delay);
-        await Task.Delay(delay);
-        Dismiss(alertId);
-        _logger.LogTrace("<- ScheduleDismiss");
+        try
+        {
+            _logger.LogTrace("-> ScheduleDismiss(alertId={AlertId}, delay={Delay})", alertId, delay);
+            await Task.Delay(delay);
+            Dismiss(alertId);
+            _logger.LogTrace("<- ScheduleDismiss");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to auto-dismiss alert {AlertId}", alertId);
+        }
     }
 }

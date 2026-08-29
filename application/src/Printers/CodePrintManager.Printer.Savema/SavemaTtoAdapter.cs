@@ -55,6 +55,11 @@ public class SavemaTtoAdapter : IPrinterAdapter
             _logger.LogTrace("<- ConnectAsync = true ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
             return true;
         }
+        catch (OperationCanceledException)
+        {
+            DisposeSocket();
+            throw; // Let caller distinguish cancellation from connection failure
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to connect to {Host}:{Port} after {ElapsedMs}ms", host, port, sw.ElapsedMilliseconds);
@@ -150,7 +155,8 @@ public class SavemaTtoAdapter : IPrinterAdapter
     {
         _logger.LogTrace("-> UploadTemplateAsync(name={Name}, size={Size} bytes)", name, rox.Length);
         var sw = Stopwatch.StartNew();
-        var response = await SendCommandAsync(SpplCommandBuilder.UploadTemplate(name, rox), ct);
+        var response = await SendCommandAsync(SpplCommandBuilder.UploadTemplate(name, rox), ct,
+            readTimeout: TimeSpan.FromSeconds(60));
         var result = response.IsOk;
         _logger.LogInformation("UploadTemplate '{Name}' ({Size} bytes): {Result} in {ElapsedMs}ms",
             name, rox.Length, result ? "OK" : "FAIL", sw.ElapsedMilliseconds);
@@ -173,8 +179,7 @@ public class SavemaTtoAdapter : IPrinterAdapter
     public async Task<string?> GetActiveTemplateAsync(CancellationToken ct = default)
     {
         _logger.LogTrace("-> GetActiveTemplateAsync()");
-        var response = await SendCommandAsync(
-            $"{SpplConstants.CommandStart}SPLGAT{SpplConstants.CommandEnd}", ct);
+        var response = await SendCommandAsync(SpplCommandBuilder.GetActiveTemplate(), ct);
         var result = response.IsFail ? null : response.Payload;
         _logger.LogTrace("<- GetActiveTemplateAsync = {Template}", result ?? "(null)");
         return result;
@@ -202,7 +207,8 @@ public class SavemaTtoAdapter : IPrinterAdapter
     {
         _logger.LogTrace("-> UploadCsvAsync(filename={Filename}, codeCount={Count})", filename, codes.Count);
         var sw = Stopwatch.StartNew();
-        var response = await SendCommandAsync(SpplCommandBuilder.UploadCsv(filename, codes), ct);
+        var response = await SendCommandAsync(SpplCommandBuilder.UploadCsv(filename, codes), ct,
+            readTimeout: TimeSpan.FromSeconds(60));
         var result = response.IsOk;
         _logger.LogInformation("UploadCsv '{Filename}' ({Count} codes): {Result} in {ElapsedMs}ms",
             filename, codes.Count, result ? "OK" : "FAIL", sw.ElapsedMilliseconds);
@@ -258,7 +264,8 @@ public class SavemaTtoAdapter : IPrinterAdapter
         return result;
     }
 
-    private async Task<SpplResponse> SendCommandAsync(string cmd, CancellationToken ct)
+    private async Task<SpplResponse> SendCommandAsync(string cmd, CancellationToken ct,
+        TimeSpan? readTimeout = null)
     {
         var sw = Stopwatch.StartNew();
         await _lock.WaitAsync(ct);
@@ -300,7 +307,7 @@ public class SavemaTtoAdapter : IPrinterAdapter
             const int maxRetries = 3;
             for (int attempt = 0; attempt < maxRetries; attempt++)
             {
-                var response = await ReadResponseAsync(ct);
+                var response = await ReadResponseAsync(ct, readTimeout);
 
                 if (response.Command == expectedCommand)
                 {
@@ -425,7 +432,8 @@ public class SavemaTtoAdapter : IPrinterAdapter
         return cmd.Length > 120 ? cmd[..120] + "..." : cmd;
     }
 
-    private async Task<SpplResponse> ReadResponseAsync(CancellationToken ct)
+    private async Task<SpplResponse> ReadResponseAsync(CancellationToken ct,
+        TimeSpan? readTimeout = null)
     {
         _logger.LogTrace("-> ReadResponseAsync() waiting for data...");
         var buffer = new byte[65536];
@@ -449,10 +457,11 @@ public class SavemaTtoAdapter : IPrinterAdapter
         // Read from network until we have at least one complete frame
         while (true)
         {
-            // Timeout: 10 seconds per individual read to prevent indefinite blocking.
+            // Timeout per individual read to prevent indefinite blocking.
             // TcpClient.ReceiveTimeout does NOT apply to async ReadAsync.
+            var timeout = readTimeout ?? TimeSpan.FromSeconds(10);
             using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            readCts.CancelAfter(TimeSpan.FromSeconds(10));
+            readCts.CancelAfter(timeout);
 
             int bytesRead;
             try
@@ -461,8 +470,8 @@ public class SavemaTtoAdapter : IPrinterAdapter
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                // Our 10s timeout fired, not the caller's token
-                throw new IOException("Read timeout: no data received from printer within 10 seconds");
+                // Our read timeout fired, not the caller's token
+                throw new IOException($"Read timeout: no data received from printer within {timeout.TotalSeconds:F0} seconds");
             }
 
             if (bytesRead == 0)

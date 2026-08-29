@@ -148,4 +148,109 @@ public class CumulativeCounterTests : IntegrationTestBase
         // Power cycle should be detected (counter went from ~1007 to 0)
         Assert.Equal("Error", errorJob.Status);
     }
+
+    [Fact]
+    public async Task PauseWithHighCumulativeCounter_ReconcilesByLifetime()
+    {
+        // D1 regression test: Pause must use SPGGTP - TotalBaseline, not raw SPGGCP.
+        // With cumulative counters starting at 5000, raw SPGGCP would be ~5003 after 3 prints.
+        // CodesConfirmed must be 3 (not 5003).
+        var printerId = await SetupPrinterAsync("CumulativePausePrinter");
+        var productId = await SetupProductAsync("CumulativePauseProduct", "cpause.csv");
+        await ImportCodesAsync(productId, 20);
+
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 100 });
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-counters",
+            new { CurrentCounter = 5000, LifetimeCounter = 50000 });
+
+        var createResponse = await Client.PostAsJsonAsync("/api/jobs", new
+        {
+            ProductId = productId,
+            PrinterId = printerId,
+            Quantity = 10
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var job = await createResponse.Content.ReadFromJsonAsync<JobResult>();
+        Assert.NotNull(job);
+
+        await Client.PostAsync($"/api/jobs/{job.Id}/start", null);
+
+        // Wait for some progress
+        var midway = await PollUntilAsync<JobResult>(
+            $"/api/jobs/{job.Id}",
+            j => j.CodesConfirmed >= 3,
+            timeout: TimeSpan.FromSeconds(10));
+
+        // Pause
+        var pauseResponse = await Client.PostAsync($"/api/jobs/{job.Id}/pause", null);
+        pauseResponse.EnsureSuccessStatusCode();
+
+        await Task.Delay(300);
+        var pausedJob = await Client.GetFromJsonAsync<JobResult>($"/api/jobs/{job.Id}");
+        Assert.NotNull(pausedJob);
+        Assert.Equal("Paused", pausedJob.Status);
+        // D1 bug would set CodesConfirmed to raw SPGGCP (~5003). Correct value is 3-10.
+        Assert.True(pausedJob.CodesConfirmed >= 3, $"CodesConfirmed should be >= 3, was {pausedJob.CodesConfirmed}");
+        Assert.True(pausedJob.CodesConfirmed <= 10, $"CodesConfirmed should be <= 10 (quantity), was {pausedJob.CodesConfirmed}");
+
+        // Resume and complete
+        var resumeResponse = await Client.PostAsync($"/api/jobs/{job.Id}/resume", null);
+        resumeResponse.EnsureSuccessStatusCode();
+
+        var completed = await PollUntilAsync<JobResult>(
+            $"/api/jobs/{job.Id}",
+            j => j.Status == "Completed",
+            timeout: TimeSpan.FromSeconds(15));
+
+        Assert.Equal("Completed", completed.Status);
+        Assert.Equal(10, completed.CodesConfirmed);
+    }
+
+    [Fact]
+    public async Task CancelWithHighCumulativeCounter_CorrectAccounting()
+    {
+        // D1 regression test: Cancel must use SPGGTP - TotalBaseline, not raw SPGGCP.
+        // Total code accounting (printed + quarantined + returned) must equal quantity.
+        var printerId = await SetupPrinterAsync("CumulativeCancelPrinter");
+        var productId = await SetupProductAsync("CumulativeCancelProduct", "ccancel.csv");
+        await ImportCodesAsync(productId, 20);
+
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 100 });
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-counters",
+            new { CurrentCounter = 5000, LifetimeCounter = 50000 });
+
+        var createResponse = await Client.PostAsJsonAsync("/api/jobs", new
+        {
+            ProductId = productId,
+            PrinterId = printerId,
+            Quantity = 10
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var job = await createResponse.Content.ReadFromJsonAsync<JobResult>();
+        Assert.NotNull(job);
+
+        await Client.PostAsync($"/api/jobs/{job.Id}/start", null);
+
+        // Wait for some progress
+        await PollUntilAsync<JobResult>(
+            $"/api/jobs/{job.Id}",
+            j => j.CodesConfirmed >= 3,
+            timeout: TimeSpan.FromSeconds(10));
+
+        // Cancel mid-print
+        await Client.PostAsync($"/api/jobs/{job.Id}/cancel", null);
+        await Task.Delay(300);
+
+        var cancelled = await Client.GetFromJsonAsync<JobResult>($"/api/jobs/{job.Id}");
+        Assert.NotNull(cancelled);
+        Assert.Equal("Cancelled", cancelled.Status);
+        // D1 bug would set CodesConfirmed to raw SPGGCP (~5003). Correct value is 3-10.
+        Assert.True(cancelled.CodesConfirmed <= 10, $"CodesConfirmed should be <= 10 (quantity), was {cancelled.CodesConfirmed}");
+
+        // Total code accounting: printed + quarantined + returned + available(remaining from 20) must equal 20
+        var stats = await Client.GetFromJsonAsync<ProductDetailResult>($"/api/products/{productId}");
+        Assert.NotNull(stats?.PoolStats);
+        var totalTracked = stats.PoolStats.Values.Sum();
+        Assert.Equal(20, totalTracked);
+    }
 }

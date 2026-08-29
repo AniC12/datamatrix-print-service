@@ -76,6 +76,9 @@ public partial class PrintersViewModel : ObservableObject
     [ObservableProperty]
     private int _editPrinterPort = 9100;
 
+    [ObservableProperty]
+    private int _editQuarantineMargin;
+
     // Storage tab
     public ObservableCollection<PrinterFileItem> TemplateFiles { get; } = new();
     public ObservableCollection<PrinterFileItem> CsvFiles { get; } = new();
@@ -340,6 +343,7 @@ public partial class PrintersViewModel : ObservableObject
         EditPrinterName = SelectedPrinter.Name;
         EditPrinterIp = SelectedPrinter.IpAddress;
         EditPrinterPort = SelectedPrinter.Port;
+        EditQuarantineMargin = SelectedPrinter.QuarantineMargin;
         IsEditingPrinter = true;
         _logger.LogDebug("Printers: Edit mode opened for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
         _logger.LogTrace("<- EditPrinter");
@@ -374,6 +378,7 @@ public partial class PrintersViewModel : ObservableObject
         SelectedPrinter.Name = EditPrinterName.Trim();
         SelectedPrinter.IpAddress = EditPrinterIp.Trim();
         SelectedPrinter.Port = EditPrinterPort;
+        SelectedPrinter.QuarantineMargin = Math.Max(0, EditQuarantineMargin);
         SelectedPrinter.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 

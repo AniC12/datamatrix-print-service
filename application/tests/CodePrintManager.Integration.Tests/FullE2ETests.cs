@@ -252,6 +252,33 @@ public class FullE2ETests : IntegrationTestBase
     }
 
     // ──────────────────────────────────────────────
+    // CORNER CASE: Import duplicate codes within same batch (I10)
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task CornerCase_ImportWithinBatchDuplicates_DeduplicatesGracefully()
+    {
+        var productId = await SetupProductAsync("BatchDupeProduct", "batchdupe.csv");
+
+        // Import a batch that contains a duplicate within the same CSV
+        var codes = new List<string> { "BD001", "BD002", "BD001", "BD003" };
+        var resp = await Client.PostAsJsonAsync($"/api/products/{productId}/import-csv", new
+        {
+            Codes = codes,
+            BatchName = "batch-with-dupes"
+        });
+        resp.EnsureSuccessStatusCode();
+        var result = await resp.Content.ReadFromJsonAsync<ImportResult>();
+
+        Assert.Equal(3, result!.Imported);
+        Assert.Equal(1, result.Duplicates);
+
+        // Total available should be 3
+        var stats = await Client.GetFromJsonAsync<ProductDetailResult>($"/api/products/{productId}");
+        Assert.Equal(3, stats!.PoolStats!.GetValueOrDefault("Available", 0));
+    }
+
+    // ──────────────────────────────────────────────
     // CORNER CASE: Start a job that's not ready
     // ──────────────────────────────────────────────
 

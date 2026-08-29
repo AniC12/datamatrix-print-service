@@ -9,8 +9,10 @@ public static class CodeValidator
     /// <summary>
     /// Sequences that cannot appear in code values because they have special meaning
     /// in the SPPL protocol and would corrupt printer communication.
+    /// "|" is the SPPL command separator; "\n" is the CSV row separator in SPLCDF;
+    /// "\r" could confuse the printer's CSV parser.
     /// </summary>
-    private static readonly string[] ForbiddenSequences = { "^", "~gt~", "~sc~", "~" };
+    private static readonly string[] ForbiddenSequences = { "^", "~gt~", "~sc~", "~", "|", "\n", "\r" };
 
     /// <summary>
     /// Returns true if the code value is safe to use with SPPL-based printers.

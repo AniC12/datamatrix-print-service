@@ -42,7 +42,8 @@ public static class PrinterEndpoints
                 Name = req.Name,
                 IpAddress = req.Ip,
                 Port = req.Port ?? 9100,
-                AdapterType = req.AdapterType ?? "mock"
+                AdapterType = req.AdapterType ?? "mock",
+                QuarantineMargin = req.QuarantineMargin ?? 0
             };
             db.Printers.Add(printer);
             await db.SaveChangesAsync();
@@ -57,6 +58,16 @@ public static class PrinterEndpoints
             db.Printers.Remove(printer);
             await db.SaveChangesAsync();
             return Results.NoContent();
+        });
+
+        group.MapPatch("/{id:int}", async (int id, UpdatePrinterRequest req, AppDbContext db) =>
+        {
+            var printer = await db.Printers.FindAsync(id);
+            if (printer == null) return Results.NotFound();
+            if (req.QuarantineMargin.HasValue)
+                printer.QuarantineMargin = req.QuarantineMargin.Value;
+            await db.SaveChangesAsync();
+            return Results.Ok(new { printer.Id, printer.QuarantineMargin });
         });
 
         group.MapPost("/{id:int}/connect", async (int id, AppDbContext db, PrinterConnectionManager connMgr) =>
@@ -129,4 +140,5 @@ public static class PrinterEndpoints
     }
 }
 
-public record CreatePrinterRequest(string Name, string Ip, int? Port = 9100, string? AdapterType = "mock");
+public record CreatePrinterRequest(string Name, string Ip, int? Port = 9100, string? AdapterType = "mock", int? QuarantineMargin = 0);
+public record UpdatePrinterRequest(int? QuarantineMargin = null);

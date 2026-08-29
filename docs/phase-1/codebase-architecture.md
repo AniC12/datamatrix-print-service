@@ -141,12 +141,12 @@ Data/
 ```csharp
 // Only one active job per printer at a time
 entity.HasIndex(j => j.PrinterId)
-    .HasFilter("[Status] IN ('Preparing','Ready','Printing')")
+    .HasFilter("[Status] IN ('Preparing','Ready','Printing','Paused')")
     .IsUnique();
 
 // Only one active job per product at a time
 entity.HasIndex(j => j.ProductId)
-    .HasFilter("[Status] IN ('Preparing','Ready','Printing')")
+    .HasFilter("[Status] IN ('Preparing','Ready','Printing','Paused')")
     .IsUnique();
 ```
 

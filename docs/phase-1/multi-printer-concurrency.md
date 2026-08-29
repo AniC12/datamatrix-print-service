@@ -33,12 +33,12 @@ These are the hard rules that prevent chaos:
 -- At most one non-terminal job per printer
 CREATE UNIQUE INDEX idx_one_active_job_per_printer 
   ON print_jobs(printer_id) 
-  WHERE status IN ('preparing', 'ready', 'printing');
+  WHERE status IN ('preparing', 'ready', 'printing', 'paused');
 
 -- At most one non-terminal job per product  
 CREATE UNIQUE INDEX idx_one_active_job_per_product 
   ON print_jobs(product_id) 
-  WHERE status IN ('preparing', 'ready', 'printing');
+  WHERE status IN ('preparing', 'ready', 'printing', 'paused');
 ```
 
 SQLite supports partial indexes. Any attempt to insert a second active job for the same printer or product fails at the DB level — even if application logic has a bug. This is the safety net.
@@ -302,7 +302,7 @@ PrintJobService (singleton)
 ├── CreateJobAsync(productId, printerId, quantity)  → returns Job
 ├── PrepareJobAsync(jobId)                          → uploads CSV, verifies
 ├── StartJobAsync(jobId)                            → loads template, starts print, spawns monitor
-├── CancelJobAsync(jobId)                           → stops printer, burns, cleans up
+├── CancelJobAsync(jobId)                           → stops printer, quarantines boundary, cleans up
 │
 ├── _activeJobs: Dictionary<int, JobExecutor>       → key: job.Id
 │
@@ -339,19 +339,21 @@ PrepareJobAsync()
 
 StartJobAsync()
   → Guard: job.status == ready
-  → SPLLTF (resets counter, loads buffer)
-  → SPGGTP → store as total_baseline
+  → StopReadyWatcher (before lock — avoids deadlock)
+  → Acquire printer service lock
+  → SPGGTP → refresh total_baseline, SPGGCP → record baseline
   → SPPSLQ{quantity}
   → SPPSAP
   → UPDATE job status=printing, started_at=now
   → Create JobExecutor, store in _activeJobs
   → JobExecutor.Start() → spawns _pollTask
+  → Release printer service lock
 
 CancelJobAsync()
   → Acquire printer service lock              ← waits for Prepare to finish if in-flight
   → If printing: signal _cts.Cancel(), await _pollTask
-  → If printing: SPPSTP (stop printer), read final SPGGCP
-  → Mark remaining codes: printed up to counter, burn +1, return rest
+  → If printing: SPPSTP (stop printer), read SPGGTP, compute effective count via TotalBaseline
+  → Mark remaining codes: printed up to counter, quarantine N (per-printer QuarantineMargin), return rest
   → If preparing/ready: return all reserved codes to available
   → UPDATE job status=cancelled
   → Remove from _activeJobs
@@ -466,12 +468,13 @@ User clicks Cancel on Job #47 (Printer 1)
 │     │                                          (poll loop catches OperationCanceledException, returns)
 │     ├─ Poll loop is now DEAD. No more adapter calls from it.
 │     │
-│     ├─ var finalCounter = await adapter.GetCurrentCounterAsync()   → one last read
 │     ├─ await adapter.StopPrintAsync()                              → SPPSTP
+│     ├─ var lifetimeCounter = await adapter.GetTotalCounterAsync()  → SPGGTP
+│     ├─ effectivePrinted = lifetimeCounter - job.TotalBaseline
 │     │
-│     ├─ Mark codes [0..finalCounter-1] as printed (if not already)
-│     ├─ Mark code [finalCounter] as burned (+1 safety)
-│     ├─ Mark codes [finalCounter+1..quantity-1] as returned → available
+│     ├─ Mark codes [0..effectivePrinted-1] as printed (if not already)
+│     ├─ Quarantine N codes at [effectivePrinted..] per printer.QuarantineMargin (default 0)
+│     ├─ Mark remaining codes as returned → available
 │     │
 │     ├─ job.status = "cancelled"
 │     ├─ job.completed_at = now
@@ -713,12 +716,12 @@ Recovery dialog shows **all** jobs in a table:
 │                                                                    │
 │  Job #47: 3 prints happened after last app checkpoint.            │
 │           These codes will be marked as printed.                   │
-│           Code at position 346 will be burned (+1 safety).        │
+│           Boundary codes will be quarantined per QuarantineMargin.  │
 │                                                                    │
 │  Job #48: Counters match. Clean resume.                           │
 │                                                                    │
 │  For each job:                                                     │
-│  [Resume (re-upload remaining codes)]  [Abort (burn + return)]    │
+│  [Resume (re-upload remaining codes)]  [Abort (quarantine + return)] │
 │                                                                    │
 └──────────────────────────────────────────────────────────────────┘
 ```

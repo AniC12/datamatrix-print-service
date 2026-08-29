@@ -752,7 +752,7 @@ Read `SPGGSN` (serial number) on reconnect and compare with a stored value. If t
 
 **Paused jobs:**
 - Pausing already reconciled the counter (the printer was stopped, SPGGCP was read, codes were committed). `CodesConfirmed` is accurate.
-- **Action:** Present in Recovery Dialog. Resume (re-upload remaining codes) or Abort (return remaining to pool, no burn needed since pause reconciled cleanly).
+- **Action:** Present in Recovery Dialog. Resume (re-upload remaining codes) or Abort (return remaining to pool, no quarantine needed since pause reconciled cleanly).
 
 ---
 
@@ -1109,71 +1109,40 @@ Because `TotalBaseline` is recorded during Prepare (not during Start), Ready job
 
 | Area | Current Implementation | Reference |
 |------|----------------------|-----------|
-| **Poll loop disconnect** | `IOException` caught, alert raised, waits 2s, retries. But just retries the same poll command — doesn't run a full inspection procedure. | `JobExecutor.PollLoopAsync` |
-| **Reconnection** | `PrinterConnectionManager` detects `IsConnected == false`, runs exponential backoff reconnect. On success, raises `PrinterStatusChanged` event. | `PrinterConnectionManager.StartReconnectLoop` |
-| **Startup recovery** | Finds stale jobs, auto-cancels Preparing (**but NOT Ready** — Ready jobs have TotalBaseline and must be inspected), reads SPGGTP for Printing/Ready jobs, shows Recovery Dialog with Resume/Abort. | `App.xaml.cs:RunStartupRecoveryAsync` |
-| **Resume** | Reads remaining count, sets quantity, starts printer, spawns new executor. **Does NOT re-upload CSV or reload template.** | `PrintJobService.ResumeJobAsync` |
-| **Template match check** | Not done on reconnect. Only done during Verify flow (manual action). | `PrintersViewModel.VerifyPrinterAsync` |
-| **Serial number tracking** | Not implemented. No hardware swap detection. | — |
-| **Burn on power cycle** | Burn +1 is done on Cancel, but the recovery flow lets the operator choose Resume or Abort — it doesn't force a burn on the boundary code for Resume. | `PrintJobService.CancelJobAsync` |
+| **Poll loop disconnect** | `IOException` caught, alert raised. After reconnect, `RunPostReconnectInspectionAsync` runs a full inspection: SPPSTA, SPGGTP delta, SPGGCP power-cycle check, SPLGAT template match, serial number validation. | `JobExecutor.PollLoopAsync`, `RunPostReconnectInspectionAsync` |
+| **Reconnection** | `PrinterConnectionManager` detects `IsConnected == false`, runs exponential backoff reconnect. On success, reads and validates serial number, raises `PrinterStatusChanged` event. | `PrinterConnectionManager.StartReconnectLoop`, `CheckSerialNumberAsync` |
+| **Startup recovery** | Finds stale jobs, auto-cancels Preparing (**but NOT Ready** — Ready jobs have TotalBaseline and must be inspected), reads SPGGTP for Printing/Ready jobs, shows Recovery Dialog with per-job inspection details and Resume/Abort. | `App.xaml.cs:RunStartupRecoveryAsync` |
+| **Resume** | Follows full Resume Procedure (Section 10): deletes old CSV, uploads remaining codes, reloads template, re-baselines SPGGTP and SPGGCP, sets quantity, starts printer, spawns new executor. | `PrintJobService.ResumeJobAsync` |
+| **Template match check** | Done in `RunPostReconnectInspectionAsync` (Check 2: SPLGAT match). Also shown in Recovery Dialog for startup recovery. | `JobExecutor.RunPostReconnectInspectionAsync`, `RecoveryItem.TemplateMatch` |
+| **Serial number tracking** | **Implemented.** `SPGGSN` read on connect/reconnect; `CheckSerialNumberAsync` stores and compares serial; mismatch blocks job operations and raises alert. | `PrinterConnectionManager.CheckSerialNumberAsync` |
+| **Quarantine on cancel** | Quarantine per `QuarantineMargin` (per-printer setting, default 0) is done on Cancel using SPGGTP - TotalBaseline for accurate effective count. Recovery dialog lets operator choose Resume or Abort. Resume re-uploads remaining codes. | `PrintJobService.CancelJobAsync` |
 | **Quarantine status** | **Implemented.** `CodeStatus.Quarantined` added to the enum. The Codes tab on the Products page allows operators to inspect quarantined codes and resolve them (move to Available, Printed, or Burned) individually or in bulk. Quarantined codes are excluded from availability counts and cannot be auto-reused. | `Domain/Enums/CodeStatus.cs`, `CodesTabViewModel.cs` |
 
-### Gaps requiring attention
+### Gaps (all resolved)
 
-**Gap 1: Resume does not re-upload CSV**
+**Gap 1: Resume does not re-upload CSV** — **RESOLVED**
 
-This is the most critical gap. The current `ResumeJobAsync` calls `adapter.SetPrintQuantityAsync(remaining)` and `adapter.StartPrintAsync()`, but does NOT:
-- Delete the old CSV
-- Upload a new CSV with only remaining codes
-- Reload the template (to reset the data buffer and row pointer)
+`ResumeJobAsync` now follows the full Resume Procedure (Section 10): deletes old CSV, uploads new CSV with only remaining Reserved codes, reloads template, records fresh SPGGTP and SPGGCP baselines, sets quantity, starts printer. See `PrintJobService.ResumeJobAsync`.
 
-**If the printer was power-cycled, the data buffer is lost.** Resuming without re-uploading the CSV means the printer will either:
-- Print from whatever data is in the buffer (undefined behavior), or
-- Use the stored CSV from the beginning (row pointer reset → DUPLICATES)
+**Gap 2: No post-reconnect inspection during live jobs** — **RESOLVED**
 
-**Fix:** `ResumeJobAsync` must follow the full Resume Procedure (Section 10).
+`JobExecutor.RunPostReconnectInspectionAsync` runs a full inspection after every reconnect: SPPSTA (errors), SPGGTP (delta/reconciliation), SPGGCP (power-cycle detection), SPLGAT (template mismatch). Anomalies quarantine remaining codes and set the job to Error.
 
-**Gap 2: No post-reconnect inspection during live jobs**
+**Gap 3: No serial number tracking** — **RESOLVED**
 
-When the poll loop reconnects after an `IOException`, it simply retries `GetCurrentCounterAsync`. It doesn't:
-- Check SPPSTA for errors
-- Check SPLGAT for template mismatch
-- Check if a power cycle occurred (SPGGCP == 0 check)
-- Read SPGGTP for reconciliation
+`PrinterConnectionManager.CheckSerialNumberAsync` reads `SPGGSN` on connect/reconnect, stores it in the `Printer` entity, and compares on every reconnect. Mismatch blocks job operations and raises an alert. `HasSerialMismatch` is checked in `StartJobAsync` and `ResumeJobAsync`.
 
-**Fix:** After any `IOException` + successful reconnect, the poll loop should run a mini-inspection:
-1. Read SPPSTA
-2. Read SPGGTP, compute delta
-3. Read SPGGCP — if 0 and delta > confirmed, flag power cycle
-4. Read SPLGAT — if mismatch, escalate
+**Gap 4: Recovery dialog doesn't show enough detail** — **RESOLVED**
 
-**Gap 3: No serial number tracking**
+`RecoveryItem` now includes: `PowerCycleDetected`, `TemplateMatch`, `CsvPresent`, `SerialMismatch`, `PrinterStatus`, `ActiveTemplate`, and `RecommendedAction`. The Recovery Dialog displays all inspection details and flags.
 
-Hardware swaps at the same IP are undetectable. SPGGTP delta will produce meaningless results.
+**Gap 5: Ready jobs are auto-cancelled on startup** — **RESOLVED**
 
-**Fix:** Store serial number (`SPGGSN`) on first connect. Compare on every reconnect.
+Only Preparing jobs are auto-cancelled. Ready and Printing jobs are inspected using `TotalBaseline` and presented in the Recovery Dialog with per-job Resume/Abort options.
 
-**Gap 4: Recovery dialog doesn't show enough detail**
+**Gap 6: No Ready Watch Loop** — **RESOLVED**
 
-The current Recovery Dialog shows: Job #, Product, Printer, App Says, Printer Says, Delta. But it doesn't show:
-- Whether the printer was power-cycled
-- Whether the template still matches
-- Whether the CSV is still present
-- Recommended action explanation
-
-**Fix:** Add inspection results to each `RecoveryItem`.
-
-**Gap 5: Ready jobs are auto-cancelled on startup**
-
-The current startup recovery auto-cancels both Preparing AND Ready jobs. Ready jobs have a loaded data buffer and a `TotalBaseline` (recorded during Prepare). If someone pressed Print on the touchscreen, codes may have been printed. Auto-cancelling returns those codes to Available → potential duplicates.
-
-**Fix:** Only auto-cancel Preparing jobs. Ready jobs must be inspected using `TotalBaseline` before any decision. Present them in the Recovery Dialog like Printing jobs.
-
-**Gap 6: No Ready Watch Loop**
-
-While a job is in Ready status, the app has no active monitoring of the printer. If someone presses Print on the printer's touchscreen, the app won't know until the operator clicks Start (or the app restarts and runs recovery). This blind spot could allow untracked printing.
-
-**Fix:** Start a lightweight periodic check (every 2-5 seconds) once a job enters Ready. Read `SPPSTA` and `SPGGCP`. If printing is detected, alert the operator and transition to Printing with a full poll loop. See §11.9 for details.
+`ReadyWatcher` monitors Ready jobs with periodic checks (SPPSTA, SPGGCP, SPGGTP) while a job is in Ready status. If external printing is detected, it alerts the operator. See `ReadyWatcher.cs`.
 
 ---
 
@@ -1212,7 +1181,7 @@ The most critical safety fix. Three parts:
 
 **B) TotalBaseline during Prepare.** Move `SPGGTP` read from `StartJobAsync` (line 225) to `PrepareJobAsync` right after `ActivateTemplateAsync`. This gives Ready jobs a baseline for recovery. `StartJobAsync` records a fresh baseline for the active Printing session.
 
-**C) Cancel boundary → Quarantine.** `CancelJobAsync` currently calls `BurnCodeAsync` at the boundary. Change to a new `QuarantineCodeAsync` method on `ICodePoolService`.
+**C) Cancel boundary → Quarantine.** `CancelJobAsync` calls `QuarantineCodeAsync` at the boundary (implemented). Uses SPGGTP - TotalBaseline for accurate effective count.
 
 **Files:** `PrintJobService.cs`, `ICodePoolService.cs`, `CodePoolService.cs`, `MockPrinterAdapter.cs`
 

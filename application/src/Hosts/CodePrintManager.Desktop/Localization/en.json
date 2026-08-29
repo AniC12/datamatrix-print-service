@@ -121,6 +121,8 @@
   "Printers_Label_IpAddress": "IP Address",
   "Printers_Label_Port": "Port",
   "Printers_Label_AdapterType": "Adapter Type",
+  "Printers_Label_QuarantineMargin": "Quarantine Margin",
+  "Printers_QuarantineMargin_Tooltip": "Number of boundary codes to quarantine when cancelling a job mid-print. 0 = no boundary quarantine, 1 = safest default.",
   "Printers_Connect": "Connect",
   "Printers_Disconnect": "Disconnect",
   "Printers_Edit": "Edit",

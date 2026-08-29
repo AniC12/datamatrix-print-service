@@ -147,7 +147,7 @@ Job #47:
    - Loads fresh CSV data into the data buffer (ensures new codes are used)
    - Resets CSV row pointer to row 1
    - **Note:** SPGGCP behavior on `SPLLTF` varies by firmware version (some reset to 0, some are cumulative). The app always records a SPGGCP baseline after reload for delta tracking, so the formula works regardless.
-   - **On FAIL**: transition job to `error`, codes stay `reserved`. Read `SPPSTA` for diagnostics. UI shows: *"Template load failed. Printer state: {state}."* with **[Retry]** and **[Cancel Job]**. Retry re-checks `SPPSTA == WAITING` then re-attempts `SPLLTF`. Cancel returns all reserved codes to `available` (no burn needed — nothing was printed).
+   - **On FAIL**: transition job to `error`, codes stay `reserved`. Read `SPPSTA` for diagnostics. UI shows: *"Template load failed. Printer state: {state}."* with **[Retry]** and **[Cancel Job]**. Retry re-checks `SPPSTA == WAITING` then re-attempts `SPLLTF`. Cancel returns all reserved codes to `available` (no quarantine needed — nothing was printed).
 2. **Record lifetime counter** — read `SPGGTP` as `total_baseline` (cross-check, survives power cycle)
 3. **Set print quantity** — `SPPSLQ{N}` (limited print count)
 4. **Start printing** — `SPPSAP`
@@ -167,7 +167,7 @@ Job #47:
 - **Complete**: all reserved codes confirmed printed. Job done.
 - **Cancel**: 
   - Codes already marked `printed` stay printed
-  - The **next code** after last confirmed print is marked `burned` (+1 safety margin)
+  - Boundary codes after last confirmed print are marked `quarantined` (per-printer `QuarantineMargin` setting, default 0 — operator can recover via Codes tab)
   - Remaining reserved codes return to `available` (status → `returned`)
   - Stop printer
 
@@ -225,9 +225,9 @@ Recovery strategy:
 4. Operator can:
    - **Re-upload and resume**: app re-uploads CSV (only remaining unprinted codes), reloads template, continues
    - **Verify first**: check stored files (`SPLGSD`) and counters (`SPGGTP`), compare with app records
-   - **Abort job**: burn the ambiguous code (+1 after last confirmed), return rest to pool
+   - **Abort job**: quarantine the ambiguous code (+1 after last confirmed), return rest to pool
 
-> **Key insight**: Because we always reload the template at job start (resetting `SPGGCP` to 0) and record `SPGGTP` as a persistent checkpoint, we can determine exactly how many codes were physically printed even after a power cycle.
+> **Key insight**: Because we always record a SPGGCP baseline at job start (delta tracking works regardless of firmware reset behavior) and record `SPGGTP` as a persistent checkpoint, we can determine exactly how many codes were physically printed even after a power cycle.
 
 ---
 
@@ -338,11 +338,11 @@ CREATE INDEX idx_archived_product_date ON archived_codes(product_id, archived_at
 -- Concurrency guards (see multi-printer-concurrency.md §2)
 CREATE UNIQUE INDEX idx_one_active_job_per_printer
   ON print_jobs(printer_id)
-  WHERE status IN ('preparing', 'ready', 'printing');
+  WHERE status IN ('preparing', 'ready', 'printing', 'paused');
 
 CREATE UNIQUE INDEX idx_one_active_job_per_product
   ON print_jobs(product_id)
-  WHERE status IN ('preparing', 'ready', 'printing');
+  WHERE status IN ('preparing', 'ready', 'printing', 'paused');
 ```
 
 ---
@@ -434,25 +434,24 @@ The `SavemaTtoAdapter` implements `IPrinterAdapter` using SPPL over TCP:
 
 ```
 Every 500ms while job is active:
-  current_counter = await printer.GetCurrentCounterAsync()   // SPGGCP (reset to 0 at job start)
-  codes_printed = current_counter                            // baseline is always 0
+  raw_counter = await printer.GetCurrentCounterAsync()       // SPGGCP (may be cumulative)
+  codes_printed = raw_counter + counter_offset               // offset = -baseline (fresh job)
+                                                             //        = CodesConfirmed - baseline (resume)
+  // Cap to quantity as defense-in-depth
+  if codes_printed > job.quantity: codes_printed = job.quantity
 
   // Cross-check with lifetime counter (periodic, e.g., every 5th poll)
   if should_cross_check:
     lifetime = await printer.GetTotalCounterAsync()           // SPGGTP
     expected = lifetime - job.total_baseline
     if expected != codes_printed:
-      LOG_WARNING: "Counter mismatch: SPGGCP={codes_printed}, SPGGTP delta={expected}"
+      LOG_WARNING: "Counter mismatch: SPGGCP-based={codes_printed}, SPGGTP delta={expected}"
 
   if codes_printed > job.codes_confirmed:
     // New prints detected
     mark codes[job.codes_confirmed .. codes_printed-1] as "printed"
     job.codes_confirmed = codes_printed
     save to DB
-
-  if codes_printed > job.quantity:
-    // More prints than expected! External interference
-    ALERT: "Printer printed more than requested. Possible external print."
 
   if codes_printed == job.quantity:
     // Job complete
@@ -1031,7 +1030,7 @@ This test validates: stored CSV persistence (#3), counter behavior, power cycle 
 
 | Risk | Mitigation |
 |------|-----------|
-| **Duplicate print** (worst case) | Global uniqueness constraint in DB. Code can never return to `available` after `printed`. Burn +1 on ambiguity. |
+| **Duplicate print** (worst case) | Global uniqueness constraint in DB. Code can never return to `available` after `printed`. Quarantine boundary codes on ambiguity (per-printer `QuarantineMargin`, default 0; operator can recover after verification). |
 | **Counter reset (power cycle)** | Detect counter < expected. Alert operator. Require explicit re-verify before resuming. |
 | **External print (Sayasis used directly)** | Detect counter jump. Alert. Conservatively mark codes as printed. |
 | **App crash mid-job** | All state transitions written to SQLite immediately. On restart, job is in `printing` state with last known `codes_confirmed`. Resume or abort. |

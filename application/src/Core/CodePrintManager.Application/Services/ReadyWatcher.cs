@@ -59,6 +59,11 @@ public class ReadyWatcher
 
     public void Start()
     {
+        if (_watchTask != null && !_watchTask.IsCompleted)
+        {
+            _logger.LogWarning("ReadyWatcher.Start() called while already running for Job {JobId}. Ignoring.", _job.Id);
+            return;
+        }
         _logger.LogTrace("-> ReadyWatcher.Start() for Job {JobId}", _job.Id);
         _logger.LogInformation(
             "ReadyWatcher started: Job {JobId} on printer {PrinterId}",
@@ -78,6 +83,12 @@ public class ReadyWatcher
         {
             try { await _watchTask; }
             catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "ReadyWatcher: watch loop for Job {JobId} ended with error (suppressed during stop)",
+                    _job.Id);
+            }
         }
         _logger.LogTrace("<- ReadyWatcher.StopAsync() completed");
     }

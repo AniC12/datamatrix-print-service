@@ -61,6 +61,8 @@ public class RecoveryScenarioTests : IntegrationTestBase
     public async Task Cancel_QuarantinesBoundaryCode()
     {
         var printerId = await SetupPrinterAsync("CancelQuarantinePrinter");
+        // Set QuarantineMargin = 1 so the boundary code is quarantined on cancel
+        await Client.PatchAsJsonAsync($"/api/printers/{printerId}", new { QuarantineMargin = 1 });
         var productId = await SetupProductAsync("CancelQuarantineProduct", "cq.csv");
         await ImportCodesAsync(productId, 20);
         await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 100 });

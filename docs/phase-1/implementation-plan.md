@@ -295,7 +295,7 @@ This is a significant feature requiring changes across layers:
 - Import: duplicate detection, SPPL validation, batch tracking, import order
 - Reserve: FIFO order, quantity validation, status transition
 - Return: codes become Available again (E0-3)
-- Burn: single code at correct index
+- Quarantine: single code at correct index
 - MarkPrinted: range-based marking
 - Edge cases: reserve more than available, import empty list, import with all duplicates
 
@@ -306,7 +306,7 @@ This is a significant feature requiring changes across layers:
 - Create: job created with correct initial status
 - Prepare: mock adapter, verify SPPL command sequence (delete CSV → upload → verify → check template → activate)
 - Start: verify baseline recorded, quantity set, print started, executor spawned
-- Cancel while Printing: verify burn +1 logic, code return, printer stop
+- Cancel while Printing: verify quarantine logic (per-printer QuarantineMargin), code return, printer stop
 - Cancel while Preparing: verify all codes returned
 - Cancel while Ready: verify all codes returned
 - Concurrent: attempt two jobs on same printer — expect failure (partial unique index)
@@ -656,7 +656,7 @@ Current implementation status of every feature area in the design spec.
 | `PrintJobService.CreateJobAsync` | Done | |
 | `PrintJobService.PrepareJobAsync` | Done | Auto-uploads .rox template from disk if missing on printer (E1-2) |
 | `PrintJobService.StartJobAsync` | Done | Records baseline, sets qty, starts, spawns executor |
-| `PrintJobService.CancelJobAsync` | Done | Burn +1 logic correct |
+| `PrintJobService.CancelJobAsync` | Done | Quarantine per QuarantineMargin (configurable, default 0) |
 | `PrintJobService` (lifetime) | Done | Fixed: `JobEventBus` + `ActiveJobRegistry` singletons extracted (E2-3) |
 | `JobExecutor` | Done | Poll loop, anomaly detection, commit, complete |
 | `PrinterConnectionManager` | Done | Factory lookup, connect, reconnect with backoff |

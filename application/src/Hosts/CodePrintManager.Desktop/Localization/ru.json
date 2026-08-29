@@ -121,6 +121,8 @@
   "Printers_Label_IpAddress": "IP-адрес",
   "Printers_Label_Port": "Порт",
   "Printers_Label_AdapterType": "Тип адаптера",
+  "Printers_Label_QuarantineMargin": "Запас карантина",
+  "Printers_QuarantineMargin_Tooltip": "Количество граничных кодов для карантина при отмене задания во время печати. 0 = без карантина, 1 = безопасное значение по умолчанию.",
   "Printers_Connect": "Подключить",
   "Printers_Disconnect": "Отключить",
   "Printers_Edit": "Редактировать",

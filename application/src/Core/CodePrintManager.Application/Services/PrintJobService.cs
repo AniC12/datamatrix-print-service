@@ -318,79 +318,91 @@ public class PrintJobService : IPrintJobService
         if (job.Status != JobStatus.Ready)
             throw new InvalidOperationException(_loc.Format("Error_JobNotReady", job.Status));
 
-        // Stop the ReadyWatcher before transitioning to Printing
+        // Stop the ReadyWatcher before acquiring the printer lock.
+        // StopReadyWatcherAsync is safe to call without the lock (the registry is
+        // concurrent-safe), and the watcher's StopAsync awaits its own loop — holding
+        // the printer lock during that could deadlock if the watcher is mid-callback.
         await StopReadyWatcherAsync(jobId);
 
-        var adapter = _connectionManager.GetAdapter(job.PrinterId)
-            ?? throw new InvalidOperationException(_loc["Error_PrinterNotConnectedShort"]);
-
-        if (_connectionManager.HasSerialMismatch(job.PrinterId))
-            throw new InvalidOperationException(_loc["Error_SerialMismatch"]);
-
-        // Record fresh lifetime counter baseline for the active Printing session.
-        // (Prepare already recorded a baseline for Ready-job recovery, but the
-        // printer may have been used between Prepare and Start, so we refresh.)
-        job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
-
-        // Read SPGGCP baseline BEFORE starting print.
-        // SPGGCP behavior varies by firmware: some reset on SPLLTF, some are cumulative.
-        // We always record a baseline so the executor can compute session-only delta.
-        var currentCounterBaseline = await adapter.GetCurrentCounterAsync(ct);
-        _logger.LogInformation("Job {JobId}: SPGGCP baseline = {Baseline} (will be subtracted from poll readings)",
-            jobId, currentCounterBaseline);
-
-        // Set quantity and start
-        await adapter.SetPrintQuantityAsync(job.Quantity, ct);
-        await adapter.StartPrintAsync(ct);
-
-        job.Status = JobStatus.Printing;
-        job.StartedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-
-        _logger.LogInformation("Job {JobId} started (SPGGTP baseline={TotalBaseline}, SPGGCP baseline={CounterBaseline}, qty={Quantity})",
-            jobId, job.TotalBaseline, currentCounterBaseline, job.Quantity);
-
-        // Spawn job executor with its own DbContext scope (outlives the calling scope)
-        IServiceScope? executorScope = null;
-        AppDbContext executorDb;
-        ICodePoolService executorCodePool;
-
-        if (_scopeFactory != null)
+        var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
+        await printerLock.WaitAsync(ct);
+        try
         {
-            executorScope = _scopeFactory.CreateScope();
-            executorDb = executorScope.ServiceProvider.GetRequiredService<AppDbContext>();
-            executorCodePool = executorScope.ServiceProvider.GetRequiredService<ICodePoolService>();
-            // Re-attach the job entity to the new context
-            var executorJob = await executorDb.PrintJobs
-                .Include(j => j.Printer)
-                .FirstAsync(j => j.Id == jobId);
-            job = executorJob;
+            var adapter = _connectionManager.GetAdapter(job.PrinterId)
+                ?? throw new InvalidOperationException(_loc["Error_PrinterNotConnectedShort"]);
+
+            if (_connectionManager.HasSerialMismatch(job.PrinterId))
+                throw new InvalidOperationException(_loc["Error_SerialMismatch"]);
+
+            // Record fresh lifetime counter baseline for the active Printing session.
+            // (Prepare already recorded a baseline for Ready-job recovery, but the
+            // printer may have been used between Prepare and Start, so we refresh.)
+            job.TotalBaseline = await adapter.GetTotalCounterAsync(ct);
+
+            // Read SPGGCP baseline BEFORE starting print.
+            // SPGGCP behavior varies by firmware: some reset on SPLLTF, some are cumulative.
+            // We always record a baseline so the executor can compute session-only delta.
+            var currentCounterBaseline = await adapter.GetCurrentCounterAsync(ct);
+            _logger.LogInformation("Job {JobId}: SPGGCP baseline = {Baseline} (will be subtracted from poll readings)",
+                jobId, currentCounterBaseline);
+
+            // Set quantity and start
+            await adapter.SetPrintQuantityAsync(job.Quantity, ct);
+            await adapter.StartPrintAsync(ct);
+
+            job.Status = JobStatus.Printing;
+            job.StartedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Job {JobId} started (SPGGTP baseline={TotalBaseline}, SPGGCP baseline={CounterBaseline}, qty={Quantity})",
+                jobId, job.TotalBaseline, currentCounterBaseline, job.Quantity);
+
+            // Spawn job executor with its own DbContext scope (outlives the calling scope)
+            IServiceScope? executorScope = null;
+            AppDbContext executorDb;
+            ICodePoolService executorCodePool;
+
+            if (_scopeFactory != null)
+            {
+                executorScope = _scopeFactory.CreateScope();
+                executorDb = executorScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                executorCodePool = executorScope.ServiceProvider.GetRequiredService<ICodePoolService>();
+                // Re-attach the job entity to the new context
+                var executorJob = await executorDb.PrintJobs
+                    .Include(j => j.Printer)
+                    .FirstAsync(j => j.Id == jobId);
+                job = executorJob;
+            }
+            else
+            {
+                // Fallback: use caller's context (WPF host where scope is long-lived)
+                executorDb = _db;
+                executorCodePool = _codePool;
+            }
+
+            var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
+                counterOffset: -currentCounterBaseline);
+            executor.ProgressChanged += (_, e) =>
+            {
+                _eventBus.RaiseProgressChanged(this, e);
+                JobProgressChanged?.Invoke(this, e);
+            };
+            executor.Completed += (_, e) =>
+            {
+                _jobRegistry.TryRemove(jobId);
+                executorScope?.Dispose();
+                _eventBus.RaiseCompleted(this, e);
+                JobCompleted?.Invoke(this, e);
+            };
+            _jobRegistry.Register(jobId, executor);
+            _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope}, counterOffset={Offset})",
+                jobId, _scopeFactory != null, -currentCounterBaseline);
+            executor.Start();
         }
-        else
+        finally
         {
-            // Fallback: use caller's context (WPF host where scope is long-lived)
-            executorDb = _db;
-            executorCodePool = _codePool;
+            printerLock.Release();
         }
-
-        var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
-            counterOffset: -currentCounterBaseline);
-        executor.ProgressChanged += (_, e) =>
-        {
-            _eventBus.RaiseProgressChanged(this, e);
-            JobProgressChanged?.Invoke(this, e);
-        };
-        executor.Completed += (_, e) =>
-        {
-            _jobRegistry.TryRemove(jobId);
-            executorScope?.Dispose();
-            _eventBus.RaiseCompleted(this, e);
-            JobCompleted?.Invoke(this, e);
-        };
-        _jobRegistry.Register(jobId, executor);
-        _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope}, counterOffset={Offset})",
-            jobId, _scopeFactory != null, -currentCounterBaseline);
-        executor.Start();
 
         await _audit.LogAsync("job_started", printerId: job.PrinterId, jobId: jobId);
         _logger.LogTrace("<- StartJobAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
@@ -401,7 +413,7 @@ public class PrintJobService : IPrintJobService
         _logger.LogTrace("-> CancelJobAsync(jobId={JobId})", jobId);
         var sw = Stopwatch.StartNew();
 
-        var job = await _db.PrintJobs.FirstAsync(j => j.Id == jobId);
+        var job = await _db.PrintJobs.Include(j => j.Printer).FirstAsync(j => j.Id == jobId);
 
         using var _ = LogContext.PushProperty("JobId", jobId);
         using var __ = LogContext.PushProperty("PrinterId", job.PrinterId);
@@ -418,34 +430,67 @@ public class PrintJobService : IPrintJobService
         await printerLock.WaitAsync();
         try
         {
+            // --- Printer I/O (outside transaction) ---
+            var effectivePrinted = 0;
+            var quarantineCount = 0;
+            var hadActiveExecutor = false;
+            var hasAdapter = false;
+
             if (job.Status == JobStatus.Printing && _jobRegistry.TryGet(jobId, out var executor) && executor != null)
             {
+                hadActiveExecutor = true;
                 await executor.StopAsync();
                 _jobRegistry.TryRemove(jobId);
 
                 var adapter = _connectionManager.GetAdapter(job.PrinterId);
                 if (adapter != null)
                 {
-                    var finalCounter = await adapter.GetCurrentCounterAsync();
+                    hasAdapter = true;
                     await adapter.StopPrintAsync();
 
-                    // Mark codes printed up to counter
-                    if (finalCounter > job.CodesConfirmed)
-                        await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, finalCounter);
+                    // Use SPGGTP (lifetime counter) for authoritative print count.
+                    // Raw SPGGCP may be cumulative and cannot be compared to CodesConfirmed
+                    // (which is offset-adjusted by the executor). SPGGTP - TotalBaseline
+                    // gives the true effective print count for this job.
+                    var lifetimeCounter = await adapter.GetTotalCounterAsync();
+                    effectivePrinted = job.TotalBaseline.HasValue
+                        ? lifetimeCounter - job.TotalBaseline.Value
+                        : job.CodesConfirmed; // fallback: trust last committed progress
+                    // Cap to Quantity as a safety net
+                    if (effectivePrinted > job.Quantity)
+                        effectivePrinted = job.Quantity;
+                    _logger.LogDebug("CancelJobAsync: SPGGTP={Lifetime}, TotalBaseline={Baseline}, effectivePrinted={Effective}, confirmed={Confirmed}",
+                        lifetimeCounter, job.TotalBaseline, effectivePrinted, job.CodesConfirmed);
 
-                    // Quarantine the code at finalCounter because there is genuine uncertainty:
-                    // the printer may have printed it between the counter read and the stop command.
-                    // The operator can verify via the Codes tab and move it to Available or Printed.
-                    if (finalCounter < job.Quantity)
-                        await _codePool.QuarantineCodeAsync(jobId, finalCounter);
-
-                    // Return remaining codes (no uncertainty — they were never sent to the printer).
-                    // startIndex=0 because MarkCodesPrintedAsync and QuarantineCodeAsync already moved
-                    // codes out of Reserved status; the remaining Reserved set IS the unprinted codes.
-                    var remaining = job.Quantity - finalCounter - 1;
-                    if (remaining > 0)
-                        await _codePool.ReturnCodesToPoolAsync(jobId, 0, remaining);
+                    // Compute quarantine count from per-printer QuarantineMargin setting.
+                    var margin = job.Printer.QuarantineMargin;
+                    quarantineCount = Math.Min(margin, job.Quantity - effectivePrinted);
                 }
+            }
+
+            // --- DB mutations (inside transaction) ---
+            // using-dispose auto-rolls-back if CommitAsync is not reached.
+            using var transaction = await _db.Database.BeginTransactionAsync();
+
+            if (hadActiveExecutor && hasAdapter)
+            {
+                // Mark codes printed up to effective counter
+                if (effectivePrinted > job.CodesConfirmed)
+                    await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, effectivePrinted);
+
+                // Quarantine boundary codes based on per-printer QuarantineMargin setting.
+                // The margin covers uncertainty: the printer may have printed codes between
+                // the counter read and the stop command. The operator can verify via the
+                // Codes tab and move quarantined codes to Available or Printed.
+                if (quarantineCount > 0)
+                    await _codePool.QuarantineCodesAsync(jobId, effectivePrinted, quarantineCount);
+
+                // Return remaining codes (no uncertainty — they were never sent to the printer).
+                // startIndex=0 because MarkCodesPrintedAsync and QuarantineCodesAsync already moved
+                // codes out of Reserved status; the remaining Reserved set IS the unprinted codes.
+                var remaining = job.Quantity - effectivePrinted - quarantineCount;
+                if (remaining > 0)
+                    await _codePool.ReturnCodesToPoolAsync(jobId, 0, remaining);
             }
             else if (job.Status == JobStatus.Printing)
             {
@@ -477,10 +522,12 @@ public class PrintJobService : IPrintJobService
             job.Status = JobStatus.Cancelled;
             job.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             _logger.LogInformation("Job {JobId} CANCELLED (confirmed={Confirmed}/{Total}) in {ElapsedMs}ms",
                 jobId, job.CodesConfirmed, job.Quantity, sw.ElapsedMilliseconds);
 
+            // Audit outside transaction — cancel is committed regardless of audit outcome
             await _audit.LogAsync("job_cancelled", jobId: jobId);
             _logger.LogTrace("<- CancelJobAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
         }
@@ -507,6 +554,9 @@ public class PrintJobService : IPrintJobService
         await printerLock.WaitAsync();
         try
         {
+            // --- Printer I/O (outside transaction) ---
+            var effectivePrinted = job.CodesConfirmed;
+
             // Stop the executor polling loop (but don't destroy progress)
             if (_jobRegistry.TryGet(jobId, out var executor) && executor != null)
             {
@@ -515,29 +565,43 @@ public class PrintJobService : IPrintJobService
                 _jobRegistry.TryRemove(jobId);
             }
 
-            // Stop the printer and reconcile counter
+            // Stop the printer and reconcile counter using SPGGTP (lifetime counter).
+            // Raw SPGGCP may be cumulative and cannot be compared to CodesConfirmed
+            // (which is offset-adjusted by the executor). SPGGTP - TotalBaseline
+            // gives the true effective print count for this job.
             var adapter = _connectionManager.GetAdapter(job.PrinterId);
             if (adapter != null)
             {
                 _logger.LogDebug("PauseJobAsync: sending StopPrint to printer for Job {JobId}", jobId);
                 await adapter.StopPrintAsync();
 
-                // Reconcile: the printer may have advanced past what the executor committed
-                var finalCounter = await adapter.GetCurrentCounterAsync();
-                _logger.LogDebug("PauseJobAsync: finalCounter={FinalCounter}, confirmed={Confirmed}",
-                    finalCounter, job.CodesConfirmed);
-                if (finalCounter > job.CodesConfirmed)
-                {
-                    _logger.LogDebug("PauseJobAsync: reconciling {Delta} additional prints",
-                        finalCounter - job.CodesConfirmed);
-                    await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, finalCounter);
-                    job.CodesConfirmed = finalCounter;
-                }
+                var lifetimeCounter = await adapter.GetTotalCounterAsync();
+                effectivePrinted = job.TotalBaseline.HasValue
+                    ? lifetimeCounter - job.TotalBaseline.Value
+                    : job.CodesConfirmed; // fallback: trust executor's last commit
+                // Cap to Quantity as a safety net
+                if (effectivePrinted > job.Quantity)
+                    effectivePrinted = job.Quantity;
+                _logger.LogDebug("PauseJobAsync: SPGGTP={Lifetime}, TotalBaseline={Baseline}, effectivePrinted={Effective}, confirmed={Confirmed}",
+                    lifetimeCounter, job.TotalBaseline, effectivePrinted, job.CodesConfirmed);
+            }
+
+            // --- DB mutations (inside transaction) ---
+            using var transaction = await _db.Database.BeginTransactionAsync();
+
+            if (effectivePrinted > job.CodesConfirmed)
+            {
+                _logger.LogDebug("PauseJobAsync: reconciling {Delta} additional prints",
+                    effectivePrinted - job.CodesConfirmed);
+                await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, effectivePrinted);
+                job.CodesConfirmed = effectivePrinted;
             }
 
             job.Status = JobStatus.Paused;
             await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
 
+            // Audit outside transaction — pause is committed regardless of audit outcome
             await _audit.LogAsync("job_paused", jobId: jobId, printerId: job.PrinterId);
             _logger.LogInformation("Job {JobId} PAUSED at {Confirmed}/{Total} in {ElapsedMs}ms",
                 jobId, job.CodesConfirmed, job.Quantity, sw.ElapsedMilliseconds);

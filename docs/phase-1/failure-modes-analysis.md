@@ -22,7 +22,7 @@ These are the most common operational failures in factory environments. Savema p
 - The `SavemaTtoAdapter` is a stable handle — the same instance swaps its internal TCP connection under its own `SemaphoreSlim` lock. `JobExecutor` never knows reconnection happened.
 - Other printers and their jobs are completely unaffected.
 
-**Residual risk:** Between the last successful poll and the disconnect, the printer may have physically printed additional codes. These are reconciled only when the connection is restored by cross-checking `SPGGTP` (lifetime counter). If the operator aborts before reconnection, these codes are burned (+1 safety margin).
+**Residual risk:** Between the last successful poll and the disconnect, the printer may have physically printed additional codes. These are reconciled only when the connection is restored by cross-checking `SPGGTP` (lifetime counter). If the operator aborts before reconnection, boundary codes are quarantined (per-printer `QuarantineMargin` setting).
 
 ### 1.2 Printer Unreachable on App Startup
 
@@ -50,7 +50,7 @@ These are the most common operational failures in factory environments. Savema p
 
 **Gap:** Rapid connect/disconnect cycles could cause the poll loop to miss several counter updates in a row. The lifetime counter (`SPGGTP`) cross-check (every 5th poll) eventually reconciles, but during the unstable period the UI progress may be stale. If the instability persists, the operator sees repeated "Connection lost" / "Connected" alerts but no clear indication that the *network itself* is the problem (as opposed to the printer).
 
-**Severity:** Medium. Codes are safe (burn-on-ambiguity protects against duplicates), but the operator experience is poor during flickers and code waste may increase.
+**Severity:** Medium. Codes are safe (quarantine-on-ambiguity protects against duplicates), but the operator experience is poor during flickers and quarantined codes may increase.
 
 ### 1.4 Stale TCP Socket (Half-Open Connection)
 
@@ -132,7 +132,7 @@ Savema TTO (Thermal Transfer Overprint) printers are industrial equipment subjec
    - Compute `prints_before_failure = SPGGTP_now - job.TotalBaseline`.
    - Compare with `job.CodesConfirmed` (what the app tracked).
    - Present discrepancy to operator in the Recovery Dialog.
-3. Operator chooses Resume (re-upload remaining codes, continue from last confirmed) or Abort (burn ambiguous code, return rest to pool).
+3. Operator chooses Resume (re-upload remaining codes, continue from last confirmed) or Abort (quarantine ambiguous code, return rest to pool).
 
 **Residual risk:** If both the app AND the printer lose power simultaneously (factory-wide outage), the app recovers on next startup using the same `SPGGTP` logic. The risk is minimal as long as the printer's non-volatile counter is trustworthy.
 
@@ -332,7 +332,7 @@ Counter tracking is the core safety mechanism. The system uses three counter sou
 3. Printing jobs: reads `SPGGTP` from each printer, computes discrepancy vs `TotalBaseline + CodesConfirmed`.
 4. Presents Recovery Dialog with per-job Resume/Abort options.
 5. Resume: re-uploads remaining unprinted codes, continues job.
-6. Abort: burns ambiguous code (+1 after last confirmed), returns rest to pool.
+6. Abort: quarantines ambiguous code (+1 after last confirmed), returns rest to pool.
 
 **Residual risk:** If the printer is also offline during recovery, the job is marked "pending manual recovery" and the operator must wait for the printer to come back online.
 
@@ -463,7 +463,7 @@ Thread B (Cancel):  blocks until Prepare finishes → then cancels cleanly
 - Codes stay in "reserved" status (nothing was printed yet).
 - UI shows: "Template load failed. Printer state: {state}" with **[Retry]** and **[Cancel Job]** buttons.
 - Retry re-checks `SPPSTA == WAITING`, then re-attempts `SPLLTF`.
-- Cancel returns all reserved codes to Available (no burn needed — nothing was printed).
+- Cancel returns all reserved codes to Available (no quarantine needed — nothing was printed).
 
 **Residual risk:** None.
 
@@ -568,12 +568,12 @@ Thread B (Cancel):  blocks until Prepare finishes → then cancels cleanly
 
 **How:**
 - Codes already printed stay marked as Printed (irreversible, correct).
-- The next code after the last confirmed print is burned (+1 safety margin).
+- Boundary codes after the last confirmed print are quarantined (per-printer `QuarantineMargin` setting, default 0).
 - Remaining reserved codes are returned to Available.
 
-**Gap:** There is no "undo cancel." The burned code is gone forever. There is a confirmation step (button click), but no confirmation dialog specifically for Cancel.
+**Gap:** There is no "undo cancel." The quarantined code is frozen until the operator resolves it (move to Available or Printed via the Codes tab). There is a confirmation step (button click), but no confirmation dialog specifically for Cancel.
 
-**Severity:** Low. The cost is one burned code. The returned codes are immediately available for the next job.
+**Severity:** Low. The cost is one quarantined code (recoverable after verification). The returned codes are immediately available for the next job.
 
 ### 8.5 Incorrect Recovery Decision
 
@@ -585,9 +585,9 @@ Thread B (Cancel):  blocks until Prepare finishes → then cancels cleanly
 - The Recovery Dialog shows detailed information: App says X codes, Printer says Y codes, Delta = Z.
 - Per-job Resume/Abort options.
 
-**Gap:** The operator must understand what the numbers mean. If they don't, they might abort a job (burning codes unnecessarily) or resume a job that has stale data on the printer. Resume re-uploads remaining codes, which should be safe, but if the printer's internal state is truly inconsistent (firmware bug), resuming could cause issues.
+**Gap:** The operator must understand what the numbers mean. If they don't, they might abort a job (quarantining codes unnecessarily) or resume a job that has stale data on the printer. Resume re-uploads remaining codes, which should be safe, but if the printer's internal state is truly inconsistent (firmware bug), resuming could cause issues.
 
-**Severity:** Medium. Training and clear UI messaging are the mitigations. The system errs on the side of safety (burn-on-ambiguity), so even wrong decisions tend to waste codes rather than duplicate them.
+**Severity:** Medium. Training and clear UI messaging are the mitigations. The system errs on the side of safety (quarantine-on-ambiguity), so even wrong decisions tend to freeze codes rather than duplicate them.
 
 ---
 
@@ -633,7 +633,7 @@ Thread B (Cancel):  blocks until Prepare finishes → then cancels cleanly
 | **Critical** | Disk full stops all jobs (§4.1) | All jobs stall, codes in limbo | Low | Partially handled |
 | **High** | Production line jam — codes printed into air (§2.6) | Code waste, compliance gaps | Medium | Not detectable (Phase 2) |
 | **High** | Wrong template assigned (§8.1) | Wasted codes + product | Low-Medium | Not handled |
-| **Medium** | Network instability in factory (§1.3) | Increased code waste from burns | Medium | Partially handled |
+| **Medium** | Network instability in factory (§1.3) | Increased quarantined codes | Medium | Partially handled |
 | **Medium** | Printer storage full (§2.4) | Job preparation fails | Low | Partially handled |
 | **Medium** | Incorrect recovery decision (§8.5) | Code waste or stale data | Low | Partially handled |
 | **Medium** | Windows sleep/hibernate (§9.2) | Jobs interrupted | Low | Not handled |

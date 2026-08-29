@@ -16,5 +16,6 @@ public class PrinterConfiguration : IEntityTypeConfiguration<Printer>
         builder.Property(e => e.Port).HasDefaultValue(9100);
         builder.Property(e => e.AdapterType).HasDefaultValue("savema_tto");
         builder.Property(e => e.IsActive).HasDefaultValue(true);
+        builder.Property(e => e.QuarantineMargin).HasDefaultValue(0);
     }
 }

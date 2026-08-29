@@ -84,7 +84,7 @@ The application must survive all of this while never marking an unprinted code a
 2. `Quarantined` codes never auto-return to `Available`
 3. `SPGGTP` is the source of truth across power cycles
 4. After power cycle, CSV must be re-uploaded with ONLY remaining codes
-5. Quarantine +1 on any ambiguous boundary
+5. Quarantine boundary codes on ambiguity (per-printer `QuarantineMargin`, default 0)
 6. Never auto-resume after disconnect
 7. Template mismatch → conservative abort + quarantine
 8. Counter backward → stop everything, quarantine, alert
@@ -97,12 +97,12 @@ The application must survive all of this while never marking an unprinted code a
 
 ## 2. Discrepancies: Code vs. Documentation
 
-### CRITICAL — D1: PauseJobAsync and CancelJobAsync Use Raw SPGGCP Instead of Effective Counter
+### RESOLVED — D1: PauseJobAsync and CancelJobAsync Use Raw SPGGCP Instead of Effective Counter
 
 **Severity:** Critical (confirmed code bug — dormant on current hardware, exploitable on stale-job resume)  
 **Files:** `PrintJobService.cs` lines 526-534, 429-447  
 **Doc reference:** `phase1-design.md` §5.3, `connection-recovery-deep-dive.md` §10  
-**Status:** Code is wrong. Documentation is correct.
+**Status:** FIXED. Both methods now use `SPGGTP - TotalBaseline` for authoritative effective count.
 
 **The bug:**
 
@@ -157,9 +157,10 @@ variations, and stale-job resumes.
 
 ---
 
-### NOT A STANDALONE BUG — D2: CancelJobAsync Negative Remaining Calculation
+### RESOLVED — D2: CancelJobAsync Negative Remaining Calculation
 
 **Severity:** Secondary symptom of D1 (not independently exploitable)  
+**Status:** FIXED by D1. `effectivePrinted` is capped to `Quantity`, so `remaining` cannot go negative.  
 **File:** `PrintJobService.cs` line 445  
 
 ```csharp
@@ -180,11 +181,12 @@ automatically. No separate fix needed.
 
 ---
 
-### HIGH — D3: StartJobAsync Does Not Acquire Printer Lock
+### RESOLVED — D3: StartJobAsync Does Not Acquire Printer Lock
 
 **Severity:** High (race condition)  
 **File:** `PrintJobService.cs` line 306  
-**Doc reference:** `multi-printer-concurrency.md` §2 ("Multi-step operations on a printer are exclusive")
+**Doc reference:** `multi-printer-concurrency.md` §2 ("Multi-step operations on a printer are exclusive")  
+**Status:** FIXED. `StartJobAsync` now acquires the per-printer `SemaphoreSlim` around all adapter operations.
 
 `PrepareJobAsync`, `CancelJobAsync`, `PauseJobAsync`, and `ResumeJobAsync` all acquire the per-printer `SemaphoreSlim` from `ActiveJobRegistry`. But `StartJobAsync` does not. If a user clicks Start while a Prepare, Cancel, or Resume is in flight on the same printer, they can race:
 
@@ -196,9 +198,10 @@ The documentation explicitly states: "Multi-step operations on a printer are exc
 
 ---
 
-### MEDIUM — D4: Design Doc Says "Burn +1" on Cancel; Code Says "Quarantine +1"; Margin Should Be Configurable
+### RESOLVED — D4: Design Doc Says "Burn +1" on Cancel; Code Says "Quarantine +1"; Margin Should Be Configurable
 
 **Severity:** Medium (documentation drift + missing feature)  
+**Status:** FIXED. Per-printer `QuarantineMargin` column added (default 0). Cancel, recovery abort, and post-reconnect boundary quarantine all use the configurable margin. UI setting added to printer edit panel. Documentation updated across all 6 doc files.  
 **Files:** `PrintJobService.cs` line 439, `phase1-design.md` §3.1 Step 7  
 
 The design doc says:
@@ -260,10 +263,11 @@ recovery is needed. The current behavior is sound.
 
 ---
 
-### LOW — D6: GetActiveTemplateAsync Doesn't Use SpplCommandBuilder
+### RESOLVED — D6: GetActiveTemplateAsync Doesn't Use SpplCommandBuilder
 
 **Severity:** Low (code inconsistency, needs fix)  
 **File:** `SavemaTtoAdapter.cs` line 167  
+**Status:** FIXED. Now uses `SpplCommandBuilder.GetActiveTemplate()`.  
 
 ```csharp
 var response = await SendCommandAsync(
@@ -275,10 +279,11 @@ adapter method uses the builder. This should be changed to use the builder for c
 
 ---
 
-### LOW — D7: Design Doc Counter Tracking Says "baseline is always 0"
+### RESOLVED — D7: Design Doc Counter Tracking Says "baseline is always 0"
 
 **Severity:** Low (documentation outdated, needs update)  
 **Doc reference:** `phase1-design.md` §5.3  
+**Status:** Documentation updated. §5.3 now shows baseline-delta tracking with `counter_offset`.  
 
 The design doc says `codes_printed = current_counter` (baseline always 0). The actual code
 correctly uses `effectiveCounter = SPGGCP + counterOffset` to handle cumulative counters.
@@ -447,9 +452,9 @@ if (_adapters.TryGetValue(printer.Id, out var existing))
 }
 ```
 
-### I7: Add \n and | to ForbiddenSequences
+### RESOLVED — I7: Add \n, \r, and | to ForbiddenSequences
 
-`SpplConstants.ForbiddenSequences` does not include `\n` (CSV row separator in `SPLCDF`) or `|` (SPPL command separator). A code containing either would corrupt the upload payload.
+**Status:** FIXED. Added `|` (SPPL command separator), `\n` (CSV row separator in SPLCDF), and `\r` (printer CSV parser risk) to both `SpplConstants.ForbiddenSequences` and `CodeValidator.ForbiddenSequences`. Unit tests added in `CodePrintManager.Domain.Tests`.
 
 ### I8: Raise PrinterStatusChanged on DisconnectAsync
 
@@ -475,13 +480,13 @@ private void ScheduleDismiss(Guid alertId, TimeSpan delay)
 }
 ```
 
-### I10: Import Deduplication Within Batch
+### RESOLVED — I10: Import Deduplication Within Batch
 
-`CodePoolService.ImportCodesAsync` checks each code against the database but not against other codes in the same import batch. Two identical codes in one CSV would both pass the `AnyAsync` check (neither is saved yet), then `SaveChangesAsync` would fail with a DB unique constraint violation.
+**Status:** FIXED. Added `HashSet<string> seenInBatch` to `CodePoolService.ImportCodesAsync` to detect within-batch duplicates before they reach the DB. Duplicate codes within one CSV are now counted as `duplicates` and skipped gracefully. Integration test added.
 
-### I11: Alert Deduplication Key Should Include JobId
+### RESOLVED — I11: Alert Deduplication Key Should Include JobId
 
-The current dedup key format is `"{source}:{printerId}:{deduplicationKey}"`. Two different jobs on the same printer would share the same dedup key, causing the second job's connection-loss alert to be suppressed.
+**Status:** FIXED. Dedup key format changed from `"{source}:{printerId}:{deduplicationKey}"` to `"{source}:{printerId}:{jobId}:{deduplicationKey}"`. Two different jobs on the same printer now have distinct dedup keys.
 
 ---
 
@@ -576,23 +581,24 @@ No test verifies that importing a CSV with codes containing `~`, `^`, `~gt~`, or
 
 | Priority | Item | Risk | Effort |
 |----------|------|------|--------|
-| P0 | D1: Fix PauseJobAsync/CancelJobAsync to use SPGGTP-TotalBaseline | Data corruption (dormant, confirmed real) | Small |
-| P0 | T3: Add cumulative-counter pause/cancel tests | Validates D1 fix | Small |
-| P1 | D3: Add printer lock to StartJobAsync | Race condition | Small |
-| P2 | D5: Update docs to show Paused in index filter (code already correct) | Stale docs | Trivial |
+| ~~P0~~ | ~~D1: Fix PauseJobAsync/CancelJobAsync to use SPGGTP-TotalBaseline~~ | **RESOLVED** | — |
+| ~~P0~~ | ~~D2: CancelJobAsync negative remaining~~ | **RESOLVED** (by D1) | — |
+| ~~P0~~ | ~~T3: Add cumulative-counter pause/cancel tests~~ | **RESOLVED** | — |
+| ~~P1~~ | ~~D3: Add printer lock to StartJobAsync~~ | **RESOLVED** | — |
+| ~~P2~~ | ~~D5: Update docs to show Paused in index filter~~ | **RESOLVED** | — |
 | P1 | S8: Transaction around cancel mutations | Partial state on crash | Small |
 | P1 | T1: Savema adapter unit tests | Protocol bugs invisible | Medium |
 | P1 | T2: JobExecutor unit tests | Safety logic untested | Medium |
-| P2 | D4: Per-printer configurable quarantine margin | Flexibility | Medium |
-| P2 | D6: GetActiveTemplateAsync use SpplCommandBuilder | Code consistency | Trivial |
-| P2 | D7: Update phase1-design.md §5.3 counter tracking | Stale docs | Trivial |
-| P2 | S9: Per-command read timeout | False timeout on uploads | Small |
-| P2 | I7: Add \n and \| to ForbiddenSequences | CSV corruption | Trivial |
-| P2 | S6: Dispose previous adapter in ConnectAsync | Resource leak | Trivial |
-| P2 | I8: Raise PrinterStatusChanged on disconnect | UI staleness | Trivial |
-| P3 | S3: Fix async void ScheduleDismiss | Potential crash | Trivial |
-| P3 | I10: Import dedup within batch | Import crash | Small |
-| P3 | I11: Dedup key include jobId | Suppressed alerts | Trivial |
+| ~~P2~~ | ~~D4: Update burn→quarantine across docs~~ | **RESOLVED** | — |
+| ~~P2~~ | ~~D6: GetActiveTemplateAsync use SpplCommandBuilder~~ | **RESOLVED** | — |
+| ~~P2~~ | ~~D7: Update phase1-design.md §5.3 counter tracking~~ | **RESOLVED** | — |
+| ~~P2~~ | ~~S9: Per-command read timeout~~ | **RESOLVED** | — |
+| ~~P2~~ | ~~I7: Add \n, \r, \| to ForbiddenSequences~~ | **RESOLVED** | — |
+| ~~P2~~ | ~~S6: Dispose previous adapter in ConnectAsync~~ | **RESOLVED** | — |
+| ~~P2~~ | ~~I8: Raise PrinterStatusChanged on disconnect~~ | **RESOLVED** | — |
+| ~~P3~~ | ~~S3: Fix async void ScheduleDismiss~~ | **RESOLVED** | — |
+| ~~P3~~ | ~~I10: Import dedup within batch~~ | **RESOLVED** | — |
+| ~~P3~~ | ~~I11: Dedup key include jobId~~ | **RESOLVED** | — |
 | P3 | S4: ReadyWatcher re-entrance guard | Orphaned loop | Trivial |
-| P3 | S5: TryReconnectAsync serial check | Swap detection gap | Small |
+| ~~P3~~ | ~~S5: TryReconnectAsync serial check~~ | **RESOLVED** | — |
 | P3 | T4-T8: Remaining test gaps | Coverage | Medium-Large |

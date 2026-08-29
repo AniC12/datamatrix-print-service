@@ -13,8 +13,10 @@ public static class SpplConstants
     public const string ResponseOk = "OK";
     public const string ResponseFail = "FAIL";
 
-    // Forbidden sequences in code values (no escape mechanism in SPPL)
-    public static readonly string[] ForbiddenSequences = { "^", "~gt~", "~sc~", "~" };
+    // Forbidden sequences in code values (no escape mechanism in SPPL).
+    // "|" is the SPPL command separator; "\n" is the CSV row separator in SPLCDF;
+    // "\r" could confuse the printer's CSV parser.
+    public static readonly string[] ForbiddenSequences = { "^", "~gt~", "~sc~", "~", "|", "\n", "\r" };
 
     public const int DefaultPort = 9100;
     public const int DefaultReceiveTimeoutMs = 5000;
