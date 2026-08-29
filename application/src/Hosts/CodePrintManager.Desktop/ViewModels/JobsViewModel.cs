@@ -112,6 +112,11 @@ public partial class JobsViewModel : ObservableObject
 
             HasActiveJobs = ActiveJobs.Count > 0;
 
+            // Auto-select when there is exactly one active job so the user
+            // sees job details immediately without having to click.
+            if (ActiveJobs.Count == 1 && SelectedJob == null)
+                SelectedJob = ActiveJobs[0];
+
             await LoadHistoryAsync();
             await LoadFiltersAsync();
 
@@ -402,15 +407,23 @@ public partial class JobsViewModel : ObservableObject
                     var job = ActiveJobs[i];
                     job.Status = e.FinalStatus;
                     job.CompletedAt = DateTime.UtcNow;
-                    ActiveJobs[i] = job; // triggers CollectionChanged → re-binds list item
+                    var wasSelected = SelectedJob?.Id == e.JobId;
 
-                    if (SelectedJob?.Id == e.JobId)
+                    // RemoveAt/Insert forces WPF to fully re-bind the list item.
+                    // A plain ActiveJobs[i] = job reuses the same reference and
+                    // WPF may skip re-reading property values (e.g. CodesConfirmed).
+                    ActiveJobs.RemoveAt(i);
+                    ActiveJobs.Insert(i, job);
+
+                    if (wasSelected)
                     {
                         SelectedJob = job; // triggers OnSelectedJobChanged → updates detail pane
                     }
                     break;
                 }
             }
+
+            _ = LoadHistoryAsync();
         });
         _logger.LogTrace("<- OnJobCompleted()");
     }
