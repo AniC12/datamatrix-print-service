@@ -212,8 +212,20 @@ public partial class App : System.Windows.Application
                 var recoveryVm = scope.ServiceProvider.GetRequiredService<RecoveryViewModel>();
                 recoveryVm.LoadItems(recoveryItems);
 
-                var dialog = new RecoveryDialog { DataContext = recoveryVm };
-                dialog.ShowDialog();
+                // Temporarily switch to explicit shutdown so closing the recovery
+                // dialog doesn't kill the app before the main window is shown.
+                // MainWindow hasn't been assigned yet, so WPF would interpret
+                // the dialog close as "main window closed" and shut down.
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                try
+                {
+                    var dialog = new RecoveryDialog { DataContext = recoveryVm };
+                    dialog.ShowDialog();
+                }
+                finally
+                {
+                    ShutdownMode = ShutdownMode.OnMainWindowClose;
+                }
             }
         }
         catch (Exception ex)

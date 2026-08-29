@@ -1,0 +1,210 @@
+﻿[2026-08-27 01:47:00.489 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 resuming (status=Ready, delegating to StartJobAsync)
+[2026-08-27 01:47:00.520 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService]    StopReadyWatcherAsync: no watcher found for Job 44
+[2026-08-27 01:47:00.542 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44: SPGGCP baseline = 15 (will be subtracted from poll readings)
+[2026-08-27 01:47:00.793 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 started (SPGGTP baseline=25, SPGGCP baseline=15, qty=15)
+[2026-08-27 01:47:00.807 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 executor spawned (scopeFactory=true, counterOffset=-15)
+[2026-08-27 01:47:00.808 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> JobExecutor.Start() for Job 44
+[2026-08-27 01:47:00.808 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Executor STARTED: Job 44 (qty=15, confirmed=0, offset=-15)
+[2026-08-27 01:47:00.812 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> PollLoopAsync() starting for Job 44
+[2026-08-27 01:47:00.815 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:00.952 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #1: counter=15 offset=-15 effective=0 (prev=-1) [139ms]
+[2026-08-27 01:47:01.461 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:01.491 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #2: counter=15 offset=-15 effective=0 (prev=15) [30ms]
+[2026-08-27 01:47:01.993 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:02.004 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #3: counter=15 offset=-15 effective=0 (prev=15) [10ms]
+[2026-08-27 01:47:02.514 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:02.518 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #4: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:03.027 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:03.032 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:03.032 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #5: counter=15 offset=-15 effective=0 (prev=15) [5ms]
+[2026-08-27 01:47:03.032 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:03.543 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:03.547 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #6: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:04.060 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:04.064 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #7: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:04.579 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:04.581 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #8: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:05.092 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:05.122 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #9: counter=15 offset=-15 effective=0 (prev=15) [29ms]
+[2026-08-27 01:47:05.624 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:05.637 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:05.637 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #10: counter=15 offset=-15 effective=0 (prev=15) [13ms]
+[2026-08-27 01:47:05.637 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:06.145 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:06.149 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #11: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:06.660 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:06.663 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #12: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:07.163 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:07.165 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #13: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:07.679 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:07.682 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #14: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:08.187 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:08.220 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:08.220 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #15: counter=15 offset=-15 effective=0 (prev=15) [32ms]
+[2026-08-27 01:47:08.220 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:08.726 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:08.728 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #16: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:09.230 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:09.235 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #17: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:09.741 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:09.746 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #18: counter=15 offset=-15 effective=0 (prev=15) [5ms]
+[2026-08-27 01:47:10.256 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:10.262 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #19: counter=15 offset=-15 effective=0 (prev=15) [6ms]
+[2026-08-27 01:47:10.774 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:10.777 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:10.777 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #20: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:10.777 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:11.279 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:11.286 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #21: counter=15 offset=-15 effective=0 (prev=15) [6ms]
+[2026-08-27 01:47:11.793 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:11.801 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #22: counter=15 offset=-15 effective=0 (prev=15) [7ms]
+[2026-08-27 01:47:12.308 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:12.312 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #23: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:12.814 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:12.819 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #24: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:13.331 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:13.334 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:13.334 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #25: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:13.334 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:13.841 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:13.845 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #26: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:14.346 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:14.348 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #27: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:14.851 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:14.853 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #28: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:15.355 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:15.357 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #29: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:15.872 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:15.878 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:15.880 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #30: counter=15 offset=-15 effective=0 (prev=15) [8ms]
+[2026-08-27 01:47:15.880 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:16.389 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:16.393 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #31: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:16.902 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:16.904 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #32: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:17.406 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:17.408 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #33: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:17.915 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:17.917 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #34: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:18.420 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:18.423 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:18.423 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #35: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:18.424 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:18.929 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:18.931 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #36: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:19.436 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:19.439 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #37: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:19.940 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:19.945 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #38: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:20.449 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:20.451 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #39: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:20.952 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:20.956 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:20.956 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #40: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:20.956 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:21.458 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:21.460 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #41: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:21.965 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:21.970 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #42: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:22.476 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:22.480 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #43: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:22.981 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:22.984 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #44: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:23.485 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:23.489 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:23.489 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #45: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:23.489 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:23.991 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:23.993 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #46: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:24.498 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:24.500 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #47: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:25.011 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:25.013 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #48: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:25.515 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:25.530 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #49: counter=15 offset=-15 effective=0 (prev=15) [14ms]
+[2026-08-27 01:47:26.045 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:26.049 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:26.049 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #50: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:26.049 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:26.563 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:26.565 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #51: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:27.067 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:27.069 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #52: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:27.575 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:27.578 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #53: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:28.093 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:28.095 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #54: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:28.597 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:28.600 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:28.600 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #55: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:28.600 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:29.113 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:29.115 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #56: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:29.615 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:29.617 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #57: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:30.117 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:30.119 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #58: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:30.625 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:30.626 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #59: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:31.128 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:31.164 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:31.165 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #60: counter=15 offset=-15 effective=0 (prev=15) [36ms]
+[2026-08-27 01:47:31.165 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:31.674 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:31.677 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #61: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:32.178 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:32.180 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #62: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:32.692 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:32.694 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #63: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:33.201 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:33.203 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #64: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:33.705 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:33.710 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:33.710 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #65: counter=15 offset=-15 effective=0 (prev=15) [5ms]
+[2026-08-27 01:47:33.710 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:34.212 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:34.214 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #66: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:34.726 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:34.728 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #67: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:35.240 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:35.241 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #68: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:35.743 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:35.744 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #69: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:36.256 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:36.266 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:36.267 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #70: counter=15 offset=-15 effective=0 (prev=15) [10ms]
+[2026-08-27 01:47:36.267 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:36.775 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:36.777 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #71: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:37.290 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:37.293 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #72: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:37.805 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:37.807 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #73: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:38.307 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:38.309 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #74: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:38.821 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:38.825 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:38.825 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #75: counter=15 offset=-15 effective=0 (prev=15) [4ms]
+[2026-08-27 01:47:38.825 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:39.339 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:39.341 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #76: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:39.854 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:39.856 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #77: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:40.357 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:40.359 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #78: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:40.863 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:40.865 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #79: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:41.366 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:41.426 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 cross-check: lifetime=25, delta=0, counter=15
+[2026-08-27 01:47:41.426 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #80: counter=15 offset=-15 effective=0 (prev=15) [60ms]
+[2026-08-27 01:47:41.426 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:41.928 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:41.930 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #81: counter=15 offset=-15 effective=0 (prev=15) [2ms]
+[2026-08-27 01:47:42.438 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:42.441 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #82: counter=15 offset=-15 effective=0 (prev=15) [3ms]
+[2026-08-27 01:47:42.945 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:42.947 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #83: counter=15 offset=-15 effective=0 (prev=15) [1ms]
+[2026-08-27 01:47:43.516 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 44
+[2026-08-27 01:47:43.720 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 poll #84: counter=15 offset=-15 effective=0 (prev=15) [204ms]
+[2026-08-27 01:54:47.545 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 CANCELLING (status="Printing", confirmed=0)
+[2026-08-27 01:54:47.803 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 CANCELLED (confirmed=0/15) in 276ms

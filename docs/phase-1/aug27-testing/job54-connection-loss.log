@@ -1,0 +1,299 @@
+﻿[2026-08-27 03:07:59.535 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 created (Product=5, Printer=3, Qty=8) in 37ms
+[2026-08-27 03:07:59.579 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] <- CreateJobAsync = Job 54 (81ms)
+[2026-08-27 03:07:59.580 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 PREPARING (product='Byuregh 0.5L', printer='Savema-Line1', qty=8)
+[2026-08-27 03:07:59.584 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: printer status = "Idle"
+[2026-08-27 03:07:59.584 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: reserving 8 codes
+[2026-08-27 03:07:59.637 INF] [T1] [CodePrintManager.Application.Services.CodePoolService] Reserved 8 codes for Job 54 (Product 5)
+[2026-08-27 03:07:59.638 INF] [T1] [CodePrintManager.Application.Services.CodePoolService] ReserveCodes took 53ms (8 codes for job 54)
+[2026-08-27 03:07:59.640 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: codes reserved
+[2026-08-27 03:07:59.640 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: uploading CSV 'gold_0.5_10000 (1).csv' (8 codes)
+[2026-08-27 03:07:59.655 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: CSV uploaded and verified
+[2026-08-27 03:07:59.655 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: checking template 'C:\Users\chili\Desktop\Projects\datamatrix-print-service\demo\test32_32.rox' (filename='test32_32.rox')
+[2026-08-27 03:08:03.521 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: template activated
+[2026-08-27 03:08:03.524 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: connection lost after template activation, waiting for reconnect...
+[2026-08-27 03:08:04.032 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: reconnected after template activation (attempt 1)
+[2026-08-27 03:08:04.038 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: TotalBaseline recorded during Prepare = 2503, SPGGCP baseline = 0
+[2026-08-27 03:08:04.104 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 prepared -> Ready (baseline=2503) TOTAL: 4524ms
+[2026-08-27 03:08:04.104 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadyWatcher.Start() for Job 54
+[2026-08-27 03:08:04.104 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher started: Job 54 on printer 3
+[2026-08-27 03:08:04.104 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher spawned for Job 54
+[2026-08-27 03:08:06.112 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService]    WatchLoopAsync poll #1 for Job 54
+[2026-08-27 03:08:09.126 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService]    WatchLoopAsync poll #2 for Job 54
+[2026-08-27 03:08:09.413 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadyWatcher.StopAsync() for Job 54
+[2026-08-27 03:08:09.413 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher stopped: Job 54 (polled 2 times)
+[2026-08-27 03:08:09.414 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher stopped and removed for Job 54
+[2026-08-27 03:08:09.426 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: SPGGCP baseline = 0 (will be subtracted from poll readings)
+[2026-08-27 03:08:09.517 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 started (SPGGTP baseline=2503, SPGGCP baseline=0, qty=8)
+[2026-08-27 03:08:09.518 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 executor spawned (scopeFactory=true, counterOffset=0)
+[2026-08-27 03:08:09.518 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> JobExecutor.Start() for Job 54
+[2026-08-27 03:08:09.518 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Executor STARTED: Job 54 (qty=8, confirmed=0, offset=0)
+[2026-08-27 03:08:09.518 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> PollLoopAsync() starting for Job 54
+[2026-08-27 03:08:09.518 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:09.558 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #1: counter=0 offset=0 effective=0 (prev=-1) [39ms]
+[2026-08-27 03:08:10.060 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:10.074 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #2: counter=0 offset=0 effective=0 (prev=0) [13ms]
+[2026-08-27 03:08:10.583 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:10.586 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #3: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:08:11.091 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:11.094 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #4: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:08:11.596 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:11.606 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 cross-check: lifetime=2503, delta=0, counter=0
+[2026-08-27 03:08:11.606 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #5: counter=0 offset=0 effective=0 (prev=0) [10ms]
+[2026-08-27 03:08:12.118 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:12.121 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #6: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:12.622 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:12.625 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #7: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:13.129 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:13.132 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #8: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:13.637 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:13.639 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #9: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:14.142 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:14.148 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 cross-check: lifetime=2503, delta=0, counter=0
+[2026-08-27 03:08:14.148 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #10: counter=0 offset=0 effective=0 (prev=0) [5ms]
+[2026-08-27 03:08:14.652 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:14.654 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #11: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:15.157 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:15.160 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #12: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:15.662 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:15.665 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #13: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:16.167 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:16.170 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #14: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:16.675 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:16.681 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 cross-check: lifetime=2503, delta=0, counter=0
+[2026-08-27 03:08:16.681 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #15: counter=0 offset=0 effective=0 (prev=0) [6ms]
+[2026-08-27 03:08:17.183 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:17.186 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #16: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:08:17.690 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:17.694 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #17: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:08:18.200 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:18.202 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #18: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:18.709 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:18.712 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #19: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:08:19.215 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:19.221 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 cross-check: lifetime=2503, delta=0, counter=0
+[2026-08-27 03:08:19.221 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #20: counter=0 offset=0 effective=0 (prev=0) [5ms]
+[2026-08-27 03:08:19.733 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:19.736 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #21: counter=1 offset=0 effective=1 (prev=0) [2ms]
+[2026-08-27 03:08:19.736 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> CommitProgressAsync(effectiveCounter=1) for Job 54
+[2026-08-27 03:08:19.736 DBG] [T1] [CodePrintManager.Application.Services.CodePoolService] Codes printed: Job 54 [0..1) count=1
+[2026-08-27 03:08:19.739 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 progress: 1/8 (12%) [commit took 3ms]
+[2026-08-27 03:08:20.242 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:20.244 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #22: counter=1 offset=0 effective=1 (prev=1) [2ms]
+[2026-08-27 03:08:20.749 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:20.752 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #23: counter=1 offset=0 effective=1 (prev=1) [2ms]
+[2026-08-27 03:08:21.256 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:21.259 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #24: counter=1 offset=0 effective=1 (prev=1) [2ms]
+[2026-08-27 03:08:21.766 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:21.833 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 cross-check: lifetime=2505, delta=2, counter=2
+[2026-08-27 03:08:21.833 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #25: counter=2 offset=0 effective=2 (prev=1) [66ms]
+[2026-08-27 03:08:21.833 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> CommitProgressAsync(effectiveCounter=2) for Job 54
+[2026-08-27 03:08:21.833 DBG] [T1] [CodePrintManager.Application.Services.CodePoolService] Codes printed: Job 54 [1..2) count=1
+[2026-08-27 03:08:21.836 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 progress: 2/8 (25%) [commit took 3ms]
+[2026-08-27 03:08:22.338 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:22.341 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #26: counter=2 offset=0 effective=2 (prev=2) [2ms]
+[2026-08-27 03:08:22.847 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:22.850 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #27: counter=2 offset=0 effective=2 (prev=2) [2ms]
+[2026-08-27 03:08:23.356 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:23.358 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #28: counter=2 offset=0 effective=2 (prev=2) [2ms]
+[2026-08-27 03:08:23.862 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:23.865 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #29: counter=2 offset=0 effective=2 (prev=2) [3ms]
+[2026-08-27 03:08:24.370 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:24.376 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 cross-check: lifetime=2505, delta=2, counter=2
+[2026-08-27 03:08:24.376 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #30: counter=2 offset=0 effective=2 (prev=2) [5ms]
+[2026-08-27 03:08:24.877 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:25.760 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #31 (connected=false)
+[2026-08-27 03:08:27.768 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #32: running post-reconnect inspection
+[2026-08-27 03:08:27.784 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:27.784 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:27.814 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:27.814 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:27.816 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #32 (connected=false)
+[2026-08-27 03:08:29.823 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #33: running post-reconnect inspection
+[2026-08-27 03:08:29.823 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:29.823 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:29.825 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:29.826 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:29.827 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #33 (connected=false)
+[2026-08-27 03:08:31.834 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #34: running post-reconnect inspection
+[2026-08-27 03:08:31.834 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:31.834 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:31.840 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:31.840 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:31.842 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #34 (connected=false)
+[2026-08-27 03:08:33.846 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #35: running post-reconnect inspection
+[2026-08-27 03:08:33.846 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:33.847 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:33.848 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:33.849 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:33.850 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #35 (connected=false)
+[2026-08-27 03:08:35.859 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #36: running post-reconnect inspection
+[2026-08-27 03:08:35.860 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:35.860 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:35.861 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:35.861 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:35.862 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #36 (connected=false)
+[2026-08-27 03:08:37.862 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #37: running post-reconnect inspection
+[2026-08-27 03:08:37.862 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:37.862 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:37.863 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:37.863 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:37.864 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #37 (connected=false)
+[2026-08-27 03:08:39.874 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #38: running post-reconnect inspection
+[2026-08-27 03:08:39.874 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:39.874 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:39.877 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:39.878 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:39.881 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #38 (connected=false)
+[2026-08-27 03:08:41.883 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #39: running post-reconnect inspection
+[2026-08-27 03:08:41.883 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:41.883 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:41.885 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:41.885 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:41.887 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #39 (connected=false)
+[2026-08-27 03:08:43.902 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #40: running post-reconnect inspection
+[2026-08-27 03:08:43.902 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:43.902 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:43.905 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:43.906 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:43.908 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #40 (connected=false)
+[2026-08-27 03:08:45.910 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #41: running post-reconnect inspection
+[2026-08-27 03:08:45.910 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:45.910 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:45.911 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:45.912 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:45.913 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #41 (connected=false)
+[2026-08-27 03:08:47.920 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #42: running post-reconnect inspection
+[2026-08-27 03:08:47.920 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:47.920 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:47.922 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:47.922 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:47.923 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #42 (connected=false)
+[2026-08-27 03:08:49.932 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #43: running post-reconnect inspection
+[2026-08-27 03:08:49.932 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:49.932 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:49.934 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:49.934 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:49.935 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #43 (connected=false)
+[2026-08-27 03:08:51.947 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #44: running post-reconnect inspection
+[2026-08-27 03:08:51.947 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:51.947 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:51.948 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:51.948 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:51.949 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #44 (connected=false)
+[2026-08-27 03:08:53.958 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #45: running post-reconnect inspection
+[2026-08-27 03:08:53.958 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:53.959 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:53.960 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:53.961 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:53.963 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #45 (connected=false)
+[2026-08-27 03:08:55.978 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #46: running post-reconnect inspection
+[2026-08-27 03:08:55.979 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:55.979 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:55.981 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:55.981 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:55.982 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #46 (connected=false)
+[2026-08-27 03:08:58.009 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #47: running post-reconnect inspection
+[2026-08-27 03:08:58.009 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:58.009 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:08:58.011 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:08:58.012 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:08:58.015 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #47 (connected=false)
+[2026-08-27 03:09:00.022 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #48: running post-reconnect inspection
+[2026-08-27 03:09:00.022 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:00.022 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:00.023 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:00.024 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:00.026 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #48 (connected=false)
+[2026-08-27 03:09:02.034 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #49: running post-reconnect inspection
+[2026-08-27 03:09:02.034 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:02.034 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:02.036 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:02.037 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:02.038 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #49 (connected=false)
+[2026-08-27 03:09:04.042 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #50: running post-reconnect inspection
+[2026-08-27 03:09:04.042 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:04.042 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:04.045 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:04.046 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:04.051 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #50 (connected=false)
+[2026-08-27 03:09:06.065 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #51: running post-reconnect inspection
+[2026-08-27 03:09:06.065 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:06.065 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:06.067 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:06.067 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:06.069 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #51 (connected=false)
+[2026-08-27 03:09:08.077 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #52: running post-reconnect inspection
+[2026-08-27 03:09:08.077 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:08.077 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:08.078 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:08.079 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:08.080 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #52 (connected=false)
+[2026-08-27 03:09:10.346 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #53: running post-reconnect inspection
+[2026-08-27 03:09:10.346 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:10.346 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:10.348 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:10.349 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:10.351 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #53 (connected=false)
+[2026-08-27 03:09:12.354 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #54: running post-reconnect inspection
+[2026-08-27 03:09:12.354 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:12.354 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:12.356 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:12.357 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:12.359 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #54 (connected=false)
+[2026-08-27 03:09:14.364 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #55: running post-reconnect inspection
+[2026-08-27 03:09:14.364 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:14.364 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:14.365 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+[2026-08-27 03:09:14.366 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:14.367 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #55 (connected=false)
+[2026-08-27 03:09:16.375 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #56: running post-reconnect inspection
+[2026-08-27 03:09:16.375 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:16.375 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+[2026-08-27 03:09:16.375 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #56
+[2026-08-27 03:09:18.386 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:18.387 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #57
+[2026-08-27 03:09:20.391 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:20.392 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #58
+[2026-08-27 03:09:22.406 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:22.406 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #59
+[2026-08-27 03:09:24.412 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:24.413 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #60
+[2026-08-27 03:09:26.415 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:26.416 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #61
+[2026-08-27 03:09:28.424 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:28.424 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #62
+[2026-08-27 03:09:30.424 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:30.425 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #63
+[2026-08-27 03:09:32.426 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:32.426 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #64
+[2026-08-27 03:09:34.426 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:34.426 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #65
+[2026-08-27 03:09:36.436 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:36.436 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #66
+[2026-08-27 03:09:38.447 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:38.448 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #67
+[2026-08-27 03:09:40.461 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:40.461 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #68
+[2026-08-27 03:09:42.463 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:42.463 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #69
+[2026-08-27 03:09:44.474 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:44.474 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #70
+[2026-08-27 03:09:46.486 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:46.486 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #71
+[2026-08-27 03:09:48.491 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:48.491 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #72
+[2026-08-27 03:09:50.499 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:50.500 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #73
+[2026-08-27 03:09:52.514 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:52.514 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #74
+[2026-08-27 03:09:54.523 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:54.524 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #75
+[2026-08-27 03:09:56.535 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 54
+[2026-08-27 03:09:56.535 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #76
+[2026-08-27 03:09:56.986 INF] [T1] [CodePrintManager.Desktop.ViewModels.JobsViewModel] Jobs: Pause for Job 54
+[2026-08-27 03:09:56.987 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] PauseJobAsync: stopping executor for Job 54
+[2026-08-27 03:09:56.987 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> JobExecutor.StopAsync() for Job 54
+[2026-08-27 03:09:56.987 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Executor STOPPED: Job 54 (ran for 107.5s, 76 poll cycles)
+[2026-08-27 03:09:56.987 ERR] [T1] [CodePrintManager.Desktop.ViewModels.JobsViewModel] PauseJobAsync failed for Job 54
+[2026-08-27 03:12:59.178 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CANCELLING (status="Paused", confirmed=8)
+[2026-08-27 03:12:59.337 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CANCELLED (confirmed=8/8) in 170ms

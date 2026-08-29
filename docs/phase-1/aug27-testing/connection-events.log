@@ -1,0 +1,485 @@
+﻿[2026-08-27 01:46:55.500 WRN] [T11] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21069ms
+[2026-08-27 01:46:55.509 WRN] [T11] [CodePrintManager.Application.Services.PrinterConnectionManager] Printer 'Savema-Line1' (Id=3) connection failed after 21079ms, starting reconnect loop
+[2026-08-27 01:46:55.510 VRB] [T11] [CodePrintManager.Application.Services.PrinterConnectionManager] -> StartReconnectLoop(printer='Savema-Line1', id=3)
+[2026-08-27 01:46:55.513 WRN] [T11] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect loop STARTED for 'Savema-Line1' (Id=3), initial delay=1000ms
+[2026-08-27 01:46:55.513 VRB] [T11] [CodePrintManager.Application.Services.PrinterConnectionManager] <- StartReconnectLoop (background task launched)
+[2026-08-27 01:46:56.528 DBG] [T10] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #1 for 'Savema-Line1' (Id=3), delay=1000ms, disconnected for 1.0s
+[2026-08-27 01:47:17.556 WRN] [T8] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21025ms
+[2026-08-27 01:47:17.558 DBG] [T8] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #1 FAILED for 'Savema-Line1' (Id=3), next delay=2000ms
+[2026-08-27 01:47:19.567 DBG] [T14] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #2 for 'Savema-Line1' (Id=3), delay=2000ms, disconnected for 24.1s
+[2026-08-27 01:47:40.582 WRN] [T8] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21014ms
+[2026-08-27 01:47:40.584 DBG] [T8] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #2 FAILED for 'Savema-Line1' (Id=3), next delay=4000ms
+[2026-08-27 01:47:43.793 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] PrinterConnectionManager disposing: 2 adapters, 1 reconnect loops
+[2026-08-27 01:53:49.285 WRN] [T8] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21048ms
+[2026-08-27 01:53:49.293 WRN] [T8] [CodePrintManager.Application.Services.PrinterConnectionManager] Printer 'Savema-Line1' (Id=3) connection failed after 21057ms, starting reconnect loop
+[2026-08-27 01:53:49.295 VRB] [T8] [CodePrintManager.Application.Services.PrinterConnectionManager] -> StartReconnectLoop(printer='Savema-Line1', id=3)
+[2026-08-27 01:53:49.297 WRN] [T8] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect loop STARTED for 'Savema-Line1' (Id=3), initial delay=1000ms
+[2026-08-27 01:53:49.297 VRB] [T8] [CodePrintManager.Application.Services.PrinterConnectionManager] <- StartReconnectLoop (background task launched)
+[2026-08-27 01:53:50.312 DBG] [T7] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #1 for 'Savema-Line1' (Id=3), delay=1000ms, disconnected for 1.0s
+[2026-08-27 01:54:11.351 WRN] [T3] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21035ms
+[2026-08-27 01:54:11.353 DBG] [T3] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #1 FAILED for 'Savema-Line1' (Id=3), next delay=2000ms
+[2026-08-27 01:54:13.361 DBG] [T3] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #2 for 'Savema-Line1' (Id=3), delay=2000ms, disconnected for 24.1s
+[2026-08-27 01:54:34.418 WRN] [T15] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21055ms
+[2026-08-27 01:54:34.419 DBG] [T15] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #2 FAILED for 'Savema-Line1' (Id=3), next delay=4000ms
+[2026-08-27 01:54:38.424 DBG] [T15] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #3 for 'Savema-Line1' (Id=3), delay=4000ms, disconnected for 49.1s
+[2026-08-27 01:54:59.468 WRN] [T16] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21043ms
+[2026-08-27 01:54:59.470 DBG] [T16] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #3 FAILED for 'Savema-Line1' (Id=3), next delay=8000ms
+[2026-08-27 01:55:07.479 DBG] [T16] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #4 for 'Savema-Line1' (Id=3), delay=8000ms, disconnected for 78.2s
+[2026-08-27 01:55:28.527 WRN] [T14] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21047ms
+[2026-08-27 01:55:28.528 DBG] [T14] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #4 FAILED for 'Savema-Line1' (Id=3), next delay=16000ms
+[2026-08-27 01:55:44.537 DBG] [T14] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #5 for 'Savema-Line1' (Id=3), delay=16000ms, disconnected for 115.2s
+[2026-08-27 01:56:05.585 WRN] [T13] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21047ms
+[2026-08-27 01:56:05.586 DBG] [T13] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #5 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 01:56:35.590 DBG] [T21] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #6 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 166.3s
+[2026-08-27 01:56:56.629 WRN] [T24] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21039ms
+[2026-08-27 01:56:56.631 DBG] [T24] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #6 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 01:57:26.635 DBG] [T23] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #7 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 217.3s
+[2026-08-27 01:57:47.681 WRN] [T29] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21046ms
+[2026-08-27 01:57:47.682 DBG] [T29] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #7 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 01:58:17.688 DBG] [T32] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #8 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 268.4s
+[2026-08-27 01:58:38.731 WRN] [T32] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21042ms
+[2026-08-27 01:58:38.732 DBG] [T32] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #8 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 01:59:08.747 DBG] [T28] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #9 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 319.5s
+[2026-08-27 01:59:29.781 WRN] [T28] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21034ms
+[2026-08-27 01:59:29.782 DBG] [T28] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #9 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 01:59:59.788 DBG] [T34] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #10 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 370.5s
+[2026-08-27 02:00:20.834 WRN] [T18] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21045ms
+[2026-08-27 02:00:20.835 DBG] [T18] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #10 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:00:50.846 DBG] [T35] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #11 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 421.6s
+[2026-08-27 02:01:11.880 WRN] [T35] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21034ms
+[2026-08-27 02:01:11.881 DBG] [T35] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #11 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:01:41.888 DBG] [T42] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #12 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 472.6s
+[2026-08-27 02:02:02.935 WRN] [T35] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21047ms
+[2026-08-27 02:02:02.936 DBG] [T35] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #12 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:02:32.949 DBG] [T45] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #13 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 523.7s
+[2026-08-27 02:02:53.984 WRN] [T48] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21035ms
+[2026-08-27 02:02:53.985 DBG] [T48] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #13 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:03:23.997 DBG] [T47] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #14 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 574.7s
+[2026-08-27 02:03:45.033 WRN] [T47] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21036ms
+[2026-08-27 02:03:45.035 DBG] [T47] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #14 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:04:15.039 DBG] [T52] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #15 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 625.7s
+[2026-08-27 02:04:36.090 WRN] [T52] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21050ms
+[2026-08-27 02:04:36.104 DBG] [T52] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #15 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:05:06.109 DBG] [T52] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #16 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 676.8s
+[2026-08-27 02:05:27.156 WRN] [T52] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21047ms
+[2026-08-27 02:05:27.157 DBG] [T52] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #16 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:05:57.172 DBG] [T54] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #17 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 727.9s
+[2026-08-27 02:06:18.200 WRN] [T56] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21028ms
+[2026-08-27 02:06:18.220 DBG] [T56] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #17 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:06:48.225 DBG] [T59] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #18 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 778.9s
+[2026-08-27 02:07:09.258 WRN] [T59] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21032ms
+[2026-08-27 02:07:09.260 DBG] [T59] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #18 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:07:39.258 DBG] [T59] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #19 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 830.0s
+[2026-08-27 02:08:00.317 WRN] [T59] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21058ms
+[2026-08-27 02:08:00.321 DBG] [T59] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #19 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:08:30.329 DBG] [T51] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #20 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 881.0s
+[2026-08-27 02:08:51.382 WRN] [T50] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21053ms
+[2026-08-27 02:08:51.383 DBG] [T50] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #20 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:09:21.385 DBG] [T46] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #21 for 'Savema-Line1' (Id=3), delay=30000ms, disconnected for 932.1s
+[2026-08-27 02:09:42.433 WRN] [T46] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] Failed to connect to 192.168.1.1:9100 after 21047ms
+[2026-08-27 02:09:42.435 DBG] [T46] [CodePrintManager.Application.Services.PrinterConnectionManager] Reconnect attempt #21 FAILED for 'Savema-Line1' (Id=3), next delay=30000ms
+[2026-08-27 02:09:44.580 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] PrinterConnectionManager disposing: 2 adapters, 1 reconnect loops
+[2026-08-27 02:24:49.488 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 45: connection lost after template activation, waiting for reconnect...
+[2026-08-27 02:24:49.993 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 02:24:50.000 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 02:24:50.003 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 02:24:50.003 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 45: reconnected after template activation (attempt 1)
+[2026-08-27 02:34:30.547 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] PrinterConnectionManager disposing: 2 adapters, 0 reconnect loops
+[2026-08-27 02:46:21.852 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 46: connection lost after template activation, waiting for reconnect...
+[2026-08-27 02:46:22.354 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 02:46:22.361 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 02:46:22.366 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 02:46:22.366 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 46: reconnected after template activation (attempt 1)
+[2026-08-27 02:55:54.606 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 49: connection lost after template activation, waiting for reconnect...
+[2026-08-27 02:55:55.120 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 02:55:55.124 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 02:55:55.124 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 02:55:55.125 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 49: reconnected after template activation (attempt 1)
+[2026-08-27 02:57:19.463 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 49: connection lost after template activation during resume, waiting for reconnect...
+[2026-08-27 02:57:19.974 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 02:57:19.977 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 02:57:19.977 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 02:57:19.977 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 49: reconnected after template activation (attempt 1)
+[2026-08-27 02:59:05.816 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> DisconnectAsync(printerId=3)
+[2026-08-27 02:59:05.818 VRB] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] -> DisconnectAsync()
+[2026-08-27 02:59:05.819 VRB] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] <- DisconnectAsync completed
+[2026-08-27 02:59:05.819 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- DisconnectAsync completed
+[2026-08-27 02:59:20.081 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 51: connection lost after template activation, waiting for reconnect...
+[2026-08-27 02:59:20.594 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 02:59:20.598 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 02:59:20.598 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 02:59:20.598 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 51: reconnected after template activation (attempt 1)
+[2026-08-27 03:00:10.531 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 52: connection lost after template activation, waiting for reconnect...
+[2026-08-27 03:00:11.033 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 03:00:11.037 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 03:00:11.037 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 03:00:11.037 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 52: reconnected after template activation (attempt 1)
+[2026-08-27 03:00:55.864 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 52: connection lost after template activation during resume, waiting for reconnect...
+[2026-08-27 03:00:56.375 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 03:00:56.377 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 03:00:56.377 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 03:00:56.377 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 52: reconnected after template activation (attempt 1)
+[2026-08-27 03:05:03.420 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: connection lost after template activation, waiting for reconnect...
+[2026-08-27 03:05:03.928 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 03:05:03.931 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 03:05:03.931 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 03:05:03.931 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: reconnected after template activation (attempt 1)
+[2026-08-27 03:08:03.524 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: connection lost after template activation, waiting for reconnect...
+[2026-08-27 03:08:04.028 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 03:08:04.031 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 03:08:04.032 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 03:08:04.032 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: reconnected after template activation (attempt 1)
+[2026-08-27 03:08:25.760 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #31 (connected=false)
+[2026-08-27 03:08:25.762 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:25.763 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:25.763 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="419db64c-f6a1-41a2-b111-e600fd1a678c", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:25.765 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:27.768 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #32: running post-reconnect inspection
+[2026-08-27 03:08:27.784 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:27.784 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:27.814 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:27.816 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #32 (connected=false)
+[2026-08-27 03:08:27.817 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:27.817 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:27.817 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="6314af7a-053c-4ce0-b4dc-207aa6fe75dd", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:27.818 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:29.823 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #33: running post-reconnect inspection
+[2026-08-27 03:08:29.823 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:29.823 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:29.825 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:29.827 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #33 (connected=false)
+[2026-08-27 03:08:29.828 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:29.828 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:29.828 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="198cd201-0f20-4908-82d5-c61e4937b065", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:29.829 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:31.834 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #34: running post-reconnect inspection
+[2026-08-27 03:08:31.834 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:31.834 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:31.840 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:31.842 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #34 (connected=false)
+[2026-08-27 03:08:31.842 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:31.842 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:31.842 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="7f1cef2d-61b0-43e6-b325-7157e5ea155d", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:31.843 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:33.846 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #35: running post-reconnect inspection
+[2026-08-27 03:08:33.846 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:33.847 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:33.848 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:33.850 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #35 (connected=false)
+[2026-08-27 03:08:33.851 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:33.851 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:33.851 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="3f6eebb5-7365-4fb1-b758-a210c2576b88", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:33.852 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:35.859 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #36: running post-reconnect inspection
+[2026-08-27 03:08:35.860 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:35.860 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:35.861 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:35.862 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #36 (connected=false)
+[2026-08-27 03:08:35.863 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:35.863 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:35.863 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="125c55bd-c402-4738-a525-632e8274f5dc", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:35.863 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:37.862 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #37: running post-reconnect inspection
+[2026-08-27 03:08:37.862 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:37.862 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:37.863 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:37.864 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #37 (connected=false)
+[2026-08-27 03:08:37.865 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:37.865 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:37.865 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="459a8b7d-c117-45df-96e6-426e85813fbb", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:37.865 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:39.874 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #38: running post-reconnect inspection
+[2026-08-27 03:08:39.874 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:39.874 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:39.877 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:39.881 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #38 (connected=false)
+[2026-08-27 03:08:39.882 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:39.882 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:39.882 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="c17f28f9-fdcb-4566-8fb1-8e37ba190629", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:39.883 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:41.883 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #39: running post-reconnect inspection
+[2026-08-27 03:08:41.883 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:41.883 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:41.885 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:41.887 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #39 (connected=false)
+[2026-08-27 03:08:41.888 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:41.888 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:41.888 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="b58faf65-64b7-491b-9d25-45ea9263a953", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:41.888 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:43.902 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #40: running post-reconnect inspection
+[2026-08-27 03:08:43.902 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:43.902 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:43.905 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:43.908 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #40 (connected=false)
+[2026-08-27 03:08:43.909 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:43.909 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:43.909 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="f0735af7-96a7-4e80-a6e7-58778798f163", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:43.910 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:45.910 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #41: running post-reconnect inspection
+[2026-08-27 03:08:45.910 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:45.910 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:45.911 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:45.913 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #41 (connected=false)
+[2026-08-27 03:08:45.913 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:45.913 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:45.913 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="82eb2d59-e1e8-4eca-bb9c-523df3557e01", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:45.914 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:47.920 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #42: running post-reconnect inspection
+[2026-08-27 03:08:47.920 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:47.920 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:47.922 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:47.923 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #42 (connected=false)
+[2026-08-27 03:08:47.924 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:47.924 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:47.924 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="3ee0e672-ac85-4399-814c-74d392c23c96", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:47.924 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:49.932 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #43: running post-reconnect inspection
+[2026-08-27 03:08:49.932 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:49.932 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:49.934 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:49.935 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #43 (connected=false)
+[2026-08-27 03:08:49.936 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:49.936 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:49.936 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="3d259dd0-21bd-4b82-a058-08e5e1bc3b31", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:49.936 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:51.947 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #44: running post-reconnect inspection
+[2026-08-27 03:08:51.947 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:51.947 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:51.948 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:51.949 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #44 (connected=false)
+[2026-08-27 03:08:51.950 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:51.950 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:51.950 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="c0956630-e7f9-432f-a342-0208707f2ee9", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:51.950 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:53.958 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #45: running post-reconnect inspection
+[2026-08-27 03:08:53.958 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:53.959 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:53.960 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:53.963 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #45 (connected=false)
+[2026-08-27 03:08:53.964 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:53.964 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:53.964 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="35982612-125b-42cb-9f7c-3ffaac4d5e19", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:53.966 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:55.978 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #46: running post-reconnect inspection
+[2026-08-27 03:08:55.979 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:55.979 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:55.981 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:55.982 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #46 (connected=false)
+[2026-08-27 03:08:55.983 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:55.983 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:55.983 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="fc005540-b66e-4e3c-867b-f5f312948f1c", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:55.983 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:08:58.009 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #47: running post-reconnect inspection
+[2026-08-27 03:08:58.009 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:08:58.009 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:08:58.011 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:08:58.015 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #47 (connected=false)
+[2026-08-27 03:08:58.016 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:08:58.016 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:08:58.016 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="4f5868a6-ef12-4b78-9246-dc06500c27c6", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:08:58.017 VRB] [T24] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:00.022 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #48: running post-reconnect inspection
+[2026-08-27 03:09:00.022 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:00.022 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:00.023 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:00.026 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #48 (connected=false)
+[2026-08-27 03:09:00.026 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:00.026 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:00.027 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="f833bf46-30e4-4350-a4bc-014b4c4a54f6", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:00.027 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:02.034 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #49: running post-reconnect inspection
+[2026-08-27 03:09:02.034 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:02.034 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:02.036 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:02.038 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #49 (connected=false)
+[2026-08-27 03:09:02.039 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:02.039 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:02.039 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="b145770e-2870-4544-ae88-09b03597c8e7", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:02.040 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:04.042 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #50: running post-reconnect inspection
+[2026-08-27 03:09:04.042 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:04.042 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:04.045 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:04.051 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #50 (connected=false)
+[2026-08-27 03:09:04.052 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:04.052 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:04.052 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="d5152da9-b812-4ddf-9844-55439a485c96", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:04.053 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:06.065 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #51: running post-reconnect inspection
+[2026-08-27 03:09:06.065 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:06.065 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:06.067 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:06.069 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #51 (connected=false)
+[2026-08-27 03:09:06.070 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:06.070 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:06.070 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="6bfc06bc-09fc-4671-ad48-f84d2d475e56", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:06.071 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:08.077 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #52: running post-reconnect inspection
+[2026-08-27 03:09:08.077 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:08.077 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:08.078 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:08.080 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #52 (connected=false)
+[2026-08-27 03:09:08.080 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:08.080 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:08.080 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="30146ac9-0cf3-48c3-9704-fda30a4abda2", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:08.081 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:10.346 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #53: running post-reconnect inspection
+[2026-08-27 03:09:10.346 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:10.346 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:10.348 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:10.351 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #53 (connected=false)
+[2026-08-27 03:09:10.352 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:10.352 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:10.352 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="9e90229a-ae5a-4f0e-82aa-5d921b93264d", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:10.352 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:12.354 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #54: running post-reconnect inspection
+[2026-08-27 03:09:12.354 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:12.354 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:12.356 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:12.359 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #54 (connected=false)
+[2026-08-27 03:09:12.361 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:12.361 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:12.361 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="5ef33640-399e-4a2f-b11a-fce44679ae97", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:12.361 VRB] [T15] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:14.364 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #55: running post-reconnect inspection
+[2026-08-27 03:09:14.364 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:14.364 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+[2026-08-27 03:09:14.365 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: inspection failed (connection lost again). Will retry on next reconnect.
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct)
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:09:14.367 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 CONNECTION LOST on poll #55 (connected=false)
+[2026-08-27 03:09:14.367 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Error", source=Savema-Line1, message=Connection lost. Job #54 paused., printerId=3, jobId=54)
+[2026-08-27 03:09:14.367 ERR] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Error"] Savema-Line1: Connection lost. Job #54 paused. (Printer=3, Job=54)
+[2026-08-27 03:09:14.367 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="eca26ab4-394b-425c-9616-00907a245487", Severity="Error", Message=Connection lost. Job #54 paused.)
+[2026-08-27 03:09:14.368 VRB] [T12] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=54, details={ severity = Error, source = Savema-Line1, message = Connection lost. Job #54 paused. })
+[2026-08-27 03:09:15.850 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> DisconnectAsync(printerId=3)
+[2026-08-27 03:09:15.850 VRB] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] -> DisconnectAsync()
+[2026-08-27 03:09:15.850 VRB] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] <- DisconnectAsync completed
+[2026-08-27 03:09:15.850 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- DisconnectAsync completed
+[2026-08-27 03:09:16.375 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 poll #56: running post-reconnect inspection
+[2026-08-27 03:09:16.375 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> RunPostReconnectInspectionAsync() for Job 54
+[2026-08-27 03:09:16.375 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54: running post-reconnect inspection
+   at CodePrintManager.Application.Services.JobExecutor.RunPostReconnectInspectionAsync(CancellationToken ct) in C:\Users\chili\Desktop\Projects\datamatrix-print-service\application\src\Core\CodePrintManager.Application\Services\JobExecutor.cs:line 195
+[2026-08-27 03:14:25.099 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 55: connection lost after template activation, waiting for reconnect...
+[2026-08-27 03:14:25.606 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] -> TryReconnectAsync(printerId=3)
+[2026-08-27 03:14:25.613 INF] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] TryReconnect: printer 'Savema-Line1' (Id=3) reconnected
+[2026-08-27 03:14:25.615 VRB] [T1] [CodePrintManager.Application.Services.PrinterConnectionManager] <- TryReconnectAsync = true
+[2026-08-27 03:14:25.615 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 55: reconnected after template activation (attempt 1)

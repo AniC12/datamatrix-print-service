@@ -1,0 +1,140 @@
+﻿[2026-08-27 01:47:03.032 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:03.035 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:03.036 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:03.039 VRB] [T8] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:05.637 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:05.638 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:05.638 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:05.639 VRB] [T10] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:08.220 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:08.220 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:08.220 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:08.222 VRB] [T10] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:10.777 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:10.777 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:10.778 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:10.778 VRB] [T13] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:13.334 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:13.335 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:13.335 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:13.335 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:15.880 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:15.880 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:15.880 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:15.880 VRB] [T8] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:18.424 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:18.424 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:18.424 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:18.424 VRB] [T13] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:20.956 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:20.956 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:20.956 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:20.957 VRB] [T8] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:23.489 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:23.489 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:23.489 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:23.489 VRB] [T8] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:26.049 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:26.049 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:26.049 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:26.049 VRB] [T10] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:28.600 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:28.601 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:28.601 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:28.601 VRB] [T14] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:31.165 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:31.165 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:31.165 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:31.165 VRB] [T10] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:33.710 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:33.710 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:33.710 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:33.711 VRB] [T10] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:36.267 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:36.267 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:36.267 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:36.267 VRB] [T7] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:38.825 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:38.825 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:38.825 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:38.826 VRB] [T13] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 01:47:41.426 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 44 ANOMALY: counter mismatch SPGGCP=15, SPGGTP delta=0 (offset=-15)
+[2026-08-27 01:47:41.426 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Simulator-Line1, message=Counter mismatch: SPGGCP=15, SPGGTP delta=0, printerId=2, jobId=44)
+[2026-08-27 01:47:41.426 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Simulator-Line1: Counter mismatch: SPGGCP=15, SPGGTP delta=0 (Printer=2, Job=44)
+[2026-08-27 01:47:41.427 VRB] [T7] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=2, jobId=44, details={ severity = Warning, source = Simulator-Line1, message = Counter mismatch: SPGGCP=15, SPGGTP delta=0 })
+[2026-08-27 02:25:13.561 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (0ms)
+[2026-08-27 02:25:13.561 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 45 UNEXPECTED ERROR on poll #28
+System.FormatException: The input string 'OK' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+[2026-08-27 02:25:15.574 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 02:48:46.121 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK}^~SPGRES{SPPSTP:OK (0ms)
+[2026-08-27 02:48:46.122 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 46 UNEXPECTED ERROR on poll #70
+System.FormatException: The input string 'OK}^~SPGRES{SPPSTP:OK' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+[2026-08-27 02:48:48.129 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 46 ANOMALY: counter mismatch SPGGCP=7, SPGGTP delta=-2472 (offset=0)
+[2026-08-27 02:48:48.131 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Savema-Line1, message=Counter mismatch: SPGGCP=7, SPGGTP delta=-2472, printerId=3, jobId=46)
+[2026-08-27 02:48:48.131 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Savema-Line1: Counter mismatch: SPGGCP=7, SPGGTP delta=-2472 (Printer=3, Job=46)
+[2026-08-27 02:48:48.132 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="74c1ac51-4723-4a97-93bb-a7b1d61f7c6c", Severity="Warning", Message=Counter mismatch: SPGGCP=7, SPGGTP delta=-2472)
+[2026-08-27 02:48:48.135 VRB] [T26] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=46, details={ severity = Warning, source = Savema-Line1, message = Counter mismatch: SPGGCP=7, SPGGTP delta=-2472 })
+[2026-08-27 02:48:48.140 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 02:53:49.186 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (1ms)
+[2026-08-27 02:56:40.881 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 02:56:40.914 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (33ms)
+[2026-08-27 02:58:06.340 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK}^~SPGRES{SPPSTP:OK (0ms)
+[2026-08-27 02:58:06.340 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 49 UNEXPECTED ERROR on poll #92
+System.FormatException: The input string 'OK}^~SPGRES{SPPSTP:OK' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+[2026-08-27 02:58:08.354 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 02:59:00.213 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (0ms)
+[2026-08-27 02:59:42.699 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (0ms)
+[2026-08-27 02:59:42.699 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 51 UNEXPECTED ERROR on poll #38
+System.FormatException: The input string 'OK' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+[2026-08-27 02:59:44.717 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 02:59:53.056 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (0ms)
+[2026-08-27 03:00:44.953 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 03:00:44.964 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (10ms)
+[2026-08-27 03:00:59.070 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK}^~SPGRES{SPPSTP:OK (0ms)
+[2026-08-27 03:00:59.071 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 52 UNEXPECTED ERROR on poll #6
+System.FormatException: The input string 'OK}^~SPGRES{SPPSTP:OK' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+[2026-08-27 03:01:01.090 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 03:04:44.020 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (0ms)
+[2026-08-27 03:05:23.291 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)
+[2026-08-27 03:05:23.324 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (32ms)
+[2026-08-27 03:09:16.375 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #56
+[2026-08-27 03:09:18.387 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #57
+[2026-08-27 03:09:20.392 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #58
+[2026-08-27 03:09:22.406 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #59
+[2026-08-27 03:09:24.413 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #60
+[2026-08-27 03:09:26.416 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #61
+[2026-08-27 03:09:28.424 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #62
+[2026-08-27 03:09:30.425 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #63
+[2026-08-27 03:09:32.426 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #64
+[2026-08-27 03:09:34.426 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #65
+[2026-08-27 03:09:36.436 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #66
+[2026-08-27 03:09:38.448 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #67
+[2026-08-27 03:09:40.461 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #68
+[2026-08-27 03:09:42.463 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #69
+[2026-08-27 03:09:44.474 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #70
+[2026-08-27 03:09:46.486 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #71
+[2026-08-27 03:09:48.491 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #72
+[2026-08-27 03:09:50.500 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #73
+[2026-08-27 03:09:52.514 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #74
+[2026-08-27 03:09:54.524 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #75
+[2026-08-27 03:09:56.535 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 54 UNEXPECTED ERROR on poll #76
+[2026-08-27 03:15:55.913 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL RX <- SPPSTP:OK (0ms)
+[2026-08-27 03:15:55.913 ERR] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 55 UNEXPECTED ERROR on poll #170
+System.FormatException: The input string 'OK' was not in a correct format.
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+[2026-08-27 03:15:57.915 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 55 ANOMALY: counter mismatch SPGGCP=3, SPGGTP delta=-2508 (offset=0)
+[2026-08-27 03:15:57.916 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Savema-Line1, message=Counter mismatch: SPGGCP=3, SPGGTP delta=-2508, printerId=3, jobId=55)
+[2026-08-27 03:15:57.917 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Savema-Line1: Counter mismatch: SPGGCP=3, SPGGTP delta=-2508 (Printer=3, Job=55)
+[2026-08-27 03:15:57.917 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="9282ac6b-e2eb-4f0f-995d-1ec5b5296ab9", Severity="Warning", Message=Counter mismatch: SPGGCP=3, SPGGTP delta=-2508)
+[2026-08-27 03:15:57.921 VRB] [T13] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=55, details={ severity = Warning, source = Savema-Line1, message = Counter mismatch: SPGGCP=3, SPGGTP delta=-2508 })
+[2026-08-27 03:15:58.434 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 55 ANOMALY: unexpected counter jump +2511 (prev=3, now=2514)
+[2026-08-27 03:15:58.434 VRB] [T1] [CodePrintManager.Application.Services.AlertService] -> Raise(severity="Warning", source=Savema-Line1, message=Unexpected counter jump (+2511), printerId=3, jobId=55)
+[2026-08-27 03:15:58.434 WRN] [T1] [CodePrintManager.Application.Services.AlertService] Alert ["Warning"] Savema-Line1: Unexpected counter jump (+2511) (Printer=3, Job=55)
+[2026-08-27 03:15:58.434 VRB] [T1] [CodePrintManager.Desktop.ViewModels.MainViewModel] -> OnAlertRaised(Id="18d25ff1-11cc-4aac-b1a0-282c4a9b6f33", Severity="Warning", Message=Unexpected counter jump (+2511))
+[2026-08-27 03:15:58.435 VRB] [T17] [CodePrintManager.Application.Services.AuditService] -> LogAsync(eventType=alert, productId=null, printerId=3, jobId=55, details={ severity = Warning, source = Savema-Line1, message = Unexpected counter jump (+2511) })
+[2026-08-27 03:15:58.442 DBG] [T1] [CodePrintManager.Printer.Savema.SavemaTtoAdapter] SPPL TX -> ~SPPSTP^ (8 bytes)

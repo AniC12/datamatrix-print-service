@@ -1,0 +1,111 @@
+﻿[2026-08-27 03:04:57.431 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 created (Product=5, Printer=3, Qty=4) in 72ms
+[2026-08-27 03:04:57.476 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] <- CreateJobAsync = Job 53 (116ms)
+[2026-08-27 03:04:57.477 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 PREPARING (product='Byuregh 0.5L', printer='Savema-Line1', qty=4)
+[2026-08-27 03:04:57.491 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: printer status = "Idle"
+[2026-08-27 03:04:57.491 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: reserving 4 codes
+[2026-08-27 03:04:57.535 INF] [T1] [CodePrintManager.Application.Services.CodePoolService] Reserved 4 codes for Job 53 (Product 5)
+[2026-08-27 03:04:57.535 INF] [T1] [CodePrintManager.Application.Services.CodePoolService] ReserveCodes took 43ms (4 codes for job 53)
+[2026-08-27 03:04:57.536 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: codes reserved
+[2026-08-27 03:04:57.536 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: uploading CSV 'gold_0.5_10000 (1).csv' (4 codes)
+[2026-08-27 03:04:57.547 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: CSV uploaded and verified
+[2026-08-27 03:04:57.547 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: checking template 'C:\Users\chili\Desktop\Projects\datamatrix-print-service\demo\test32_32.rox' (filename='test32_32.rox')
+[2026-08-27 03:05:03.415 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: template activated
+[2026-08-27 03:05:03.420 WRN] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: connection lost after template activation, waiting for reconnect...
+[2026-08-27 03:05:03.931 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: reconnected after template activation (attempt 1)
+[2026-08-27 03:05:03.937 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: TotalBaseline recorded during Prepare = 2502, SPGGCP baseline = 0
+[2026-08-27 03:05:03.976 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 prepared -> Ready (baseline=2502) TOTAL: 6500ms
+[2026-08-27 03:05:03.976 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadyWatcher.Start() for Job 53
+[2026-08-27 03:05:03.976 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher started: Job 53 on printer 3
+[2026-08-27 03:05:03.976 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher spawned for Job 53
+[2026-08-27 03:05:05.992 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService]    WatchLoopAsync poll #1 for Job 53
+[2026-08-27 03:05:06.611 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadyWatcher.StopAsync() for Job 53
+[2026-08-27 03:05:06.611 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher stopped: Job 53 (polled 1 times)
+[2026-08-27 03:05:06.612 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] ReadyWatcher stopped and removed for Job 53
+[2026-08-27 03:05:06.623 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53: SPGGCP baseline = 0 (will be subtracted from poll readings)
+[2026-08-27 03:05:06.714 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 started (SPGGTP baseline=2502, SPGGCP baseline=0, qty=4)
+[2026-08-27 03:05:06.715 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 executor spawned (scopeFactory=true, counterOffset=0)
+[2026-08-27 03:05:06.716 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> JobExecutor.Start() for Job 53
+[2026-08-27 03:05:06.716 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Executor STARTED: Job 53 (qty=4, confirmed=0, offset=0)
+[2026-08-27 03:05:06.716 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> PollLoopAsync() starting for Job 53
+[2026-08-27 03:05:06.716 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:06.754 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #1: counter=0 offset=0 effective=0 (prev=-1) [38ms]
+[2026-08-27 03:05:07.261 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:07.263 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #2: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:07.765 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:07.768 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #3: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:08.274 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:08.276 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #4: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:08.781 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:08.787 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 cross-check: lifetime=2502, delta=0, counter=0
+[2026-08-27 03:05:08.787 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #5: counter=0 offset=0 effective=0 (prev=0) [6ms]
+[2026-08-27 03:05:09.289 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:09.292 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #6: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:09.798 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:09.802 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #7: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:10.305 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:10.309 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #8: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:10.811 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:10.814 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #9: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:11.318 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:11.324 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 cross-check: lifetime=2502, delta=0, counter=0
+[2026-08-27 03:05:11.324 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #10: counter=0 offset=0 effective=0 (prev=0) [6ms]
+[2026-08-27 03:05:11.826 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:11.830 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #11: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:12.336 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:12.339 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #12: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:12.841 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:12.844 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #13: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:13.347 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:13.349 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #14: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:13.854 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:13.860 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 cross-check: lifetime=2502, delta=0, counter=0
+[2026-08-27 03:05:13.860 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #15: counter=0 offset=0 effective=0 (prev=0) [6ms]
+[2026-08-27 03:05:14.376 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:14.379 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #16: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:14.886 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:14.889 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #17: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:15.392 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:15.395 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #18: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:15.899 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:15.902 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #19: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:16.407 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:16.412 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 cross-check: lifetime=2502, delta=0, counter=0
+[2026-08-27 03:05:16.412 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #20: counter=0 offset=0 effective=0 (prev=0) [5ms]
+[2026-08-27 03:05:16.915 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:16.918 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #21: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:17.419 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:17.422 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #22: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:17.927 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:17.930 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #23: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:18.434 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:18.437 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #24: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:18.942 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:18.948 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 cross-check: lifetime=2502, delta=0, counter=0
+[2026-08-27 03:05:18.948 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #25: counter=0 offset=0 effective=0 (prev=0) [5ms]
+[2026-08-27 03:05:19.462 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:19.466 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #26: counter=0 offset=0 effective=0 (prev=0) [3ms]
+[2026-08-27 03:05:19.970 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:19.973 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #27: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:20.484 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:20.486 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #28: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:20.992 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:20.995 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #29: counter=0 offset=0 effective=0 (prev=0) [2ms]
+[2026-08-27 03:05:21.502 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:21.507 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 cross-check: lifetime=2503, delta=1, counter=1
+[2026-08-27 03:05:21.507 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #30: counter=1 offset=0 effective=1 (prev=0) [5ms]
+[2026-08-27 03:05:21.507 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> CommitProgressAsync(effectiveCounter=1) for Job 53
+[2026-08-27 03:05:21.507 DBG] [T1] [CodePrintManager.Application.Services.CodePoolService] Codes printed: Job 53 [0..1) count=1
+[2026-08-27 03:05:21.510 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 progress: 1/4 (25%) [commit took 3ms]
+[2026-08-27 03:05:22.008 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:22.011 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #31: counter=1 offset=0 effective=1 (prev=1) [2ms]
+[2026-08-27 03:05:22.518 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:22.521 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #32: counter=1 offset=0 effective=1 (prev=1) [2ms]
+[2026-08-27 03:05:23.026 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> ReadCountersAsync() for Job 53
+[2026-08-27 03:05:23.029 DBG] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 poll #33: counter=1 offset=0 effective=1 (prev=1) [2ms]
+[2026-08-27 03:05:23.283 INF] [T1] [CodePrintManager.Desktop.ViewModels.JobsViewModel] Jobs: Cancel for Job 53
+[2026-08-27 03:05:23.287 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 CANCELLING (status="Printing", confirmed=1)
+[2026-08-27 03:05:23.288 VRB] [T1] [CodePrintManager.Application.Services.PrintJobService] -> JobExecutor.StopAsync() for Job 53
+[2026-08-27 03:05:23.288 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Executor STOPPED: Job 53 (ran for 16.6s, 33 poll cycles)
+[2026-08-27 03:05:23.326 WRN] [T1] [CodePrintManager.Application.Services.CodePoolService] Code quarantined: Job 53 index=1
+[2026-08-27 03:05:23.374 INF] [T1] [CodePrintManager.Application.Services.CodePoolService] Returning 2 codes to pool: Job 53 (startIndex=0)
+[2026-08-27 03:05:23.470 INF] [T1] [CodePrintManager.Application.Services.PrintJobService] Job 53 CANCELLED (confirmed=1/4) in 182ms

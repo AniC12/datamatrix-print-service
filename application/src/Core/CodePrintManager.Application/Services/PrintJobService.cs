@@ -447,6 +447,17 @@ public class PrintJobService : IPrintJobService
                         await _codePool.ReturnCodesToPoolAsync(jobId, 0, remaining);
                 }
             }
+            else if (job.Status == JobStatus.Printing)
+            {
+                // Printing job but no executor (crash recovery / startup abort).
+                // CodesConfirmed is the last persisted progress — treat it like a Paused job.
+                // Return all remaining reserved codes.
+                _logger.LogWarning("CancelJobAsync: Job {JobId} was Printing but had no executor (crash recovery). " +
+                    "Returning {Remaining} reserved codes based on CodesConfirmed={Confirmed}",
+                    jobId, job.Quantity - job.CodesConfirmed, job.CodesConfirmed);
+                if (job.CodesConfirmed < job.Quantity)
+                    await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity - job.CodesConfirmed);
+            }
             else if (job.Status == JobStatus.Paused)
             {
                 // Paused job: pause already reconciled the counter (printer stopped, counter
