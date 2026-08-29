@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Events;
 using CodePrintManager.Domain.Interfaces;
@@ -11,6 +12,14 @@ public class AlertService : IAlertService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AlertService> _logger;
 
+    /// <summary>
+    /// Category-based deduplication: tracks last alert time per dedup key.
+    /// Key format: "{source}:{printerId}:{deduplicationKey}".
+    /// Alerts with the same key within the dedup window are suppressed.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, DateTime> _lastAlertTimes = new();
+    private static readonly TimeSpan DeduplicationWindow = TimeSpan.FromSeconds(30);
+
     public event EventHandler<AlertRaisedEvent>? AlertRaised;
     public event EventHandler<Guid>? AlertDismissed;
 
@@ -21,10 +30,34 @@ public class AlertService : IAlertService
     }
 
     public void Raise(AlertSeverity severity, string source, string message,
-                      int? printerId = null, int? jobId = null)
+                      int? printerId = null, int? jobId = null, string? deduplicationKey = null)
     {
-        _logger.LogTrace("-> Raise(severity={Severity}, source={Source}, message={Message}, printerId={PrinterId}, jobId={JobId})",
-            severity, source, message, printerId, jobId);
+        _logger.LogTrace("-> Raise(severity={Severity}, source={Source}, message={Message}, printerId={PrinterId}, jobId={JobId}, dedupKey={DedupKey})",
+            severity, source, message, printerId, jobId, deduplicationKey);
+
+        // Category-based deduplication: suppress duplicate alerts within the window.
+        // Uses a category key (e.g., "connection_lost") instead of the full message
+        // text, because messages contain dynamic values that change on each call.
+        if (deduplicationKey != null)
+        {
+            var fullKey = $"{source}:{printerId}:{deduplicationKey}";
+            var now = DateTime.UtcNow;
+            if (_lastAlertTimes.TryGetValue(fullKey, out var lastTime)
+                && now - lastTime < DeduplicationWindow)
+            {
+                _logger.LogTrace("Alert deduplicated: {Key} (last raised {Ago:F1}s ago)",
+                    fullKey, (now - lastTime).TotalSeconds);
+                return;
+            }
+            _lastAlertTimes[fullKey] = now;
+
+            // Periodic cleanup: remove stale entries (older than 5 minutes)
+            foreach (var entry in _lastAlertTimes)
+            {
+                if (now - entry.Value > TimeSpan.FromMinutes(5))
+                    _lastAlertTimes.TryRemove(entry.Key, out _);
+            }
+        }
         // Log at the matching severity level
         var logMsg = "Alert [{Severity}] {Source}: {Message} (Printer={PrinterId}, Job={JobId})";
         switch (severity)

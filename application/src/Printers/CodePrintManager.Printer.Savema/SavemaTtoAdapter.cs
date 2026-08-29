@@ -17,6 +17,15 @@ public class SavemaTtoAdapter : IPrinterAdapter
     private string? _lastConnectedHost;
     private int _lastConnectedPort;
 
+    /// <summary>
+    /// Persistent receive buffer. Preserves remainder data when multiple SPPL
+    /// frames arrive in a single TCP read (e.g., unsolicited SPPSTP:OK followed
+    /// by the actual SPGGCP:3 response). Without this buffer, the remainder would
+    /// be discarded and ReadResponseAsync would block indefinitely on the next call.
+    /// Cleared in DisposeSocket() to prevent stale data after reconnection.
+    /// </summary>
+    private readonly StringBuilder _receiveBuffer = new();
+
     public bool IsConnected => _client?.Connected == true;
 
     public SavemaTtoAdapter(ILogger<SavemaTtoAdapter> logger)
@@ -258,23 +267,92 @@ public class SavemaTtoAdapter : IPrinterAdapter
             if (_stream == null)
                 throw new InvalidOperationException("Not connected to printer");
 
+            // Extract expected command from sent string (e.g., "~SPGGCP^" → "SPGGCP")
+            var expectedCommand = ExtractCommandName(cmd);
             var txLog = FormatCommandForLog(cmd);
+
+            // Best-effort flush of unsolicited data before sending (supplementary to validation).
+            // DataAvailable checks if data is buffered RIGHT NOW. An unsolicited frame can
+            // arrive after this check but before ReadResponseAsync — this just reduces the window.
+            if (_stream.DataAvailable)
+            {
+                var staleBuffer = new byte[4096];
+                var flushed = new StringBuilder();
+                while (_stream.DataAvailable)
+                {
+                    var n = await _stream.ReadAsync(staleBuffer, ct);
+                    if (n > 0) flushed.Append(Encoding.ASCII.GetString(staleBuffer, 0, n));
+                }
+                if (flushed.Length > 0)
+                    _logger.LogWarning("SPPL: flushed {Len} bytes of stale data before {Cmd}: {Data}",
+                        flushed.Length, expectedCommand,
+                        flushed.Length > 200 ? flushed.ToString()[..200] : flushed.ToString());
+            }
+
             _logger.LogDebug("SPPL TX -> {Command} ({ByteCount} bytes)", txLog, Encoding.ASCII.GetByteCount(cmd));
             var bytes = Encoding.ASCII.GetBytes(cmd);
             await _stream.WriteAsync(bytes, ct);
-            var response = await ReadResponseAsync(ct);
-            sw.Stop();
 
-            var responseStr = response.Payload ?? "";
-            _logger.LogDebug("SPPL RX <- {Command}:{Response} ({ElapsedMs}ms)",
-                response.Command, responseStr.Length > 500 ? responseStr[..500] + "..." : responseStr, sw.ElapsedMilliseconds);
-
-            if (response.IsFail)
+            // Read with response command validation: retry if response doesn't match.
+            // This is the PRIMARY defense against unsolicited SPPL frames (e.g., SPPSTP:OK
+            // arriving when we sent SPGGCP). Single-frame unsolicited messages are the
+            // dangerous case — they shift all subsequent reads by one frame.
+            const int maxRetries = 3;
+            for (int attempt = 0; attempt < maxRetries; attempt++)
             {
-                _logger.LogWarning("SPPL FAIL: {Command} -> FAIL ({ElapsedMs}ms)", txLog, sw.ElapsedMilliseconds);
+                var response = await ReadResponseAsync(ct);
+
+                if (response.Command == expectedCommand)
+                {
+                    sw.Stop();
+                    var responseStr = response.Payload ?? "";
+                    _logger.LogDebug("SPPL RX <- {Command}:{Response} ({ElapsedMs}ms)",
+                        response.Command, responseStr.Length > 500 ? responseStr[..500] + "..." : responseStr,
+                        sw.ElapsedMilliseconds);
+
+                    if (response.IsFail)
+                        _logger.LogWarning("SPPL FAIL: {Command} -> FAIL ({ElapsedMs}ms)", txLog, sw.ElapsedMilliseconds);
+
+                    return response;
+                }
+
+                // Mismatched response — log and discard
+                _logger.LogWarning(
+                    "SPPL: expected response for {Expected}, got {Actual}:{Payload} (attempt {Attempt}/{Max}). " +
+                    "Discarding unsolicited frame.",
+                    expectedCommand, response.Command, response.Payload, attempt + 1, maxRetries);
             }
 
-            return response;
+            // All retries exhausted — stream is permanently misaligned.
+            // Force disconnect+reconnect to get a fresh TCP stream.
+            // Without this, the executor would re-read from the same corrupted stream
+            // on every subsequent poll (there is no auto-reconnect for mid-session disconnects).
+            _logger.LogError(
+                "SPPL stream desynchronized after {Max} retries for {Cmd}. Forcing reconnect.",
+                maxRetries, expectedCommand);
+            DisposeSocket();
+            try
+            {
+                _client = new TcpClient
+                {
+                    ReceiveTimeout = SpplConstants.DefaultReceiveTimeoutMs,
+                    SendTimeout = SpplConstants.DefaultSendTimeoutMs
+                };
+                await _client.ConnectAsync(_lastConnectedHost!, _lastConnectedPort, ct);
+                _stream = _client.GetStream();
+                _logger.LogInformation("SPPL: reconnected to {Host}:{Port} after stream corruption",
+                    _lastConnectedHost, _lastConnectedPort);
+            }
+            catch (Exception reconnectEx)
+            {
+                _logger.LogError(reconnectEx,
+                    "SPPL: reconnect failed after stream corruption. Adapter is now disconnected.");
+                DisposeSocket();
+            }
+            throw new IOException(
+                $"SPPL stream desynchronized: sent {expectedCommand}, " +
+                $"received {maxRetries} consecutive mismatched responses. " +
+                "Adapter reconnected — retry needed.");
         }
         catch (IOException ex)
         {
@@ -284,6 +362,17 @@ public class SavemaTtoAdapter : IPrinterAdapter
             throw;
         }
         finally { _lock.Release(); }
+    }
+
+    /// <summary>
+    /// Extracts the SPPL command name from a raw command string.
+    /// E.g., "~SPGGCP^" → "SPGGCP", "~SPLCDF{data}^" → "SPLCDF"
+    /// </summary>
+    private static string ExtractCommandName(string cmd)
+    {
+        var start = cmd.IndexOf(SpplConstants.CommandStart) + 1;
+        var end = cmd.IndexOfAny(['{', SpplConstants.CommandEnd], start);
+        return end > start ? cmd[start..end] : cmd[start..];
     }
 
     /// <summary>
@@ -340,28 +429,68 @@ public class SavemaTtoAdapter : IPrinterAdapter
     {
         _logger.LogTrace("-> ReadResponseAsync() waiting for data...");
         var buffer = new byte[65536];
-        var sb = new StringBuilder();
         var totalBytesRead = 0;
 
+        // Check if persistent buffer already has a complete frame from a previous read
+        // (e.g., two frames arrived together last time — we returned the first,
+        // and the second is still in _receiveBuffer)
+        var buffered = _receiveBuffer.ToString();
+        if (buffered.Contains(SpplConstants.CommandEnd))
+        {
+            var frameEnd = buffered.IndexOf(SpplConstants.CommandEnd) + 1;
+            var frame = buffered[..frameEnd];
+            _receiveBuffer.Remove(0, frameEnd);
+            if (_receiveBuffer.Length > 0)
+                _logger.LogDebug("SPPL: returning buffered frame, {RemLen} bytes remain in buffer",
+                    _receiveBuffer.Length);
+            return SpplResponseParser.Parse(frame);
+        }
+
+        // Read from network until we have at least one complete frame
         while (true)
         {
-            var bytesRead = await _stream!.ReadAsync(buffer, ct);
+            // Timeout: 10 seconds per individual read to prevent indefinite blocking.
+            // TcpClient.ReceiveTimeout does NOT apply to async ReadAsync.
+            using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            readCts.CancelAfter(TimeSpan.FromSeconds(10));
+
+            int bytesRead;
+            try
+            {
+                bytesRead = await _stream!.ReadAsync(buffer, readCts.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Our 10s timeout fired, not the caller's token
+                throw new IOException("Read timeout: no data received from printer within 10 seconds");
+            }
+
             if (bytesRead == 0)
             {
                 _logger.LogError("Connection closed by printer during read (totalBytesRead={TotalBytes}, partial={Partial})",
-                    totalBytesRead, sb.ToString().Length > 200 ? sb.ToString()[..200] : sb.ToString());
+                    totalBytesRead, _receiveBuffer.ToString().Length > 200
+                        ? _receiveBuffer.ToString()[..200] : _receiveBuffer.ToString());
                 throw new IOException("Connection closed by printer");
             }
 
             totalBytesRead += bytesRead;
-            sb.Append(Encoding.ASCII.GetString(buffer, 0, bytesRead));
-            var raw = sb.ToString();
+            _receiveBuffer.Append(Encoding.ASCII.GetString(buffer, 0, bytesRead));
+            var raw = _receiveBuffer.ToString();
 
-            // Check if we have a complete response (ends with ^)
+            // Check if we have a complete frame (contains ^)
             if (raw.Contains(SpplConstants.CommandEnd))
             {
-                _logger.LogTrace("<- ReadResponseAsync: {TotalBytes} bytes total", totalBytesRead);
-                return SpplResponseParser.Parse(raw);
+                // Extract the first complete frame
+                var frameEnd = raw.IndexOf(SpplConstants.CommandEnd) + 1;
+                var frame = raw[..frameEnd];
+                _receiveBuffer.Remove(0, frameEnd); // preserve remainder for next call
+
+                if (_receiveBuffer.Length > 0)
+                    _logger.LogDebug("SPPL: extracted frame ({FrameLen} bytes), {RemLen} bytes remain in buffer",
+                        frame.Length, _receiveBuffer.Length);
+
+                _logger.LogTrace("<- ReadResponseAsync: {TotalBytes} bytes from network", totalBytesRead);
+                return SpplResponseParser.Parse(frame);
             }
 
             _logger.LogTrace("   ReadResponseAsync: partial read {BytesRead} bytes (total={TotalBytes}), waiting for more...",
@@ -374,6 +503,7 @@ public class SavemaTtoAdapter : IPrinterAdapter
         _logger.LogTrace("-> DisposeSocket()");
         _stream?.Dispose(); _stream = null;
         _client?.Dispose(); _client = null;
+        _receiveBuffer.Clear(); // discard stale buffered data from previous connection
         _logger.LogTrace("<- DisposeSocket completed");
     }
 

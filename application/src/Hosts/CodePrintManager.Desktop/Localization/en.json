@@ -375,6 +375,8 @@
   "Error_CannotCancelJob": "Cannot cancel job in {0} state",
   "Error_CannotPauseJob": "Only printing jobs can be paused. Current status: {0}",
   "Error_CannotResumeJob": "Only paused or ready jobs can be resumed. Current status: {0}",
+  "Error_JobStillRunning": "Job is still actively running. Stop it before attempting resume.",
+  "Recovery_Error": "Error: {0}",
 
   "Alert_CodePool": "Code Pool",
   "Alert_LowStock": "{0}: only {1} codes remaining.",

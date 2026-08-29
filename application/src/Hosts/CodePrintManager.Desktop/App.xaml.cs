@@ -352,8 +352,9 @@ public partial class App : System.Windows.Application
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log.Fatal(e.Exception, "UNHANDLED DISPATCHER EXCEPTION");
-        Log.CloseAndFlush();
-        // Allow the exception to propagate so the default handler can show the error dialog
+        // Do NOT call Log.CloseAndFlush() here — it causes a blind logging period
+        // where subsequent log writes are silently dropped. The file sink writes
+        // FATAL synchronously, and OnExit handles the final flush.
     }
 
     private static void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -362,7 +363,7 @@ public partial class App : System.Windows.Application
             Log.Fatal(ex, "UNHANDLED APPDOMAIN EXCEPTION (IsTerminating={IsTerminating})", e.IsTerminating);
         else
             Log.Fatal("UNHANDLED APPDOMAIN EXCEPTION (non-Exception object): {Object}", e.ExceptionObject);
-        Log.CloseAndFlush();
+        // Do NOT call Log.CloseAndFlush() here — same reason as above.
     }
 
     private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)

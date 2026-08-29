@@ -26,6 +26,7 @@ public class JobExecutor
     private int _crossCheckTick;
     private bool _needsInspection;
     private int _pollCycleCount;
+    private int _consecutiveFailures;
     private readonly Stopwatch _jobTimer = new();
 
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
@@ -79,7 +80,10 @@ public class JobExecutor
             _job.Id, _jobTimer.Elapsed.TotalSeconds, _pollCycleCount);
         _cts?.Cancel();
         if (_pollTask != null)
-            await _pollTask;
+        {
+            try { await _pollTask; }
+            catch (OperationCanceledException) { /* expected during cancellation */ }
+        }
         _logger.LogTrace("<- JobExecutor.StopAsync() completed");
     }
 
@@ -94,20 +98,52 @@ public class JobExecutor
                 var cycleSw = Stopwatch.StartNew();
 
                 // After an IOException, run a full inspection before resuming normal polling.
+                // DO NOT clear _needsInspection before the inspection completes —
+                // if it throws (e.g., FormatException from SPPL misalignment), the
+                // flag must stay true so we retry on the next poll (Invariant #9).
                 if (_needsInspection)
                 {
                     _logger.LogDebug("Job {JobId} poll #{Cycle}: running post-reconnect inspection", _job.Id, _pollCycleCount);
-                    _needsInspection = false;
-                    var shouldContinue = await RunPostReconnectInspectionAsync(ct);
-                    if (!shouldContinue)
+                    try
                     {
-                        _logger.LogTrace("<- PollLoopAsync exiting (inspection escalated)");
-                        return; // Inspection escalated — executor is done
+                        var shouldContinue = await RunPostReconnectInspectionAsync(ct);
+                        _needsInspection = false; // clear ONLY after successful completion
+                        if (!shouldContinue)
+                        {
+                            _logger.LogTrace("<- PollLoopAsync exiting (inspection escalated)");
+                            return; // Inspection escalated — executor is done
+                        }
                     }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // FormatException, InvalidOperationException, etc. from SPPL
+                        // misalignment or disconnected adapter. _needsInspection stays
+                        // true so we retry on the next poll.
+                        _logger.LogWarning(ex,
+                            "Job {JobId}: inspection failed with non-IO error. Will retry on next poll.",
+                            _job.Id);
+                        try { await Task.Delay(2000, ct); }
+                        catch (OperationCanceledException) { return; }
+                        continue;
+                    }
+                    continue;
                 }
 
                 var snapshot = await ReadCountersAsync(ct);
                 var effectiveCounter = snapshot.Counter + _counterOffset;
+
+                // Defense-in-depth: counter can NEVER exceed job quantity.
+                // If it does, the SPPL stream is corrupted (e.g., SPGGTP value
+                // misinterpreted as SPGGCP due to unsolicited frame shift).
+                if (effectiveCounter > _job.Quantity)
+                {
+                    _logger.LogError(
+                        "Job {JobId}: effective counter {Counter} (raw={Raw}, offset={Offset}) exceeds quantity {Qty}! " +
+                        "Capping to quantity. SPPL stream may be corrupted.",
+                        _job.Id, effectiveCounter, snapshot.Counter, _counterOffset, _job.Quantity);
+                    effectiveCounter = _job.Quantity;
+                }
+
                 _logger.LogDebug("Job {JobId} poll #{Cycle}: counter={Counter} offset={Offset} effective={Effective} (prev={Previous}) [{CycleMs}ms]",
                     _job.Id, _pollCycleCount, snapshot.Counter, _counterOffset, effectiveCounter, _previousCounter, cycleSw.ElapsedMilliseconds);
 
@@ -128,10 +164,22 @@ public class JobExecutor
                     return;
                 }
 
-                DetectAnomalies(snapshot);
+                var safe = DetectAnomalies(snapshot, effectiveCounter);
+                if (!safe)
+                {
+                    _logger.LogError(
+                        "Job {JobId}: blocking anomaly detected — quarantining remaining codes and stopping executor",
+                        _job.Id);
+                    await QuarantineRemainingCodesAsync();
+                    await SetJobErrorAsync("Counter anomaly — possible SPPL stream corruption");
+                    return;
+                }
 
                 if (effectiveCounter > _job.CodesConfirmed)
                     await CommitProgressAsync(effectiveCounter);
+
+                // Successful poll — reset consecutive failure counter
+                _consecutiveFailures = 0;
 
                 if (effectiveCounter >= _job.Quantity)
                 {
@@ -149,20 +197,62 @@ public class JobExecutor
                 _logger.LogTrace("<- PollLoopAsync cancelled (after {Cycles} cycles)", _pollCycleCount);
                 return;
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Not connected"))
+            {
+                // "Not connected to printer" from SendCommandAsync — treat as connection error
+                _logger.LogError(ex, "Job {JobId} ADAPTER DISCONNECTED on poll #{Cycle}", _job.Id, _pollCycleCount);
+                _needsInspection = true;
+                _consecutiveFailures++;
+                if (_consecutiveFailures >= 10)
+                {
+                    _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
+                        _job.Id, _consecutiveFailures);
+                    await QuarantineRemainingCodesAsync();
+                    await SetJobErrorAsync($"{_consecutiveFailures} consecutive failures — printer unreachable");
+                    return;
+                }
+                try { await Task.Delay(2000, ct); }
+                catch (OperationCanceledException) { return; }
+            }
             catch (IOException ex)
             {
                 _logger.LogError(ex, "Job {JobId} CONNECTION LOST on poll #{Cycle} (connected={Connected})",
                     _job.Id, _pollCycleCount, _adapter.IsConnected);
                 _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
                     _loc.Format("Alert_ConnectionLost", _job.Id),
-                    printerId: _job.PrinterId, jobId: _job.Id);
+                    printerId: _job.PrinterId, jobId: _job.Id,
+                    deduplicationKey: "connection_lost");
                 _needsInspection = true;
-                await Task.Delay(2000, ct);
+                _consecutiveFailures++;
+                if (_consecutiveFailures >= 10)
+                {
+                    _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
+                        _job.Id, _consecutiveFailures);
+                    await QuarantineRemainingCodesAsync();
+                    await SetJobErrorAsync($"{_consecutiveFailures} consecutive failures — operator intervention required");
+                    return;
+                }
+                // Cancellation-safe delay: if StopAsync cancels the CTS during this
+                // delay, we exit cleanly instead of throwing TaskCanceledException
+                // from inside the catch block (which would propagate as an unhandled
+                // exception through StopAsync → PauseJobAsync → WPF Dispatcher).
+                try { await Task.Delay(2000, ct); }
+                catch (OperationCanceledException) { return; }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Job {JobId} UNEXPECTED ERROR on poll #{Cycle}", _job.Id, _pollCycleCount);
-                await Task.Delay(2000, ct);
+                _consecutiveFailures++;
+                if (_consecutiveFailures >= 10)
+                {
+                    _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
+                        _job.Id, _consecutiveFailures);
+                    await QuarantineRemainingCodesAsync();
+                    await SetJobErrorAsync($"{_consecutiveFailures} consecutive failures — operator intervention required");
+                    return;
+                }
+                try { await Task.Delay(2000, ct); }
+                catch (OperationCanceledException) { return; }
             }
         }
         _logger.LogTrace("<- PollLoopAsync loop ended (token cancelled, {Cycles} total cycles)", _pollCycleCount);
@@ -302,6 +392,22 @@ public class JobExecutor
             if (lifetimeDelta.HasValue && lifetimeDelta.Value > _job.CodesConfirmed)
             {
                 var unrecorded = lifetimeDelta.Value - _job.CodesConfirmed;
+
+                // Counter cap: unrecorded prints cannot exceed remaining codes.
+                // If they do, the lifetime counter is corrupted (e.g., SPPL stream
+                // misalignment caused a wrong SPGGTP value). Quarantine everything.
+                var remaining = _job.Quantity - _job.CodesConfirmed;
+                if (unrecorded > remaining)
+                {
+                    _logger.LogError(
+                        "Job {JobId}: SPGGTP indicates {Unrecorded} unrecorded prints but only {Remaining} codes remain. " +
+                        "Counter value is corrupted (possible SPPL stream misalignment).",
+                        _job.Id, unrecorded, remaining);
+                    await QuarantineRemainingCodesAsync();
+                    await SetJobErrorAsync("Counter corruption during inspection: unrecorded prints exceed remaining quantity");
+                    return false;
+                }
+
                 _logger.LogWarning(
                     "Job {JobId}: {Unrecorded} unrecorded prints detected via SPGGTP delta",
                     _job.Id, unrecorded);
@@ -361,6 +467,20 @@ public class JobExecutor
             : (int?)null;
         if (effectiveFromLifetime.HasValue && effectiveFromLifetime.Value > _job.CodesConfirmed)
         {
+            // Counter cap: catch-up value cannot exceed job quantity.
+            // If it does, the lifetime counter is corrupted (e.g., SPPL stream
+            // misalignment). Quarantine remaining codes instead of committing bad data.
+            if (effectiveFromLifetime.Value > _job.Quantity)
+            {
+                _logger.LogError(
+                    "Job {JobId}: catch-up effective counter {Counter} exceeds quantity {Qty}. " +
+                    "Lifetime counter is corrupted (possible SPPL stream misalignment).",
+                    _job.Id, effectiveFromLifetime.Value, _job.Quantity);
+                await QuarantineRemainingCodesAsync();
+                await SetJobErrorAsync("Counter corruption: catch-up value exceeds job quantity");
+                return false;
+            }
+
             var catchUp = effectiveFromLifetime.Value - _job.CodesConfirmed;
             _logger.LogInformation(
                 "Job {JobId}: catching up {CatchUp} missed prints after reconnect (lifetime delta={Delta}, effective={Effective})",
@@ -433,10 +553,17 @@ public class JobExecutor
         return new PollSnapshot(counter, lifetimeDelta);
     }
 
-    private void DetectAnomalies(PollSnapshot snapshot)
+    /// <summary>
+    /// Checks for counter anomalies. Returns true if safe to continue, false if
+    /// the anomaly is severe enough to block progress (Invariant #8).
+    /// Warning-only anomalies still return true.
+    /// </summary>
+    private bool DetectAnomalies(PollSnapshot snapshot, int effectiveCounter)
     {
-        _logger.LogTrace("-> DetectAnomalies(counter={Counter}, lifetimeDelta={Delta}, prevCounter={Prev})",
-            snapshot.Counter, snapshot.LifetimeDelta, _previousCounter);
+        _logger.LogTrace("-> DetectAnomalies(counter={Counter}, lifetimeDelta={Delta}, prevCounter={Prev}, effective={Effective})",
+            snapshot.Counter, snapshot.LifetimeDelta, _previousCounter, effectiveCounter);
+
+        var blocked = false;
 
         // Cross-check: compare SPGGTP delta against raw SPGGCP (session-only prints).
         // Both TotalBaseline and SPGGCP baseline are recorded at the same moment
@@ -462,14 +589,40 @@ public class JobExecutor
             _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
                 _loc.Format("Alert_CounterJump", advance),
                 printerId: _job.PrinterId, jobId: _job.Id);
+
+            // BLOCKING: if the jump exceeds remaining codes, this is impossible
+            // and indicates SPPL stream corruption (e.g., lifetime counter value
+            // interpreted as current counter). Per Invariant #8: stop everything,
+            // quarantine, alert.
+            var remainingCodes = _job.Quantity - _job.CodesConfirmed;
+            if (advance > remainingCodes)
+            {
+                _logger.LogError(
+                    "Job {JobId} BLOCKING ANOMALY: counter jump +{Advance} exceeds remaining codes {Remaining}. " +
+                    "SPPL stream is corrupted. Halting job.",
+                    _job.Id, advance, remainingCodes);
+                _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                    _loc.Format("Alert_CounterJump", advance),
+                    printerId: _job.PrinterId, jobId: _job.Id);
+                blocked = true;
+            }
         }
 
-        _logger.LogTrace("<- DetectAnomalies completed");
+        _logger.LogTrace("<- DetectAnomalies = {Safe}", !blocked);
+        return !blocked;
     }
 
     private async Task CommitProgressAsync(int effectiveCounter)
     {
         _logger.LogTrace("-> CommitProgressAsync(effectiveCounter={Counter}) for Job {JobId}", effectiveCounter, _job.Id);
+
+        // Final safety guard: should never be called with a value beyond quantity.
+        // The PollLoopAsync cap and inspection validation should prevent this,
+        // but if a code path is missed, fail loudly rather than corrupting data.
+        if (effectiveCounter > _job.Quantity)
+            throw new InvalidOperationException(
+                $"BUG: effectiveCounter ({effectiveCounter}) > Quantity ({_job.Quantity}) for Job {_job.Id}");
+
         var sw = Stopwatch.StartNew();
         await _codePool.MarkCodesPrintedAsync(_job.Id, _job.CodesConfirmed, effectiveCounter);
         _job.CodesConfirmed = effectiveCounter;

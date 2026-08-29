@@ -9,6 +9,6 @@ public interface IAlertService
     event EventHandler<Guid>? AlertDismissed;
 
     void Raise(AlertSeverity severity, string source, string message,
-               int? printerId = null, int? jobId = null);
+               int? printerId = null, int? jobId = null, string? deduplicationKey = null);
     void Dismiss(Guid alertId);
 }

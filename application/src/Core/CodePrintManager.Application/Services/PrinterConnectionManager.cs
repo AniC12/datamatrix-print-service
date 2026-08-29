@@ -67,6 +67,18 @@ public class PrinterConnectionManager : IDisposable
         _logger.LogInformation("Connecting printer '{Name}' (Id={PrinterId}) at {Ip}:{Port}, adapter={AdapterType}",
             printer.Name, printer.Id, printer.IpAddress, printer.Port, printer.AdapterType);
 
+        // Guard: check that a factory exists for this adapter type before creating.
+        // Without this, CreateAdapter throws InvalidOperationException, which can
+        // go unobserved when ConnectAsync is called fire-and-forget (e.g., during
+        // startup for mock printers with no MockAdapterFactory registered).
+        if (!_factories.Any(f => f.CanHandle(printer.AdapterType)))
+        {
+            _logger.LogInformation(
+                "Skipping printer '{Name}' (Id={Id}): no adapter factory for type '{Type}'",
+                printer.Name, printer.Id, printer.AdapterType);
+            return;
+        }
+
         var adapter = CreateAdapter(printer.AdapterType);
         _adapters[printer.Id] = adapter;
 

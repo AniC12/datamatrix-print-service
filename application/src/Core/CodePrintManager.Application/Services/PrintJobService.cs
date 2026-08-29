@@ -619,8 +619,23 @@ public class PrintJobService : IPrintJobService
             return;
         }
 
-        if (job.Status != JobStatus.Paused)
+        // Crash recovery: a Printing job with no running executor means the app
+        // crashed while the job was active. Transition to Paused so the resume
+        // procedure can handle it safely (CodesConfirmed is preserved).
+        if (job.Status == JobStatus.Printing)
+        {
+            if (_jobRegistry.TryGet(jobId, out var existingExec) && existingExec != null)
+                throw new InvalidOperationException(_loc["Error_JobStillRunning"]);
+            _logger.LogWarning(
+                "ResumeJobAsync: Job {JobId} was Printing but has no executor (crash recovery). " +
+                "Transitioning to Paused.", jobId);
+            job.Status = JobStatus.Paused;
+            await _db.SaveChangesAsync(ct);
+        }
+        else if (job.Status != JobStatus.Paused)
+        {
             throw new InvalidOperationException(_loc.Format("Error_CannotResumeJob", job.Status));
+        }
 
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
         await printerLock.WaitAsync(ct);
