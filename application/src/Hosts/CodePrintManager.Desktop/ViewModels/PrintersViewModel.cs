@@ -155,7 +155,36 @@ public partial class PrintersViewModel : ObservableObject
         _logger.LogInformation("Printers page loaded: {Count} printers", printers.Count);
 
         if (SelectedPrinter == null && Printers.Count > 0)
-            SelectedPrinter = Printers[0];
+        {
+            // Select the printer from the most recent print job
+            PrinterEntity? preferred = null;
+            try
+            {
+                var lastPrinterId = await _db.PrintJobs
+                    .AsNoTracking()
+                    .Where(j => j.StartedAt != null)
+                    .OrderByDescending(j => j.StartedAt)
+                    .Select(j => (int?)j.PrinterId)
+                    .FirstOrDefaultAsync();
+
+                if (lastPrinterId.HasValue)
+                {
+                    preferred = Printers.FirstOrDefault(p => p.Id == lastPrinterId.Value);
+                    if (preferred != null)
+                    {
+                        _logger.LogInformation(
+                            "Printers: Auto-selected last-used printer '{Name}' (Id={Id})",
+                            preferred.Name, preferred.Id);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to look up last-used printer");
+            }
+
+            SelectedPrinter = preferred ?? Printers[0];
+        }
         _logger.LogTrace("<- LoadPrintersAsync");
     }
 

@@ -154,6 +154,7 @@ dotnet publish src/Hosts/CodePrintManager.Desktop -c Release -r win-x64 --self-c
 - **IPrinterAdapterFactory**: Each printer brand registers its own factory via DI. Application never directly references printer-specific projects.
 - **Printer engineers**: Only need `Domain` + their `Printer.X` project + `PrinterTestHarness`. No DB, no UI, no services.
 - **Dispatcher.Invoke pitfall**: Never use `Dispatcher.Invoke(async () => ...)` — it creates `async void` and silently swallows exceptions. Use synchronous updates from event data inside Dispatcher callbacks.
+- **`AsNoTracking()` on read-only queries**: Always use `.AsNoTracking()` when querying data that will not be modified (e.g., lookups, projections, display-only reads). This avoids unnecessary change tracking overhead and prevents accidental flushes via `SaveChangesAsync()` on shared DbContext instances.
 
 ## Localization
 

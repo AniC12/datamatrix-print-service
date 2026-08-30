@@ -27,6 +27,7 @@ public class JobExecutor
     private bool _needsInspection;
     private int _pollCycleCount;
     private int _consecutiveFailures;
+    private int? _lastKnownLifetimeCounter;
     private readonly Stopwatch _jobTimer = new();
 
     /// <summary>
@@ -37,6 +38,7 @@ public class JobExecutor
 
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
     public event EventHandler<JobCompletedEvent>? Completed;
+    public event EventHandler<JobCountersUpdatedEvent>? CountersUpdated;
 
     /// <param name="counterOffset">
     /// Offset to add to the raw SPGGCP counter to get the effective job-level counter.
@@ -161,6 +163,9 @@ public class JobExecutor
 
                 _logger.LogDebug("Job {JobId} poll #{Cycle}: counter={Counter} offset={Offset} effective={Effective} (prev={Previous}) [{CycleMs}ms]",
                     _job.Id, _pollCycleCount, snapshot.Counter, _counterOffset, effectiveCounter, _previousCounter, cycleSw.ElapsedMilliseconds);
+
+                CountersUpdated?.Invoke(this,
+                    new JobCountersUpdatedEvent(_job.Id, snapshot.Counter, _lastKnownLifetimeCounter, effectiveCounter));
 
                 // Defense-in-depth: detect backward SPGGCP movement during normal polling.
                 // On real hardware, power cycles cause TCP disconnect first (handled by Check 4
@@ -589,6 +594,7 @@ public class JobExecutor
         if (++_crossCheckTick % 5 == 0 && _job.TotalBaseline.HasValue)
         {
             var lifetime = await _adapter.GetTotalCounterAsync(ct);
+            _lastKnownLifetimeCounter = lifetime;
             lifetimeDelta = lifetime - _job.TotalBaseline.Value;
             _logger.LogDebug("Job {JobId} cross-check: lifetime={Lifetime}, delta={Delta}, counter={Counter}",
                 _job.Id, lifetime, lifetimeDelta, counter);

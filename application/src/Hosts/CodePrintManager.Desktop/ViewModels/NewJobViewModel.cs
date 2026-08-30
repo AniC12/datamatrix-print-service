@@ -157,6 +157,7 @@ public partial class NewJobViewModel : ObservableObject
         {
             _logger.LogInformation("NewJob: Product selected '{Name}' (Id={Id})", value.Name, value.Id);
             _ = RefreshAvailableAsync(value.Id);
+            _ = AutoSelectLastPrinterAsync(value.Id);
         }
         _logger.LogTrace("<- OnSelectedProductChanged()");
     }
@@ -175,6 +176,47 @@ public partial class NewJobViewModel : ObservableObject
             _logger.LogTrace("<- RefreshAvailableAsync() [exception]");
             throw;
         }
+    }
+
+    private async Task AutoSelectLastPrinterAsync(int productId)
+    {
+        _logger.LogTrace("-> AutoSelectLastPrinterAsync(productId={ProductId})", productId);
+        try
+        {
+            var lastPrinterId = await _db.PrintJobs
+                .AsNoTracking()
+                .Where(j => j.ProductId == productId && j.StartedAt != null)
+                .OrderByDescending(j => j.StartedAt)
+                .Select(j => (int?)j.PrinterId)
+                .FirstOrDefaultAsync();
+
+            if (lastPrinterId.HasValue)
+            {
+                var printer = Printers.FirstOrDefault(p => p.Id == lastPrinterId.Value);
+                if (printer != null)
+                {
+                    SelectedPrinter = printer;
+                    _logger.LogInformation(
+                        "NewJob: Auto-selected last printer '{Name}' (Id={PrinterId}) for product {ProductId}",
+                        printer.Name, printer.Id, productId);
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "NewJob: Last printer Id={PrinterId} for product {ProductId} not found in available printers (deleted?)",
+                        lastPrinterId.Value, productId);
+                }
+            }
+            else
+            {
+                _logger.LogDebug("NewJob: No print history for product {ProductId}, skipping auto-select", productId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to auto-select last printer for product {ProductId}", productId);
+        }
+        _logger.LogTrace("<- AutoSelectLastPrinterAsync()");
     }
 
     [RelayCommand]

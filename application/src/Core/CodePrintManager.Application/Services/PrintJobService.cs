@@ -397,6 +397,7 @@ public class PrintJobService : IPrintJobService
                 _eventBus.RaiseCompleted(this, e);
                 JobCompleted?.Invoke(this, e);
             };
+            executor.CountersUpdated += (_, e) => _eventBus.RaiseCountersUpdated(this, e);
             _jobRegistry.Register(jobId, executor);
             _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope}, counterOffset={Offset})",
                 jobId, _scopeFactory != null, -currentCounterBaseline);
@@ -954,6 +955,7 @@ public class PrintJobService : IPrintJobService
                 _eventBus.RaiseCompleted(this, e);
                 JobCompleted?.Invoke(this, e);
             };
+            executor.CountersUpdated += (_, e) => _eventBus.RaiseCountersUpdated(this, e);
             _jobRegistry.Register(jobId, executor);
             executor.Start();
 

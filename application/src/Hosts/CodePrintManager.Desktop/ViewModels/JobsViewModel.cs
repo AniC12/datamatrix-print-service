@@ -79,6 +79,12 @@ public partial class JobsViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasActiveJobs;
 
+    [ObservableProperty]
+    private string _printerCountersText = string.Empty;
+
+    // Cache last known counter text per job so it persists after job completes
+    private readonly Dictionary<int, string> _countersCache = new();
+
     public event EventHandler? NavigateToNewJobRequested;
 
     public JobsViewModel(AppDbContext db, IPrintJobService printJobService, JobEventBus eventBus,
@@ -94,6 +100,7 @@ public partial class JobsViewModel : ObservableObject
 
         _eventBus.ProgressChanged += OnJobProgressChanged;
         _eventBus.Completed += OnJobCompleted;
+        _eventBus.CountersUpdated += OnCountersUpdated;
 
         _logger.LogTrace("<- JobsViewModel()");
     }
@@ -208,6 +215,7 @@ public partial class JobsViewModel : ObservableObject
             JobDetailProgress = 0;
             JobDetailProgressText = string.Empty;
             JobDetailStatus = null;
+            PrinterCountersText = string.Empty;
             _logger.LogTrace("<- OnSelectedJobChanged() — cleared details");
             return;
         }
@@ -229,6 +237,9 @@ public partial class JobsViewModel : ObservableObject
         PrepCodesReserved = prepared;
         PrepDataUploaded = prepared;
         PrepTemplateLoaded = prepared;
+
+        // Restore cached counters if available, otherwise clear
+        PrinterCountersText = _countersCache.GetValueOrDefault(value.Id, string.Empty);
         _logger.LogTrace("<- OnSelectedJobChanged()");
     }
 
@@ -426,5 +437,23 @@ public partial class JobsViewModel : ObservableObject
             _ = LoadHistoryAsync();
         });
         _logger.LogTrace("<- OnJobCompleted()");
+    }
+
+    private void OnCountersUpdated(object? sender, JobCountersUpdatedEvent e)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            var parts = new List<string>();
+            parts.Add($"{_loc["Jobs_Counter_Current"]} - {e.CurrentCounter}");
+            if (e.LifetimeCounter.HasValue)
+                parts.Add($"{_loc["Jobs_Counter_Lifetime"]} - {e.LifetimeCounter.Value}");
+            parts.Add($"{_loc["Jobs_Counter_Effective"]} - {e.EffectiveCounter}");
+            var text = string.Join(",  ", parts);
+
+            _countersCache[e.JobId] = text;
+
+            if (SelectedJob?.Id == e.JobId)
+                PrinterCountersText = text;
+        });
     }
 }

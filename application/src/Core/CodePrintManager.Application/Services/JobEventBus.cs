@@ -18,6 +18,7 @@ public class JobEventBus
 
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
     public event EventHandler<JobCompletedEvent>? Completed;
+    public event EventHandler<JobCountersUpdatedEvent>? CountersUpdated;
 
     public void RaiseProgressChanged(object sender, JobProgressChangedEvent e)
     {
@@ -31,5 +32,10 @@ public class JobEventBus
         _logger.LogTrace("-> RaiseCompleted(JobId={JobId}, FinalStatus={FinalStatus})", e.JobId, e.FinalStatus);
         Completed?.Invoke(sender, e);
         _logger.LogTrace("<- RaiseCompleted");
+    }
+
+    public void RaiseCountersUpdated(object sender, JobCountersUpdatedEvent e)
+    {
+        CountersUpdated?.Invoke(sender, e);
     }
 }
