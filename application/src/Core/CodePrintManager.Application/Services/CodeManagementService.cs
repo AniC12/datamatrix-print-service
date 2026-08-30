@@ -77,6 +77,11 @@ public class CodeManagementService : ICodeManagementService
     public async Task<CodeOperation> ChangeStatusAsync(IReadOnlyList<int> codeIds, CodeStatus newStatus)
     {
         _logger.LogTrace("-> ChangeStatusAsync(codeIds=[{CodeIdCount} items], newStatus={NewStatus})", codeIds.Count, newStatus);
+
+        if (newStatus == CodeStatus.Reserved)
+            throw new InvalidOperationException(
+                "Cannot manually set codes to Reserved status. Codes are reserved automatically by print jobs.");
+
         var codes = await _db.Codes
             .Where(c => codeIds.Contains(c.Id) && c.Status != CodeStatus.Reserved)
             .ToListAsync();
@@ -113,6 +118,11 @@ public class CodeManagementService : ICodeManagementService
     public async Task<CodeOperation> ChangeStatusBulkAsync(int? productId, CodeStatus fromStatus, CodeStatus toStatus)
     {
         _logger.LogTrace("-> ChangeStatusBulkAsync(productId={ProductId}, fromStatus={FromStatus}, toStatus={ToStatus})", productId, fromStatus, toStatus);
+
+        if (toStatus == CodeStatus.Reserved)
+            throw new InvalidOperationException(
+                "Cannot manually set codes to Reserved status.");
+
         var query = productId.HasValue
             ? _db.Codes.Where(c => c.ProductId == productId.Value)
             : _db.Codes.Where(c => c.ProductId == null);

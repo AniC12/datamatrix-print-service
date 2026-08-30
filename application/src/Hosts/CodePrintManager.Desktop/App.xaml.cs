@@ -378,6 +378,18 @@ public partial class App : System.Windows.Application
 
         if (_host != null)
         {
+            // Stop all running executors/watchers before disposing the host
+            // (which disposes PrinterConnectionManager and its adapters)
+            try
+            {
+                var registry = _host.Services.GetRequiredService<ActiveJobRegistry>();
+                await registry.StopAllAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error stopping executors during shutdown");
+            }
+
             await _host.StopAsync(TimeSpan.FromSeconds(5));
             _host.Dispose();
         }

@@ -204,6 +204,17 @@ public class CodePoolService : ICodePoolService
             .Take(count)
             .ToListAsync();
 
+        if (codes.Count < count)
+        {
+            _logger.LogCritical(
+                "MarkCodesPrintedAsync INTEGRITY VIOLATION: Job {JobId} expected {Expected} Reserved codes " +
+                "but found only {Actual}. Data may be corrupt.",
+                jobId, count, codes.Count);
+            throw new InvalidOperationException(
+                $"Code count mismatch for Job {jobId}: expected {count} Reserved codes, found {codes.Count}. " +
+                $"This indicates data corruption — halting to prevent further damage.");
+        }
+
         foreach (var code in codes)
         {
             code.Status = CodeStatus.Printed;
@@ -222,11 +233,10 @@ public class CodePoolService : ICodePoolService
         _logger.LogTrace("-> BurnCodeAsync(jobId={JobId}, index={Index})", jobId, index);
 
         _logger.LogWarning("Code burned: Job {JobId} index={Index}", jobId, index);
-        // Take the first remaining Reserved code (previous operations already
-        // moved earlier codes out of Reserved status).
         var code = await _db.Codes
             .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
             .OrderBy(c => c.ImportOrder)
+            .Skip(index)
             .FirstOrDefaultAsync();
 
         if (code != null)
@@ -247,6 +257,7 @@ public class CodePoolService : ICodePoolService
         var code = await _db.Codes
             .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
             .OrderBy(c => c.ImportOrder)
+            .Skip(index)
             .FirstOrDefaultAsync();
 
         if (code != null)

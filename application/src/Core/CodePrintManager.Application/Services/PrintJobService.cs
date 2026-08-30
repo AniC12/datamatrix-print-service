@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Sockets;
 using CodePrintManager.Data;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
@@ -65,6 +66,8 @@ public class PrintJobService : IPrintJobService
         if (quantity <= 0)
             throw new ArgumentOutOfRangeException(nameof(quantity), quantity,
                 _loc["Error_QuantityMustBePositive"]);
+
+        EnsureSufficientDiskSpace();
 
         // Check for existing active job on this product
         var existingProductJob = await _db.PrintJobs
@@ -441,30 +444,68 @@ public class PrintJobService : IPrintJobService
                 hadActiveExecutor = true;
                 await executor.StopAsync();
                 _jobRegistry.TryRemove(jobId);
+                // Reload job to get executor's last committed CodesConfirmed
+                // (executor has its own scoped DbContext)
+                await _db.Entry(job).ReloadAsync();
 
                 var adapter = _connectionManager.GetAdapter(job.PrinterId);
                 if (adapter != null)
                 {
-                    hasAdapter = true;
-                    await adapter.StopPrintAsync();
+                    try
+                    {
+                        hasAdapter = true;
+                        await adapter.StopPrintAsync();
 
-                    // Use SPGGTP (lifetime counter) for authoritative print count.
-                    // Raw SPGGCP may be cumulative and cannot be compared to CodesConfirmed
-                    // (which is offset-adjusted by the executor). SPGGTP - TotalBaseline
-                    // gives the true effective print count for this job.
-                    var lifetimeCounter = await adapter.GetTotalCounterAsync();
-                    effectivePrinted = job.TotalBaseline.HasValue
-                        ? lifetimeCounter - job.TotalBaseline.Value
-                        : job.CodesConfirmed; // fallback: trust last committed progress
-                    // Cap to Quantity as a safety net
-                    if (effectivePrinted > job.Quantity)
-                        effectivePrinted = job.Quantity;
-                    _logger.LogDebug("CancelJobAsync: SPGGTP={Lifetime}, TotalBaseline={Baseline}, effectivePrinted={Effective}, confirmed={Confirmed}",
-                        lifetimeCounter, job.TotalBaseline, effectivePrinted, job.CodesConfirmed);
+                        // Use SPGGTP (lifetime counter) for authoritative print count.
+                        // Raw SPGGCP may be cumulative and cannot be compared to CodesConfirmed
+                        // (which is offset-adjusted by the executor). SPGGTP - TotalBaseline
+                        // gives the true effective print count for this job.
+                        var lifetimeCounter = await adapter.GetTotalCounterAsync();
+                        effectivePrinted = job.TotalBaseline.HasValue
+                            ? lifetimeCounter - job.TotalBaseline.Value
+                            : job.CodesConfirmed; // fallback: trust last committed progress
 
-                    // Compute quarantine count from per-printer QuarantineMargin setting.
-                    var margin = job.Printer.QuarantineMargin;
-                    quarantineCount = Math.Min(margin, job.Quantity - effectivePrinted);
+                        // Clamp: effectivePrinted cannot be negative (hardware swap, counter reset)
+                        if (effectivePrinted < 0)
+                        {
+                            _logger.LogCritical(
+                                "CancelJobAsync Job {JobId}: effectivePrinted is NEGATIVE ({Value})! " +
+                                "Possible hardware swap or counter reset. Using CodesConfirmed as floor.",
+                                jobId, effectivePrinted);
+                            effectivePrinted = job.CodesConfirmed;
+                        }
+                        // Clamp: cannot regress below CodesConfirmed (codes already committed as Printed)
+                        else if (effectivePrinted < job.CodesConfirmed)
+                        {
+                            _logger.LogCritical(
+                                "CancelJobAsync Job {JobId}: COUNTER DISCREPANCY! effectivePrinted={Effective} < CodesConfirmed={Confirmed}. " +
+                                "Possible TotalBaseline corruption or counter rollover. Using CodesConfirmed as floor.",
+                                jobId, effectivePrinted, job.CodesConfirmed);
+                            _alerts.Raise(AlertSeverity.Error, job.Printer?.Name ?? "Printer",
+                                $"Counter discrepancy: printer reports {effectivePrinted} prints but {job.CodesConfirmed} already confirmed. " +
+                                $"Investigate Job #{jobId}.",
+                                printerId: job.PrinterId, jobId: jobId);
+                            effectivePrinted = job.CodesConfirmed; // Don't regress
+                        }
+                        // Clamp: cannot exceed Quantity
+                        if (effectivePrinted > job.Quantity)
+                            effectivePrinted = job.Quantity;
+
+                        _logger.LogDebug("CancelJobAsync: SPGGTP={Lifetime}, TotalBaseline={Baseline}, effectivePrinted={Effective}, confirmed={Confirmed}",
+                            lifetimeCounter, job.TotalBaseline, effectivePrinted, job.CodesConfirmed);
+
+                        // Compute quarantine count from per-printer QuarantineMargin setting.
+                        var margin = job.Printer.QuarantineMargin;
+                        quarantineCount = Math.Min(margin, job.Quantity - effectivePrinted);
+                    }
+                    catch (Exception ex) when (ex is IOException or SocketException or InvalidOperationException)
+                    {
+                        _logger.LogWarning(ex,
+                            "CancelJobAsync: printer I/O failed for Job {JobId}. " +
+                            "Falling back to CodesConfirmed-based cancel with quarantine.",
+                            jobId);
+                        hasAdapter = false; // fall through to CRIT-2's fixed path
+                    }
                 }
             }
 
@@ -494,14 +535,23 @@ public class PrintJobService : IPrintJobService
             }
             else if (job.Status == JobStatus.Printing)
             {
-                // Printing job but no executor (crash recovery / startup abort).
-                // CodesConfirmed is the last persisted progress — treat it like a Paused job.
-                // Return all remaining reserved codes.
-                _logger.LogWarning("CancelJobAsync: Job {JobId} was Printing but had no executor (crash recovery). " +
-                    "Returning {Remaining} reserved codes based on CodesConfirmed={Confirmed}",
-                    jobId, job.Quantity - job.CodesConfirmed, job.CodesConfirmed);
-                if (job.CodesConfirmed < job.Quantity)
-                    await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity - job.CodesConfirmed);
+                // Printing job cancelled without authoritative counter data.
+                // This covers: crash recovery (no executor), startup abort, AND
+                // adapter I/O failure during cancel (CRIT-1 fallback).
+                // CodesConfirmed is the last persisted progress — boundary is uncertain.
+                // Quarantine the boundary per QuarantineMargin (minimum 1).
+                _logger.LogWarning("CancelJobAsync: Job {JobId} was Printing without authoritative counter. " +
+                    "CodesConfirmed={Confirmed}, quarantining boundary before returning remaining codes",
+                    jobId, job.CodesConfirmed);
+                var remaining = job.Quantity - job.CodesConfirmed;
+                if (remaining > 0)
+                {
+                    var margin = Math.Max(1, job.Printer?.QuarantineMargin ?? 1);
+                    var toQuarantine = Math.Min(margin, remaining);
+                    await _codePool.QuarantineCodesAsync(jobId, job.CodesConfirmed, toQuarantine);
+                    if (remaining - toQuarantine > 0)
+                        await _codePool.ReturnCodesToPoolAsync(jobId, 0, remaining - toQuarantine);
+                }
             }
             else if (job.Status == JobStatus.Paused)
             {
@@ -563,6 +613,10 @@ public class PrintJobService : IPrintJobService
                 _logger.LogDebug("PauseJobAsync: stopping executor for Job {JobId}", jobId);
                 await executor.StopAsync();
                 _jobRegistry.TryRemove(jobId);
+                // Reload job to get executor's last committed CodesConfirmed
+                // (executor has its own scoped DbContext)
+                await _db.Entry(job).ReloadAsync();
+                effectivePrinted = job.CodesConfirmed;
             }
 
             // Stop the printer and reconcile counter using SPGGTP (lifetime counter).
@@ -572,18 +626,52 @@ public class PrintJobService : IPrintJobService
             var adapter = _connectionManager.GetAdapter(job.PrinterId);
             if (adapter != null)
             {
-                _logger.LogDebug("PauseJobAsync: sending StopPrint to printer for Job {JobId}", jobId);
-                await adapter.StopPrintAsync();
+                try
+                {
+                    _logger.LogDebug("PauseJobAsync: sending StopPrint to printer for Job {JobId}", jobId);
+                    await adapter.StopPrintAsync();
 
-                var lifetimeCounter = await adapter.GetTotalCounterAsync();
-                effectivePrinted = job.TotalBaseline.HasValue
-                    ? lifetimeCounter - job.TotalBaseline.Value
-                    : job.CodesConfirmed; // fallback: trust executor's last commit
-                // Cap to Quantity as a safety net
-                if (effectivePrinted > job.Quantity)
-                    effectivePrinted = job.Quantity;
-                _logger.LogDebug("PauseJobAsync: SPGGTP={Lifetime}, TotalBaseline={Baseline}, effectivePrinted={Effective}, confirmed={Confirmed}",
-                    lifetimeCounter, job.TotalBaseline, effectivePrinted, job.CodesConfirmed);
+                    var lifetimeCounter = await adapter.GetTotalCounterAsync();
+                    effectivePrinted = job.TotalBaseline.HasValue
+                        ? lifetimeCounter - job.TotalBaseline.Value
+                        : job.CodesConfirmed; // fallback: trust executor's last commit
+
+                    // Clamp: effectivePrinted cannot be negative (hardware swap, counter reset)
+                    if (effectivePrinted < 0)
+                    {
+                        _logger.LogCritical(
+                            "PauseJobAsync Job {JobId}: effectivePrinted is NEGATIVE ({Value})! " +
+                            "Possible hardware swap or counter reset. Using CodesConfirmed as floor.",
+                            jobId, effectivePrinted);
+                        effectivePrinted = job.CodesConfirmed;
+                    }
+                    // Clamp: cannot regress below CodesConfirmed (codes already committed as Printed)
+                    else if (effectivePrinted < job.CodesConfirmed)
+                    {
+                        _logger.LogCritical(
+                            "PauseJobAsync Job {JobId}: COUNTER DISCREPANCY! effectivePrinted={Effective} < CodesConfirmed={Confirmed}. " +
+                            "Possible TotalBaseline corruption or counter rollover. Using CodesConfirmed as floor.",
+                            jobId, effectivePrinted, job.CodesConfirmed);
+                        _alerts.Raise(AlertSeverity.Error, job.Printer?.Name ?? "Printer",
+                            $"Counter discrepancy: printer reports {effectivePrinted} prints but {job.CodesConfirmed} already confirmed. " +
+                            $"Investigate Job #{jobId}.",
+                            printerId: job.PrinterId, jobId: jobId);
+                        effectivePrinted = job.CodesConfirmed; // Don't regress
+                    }
+                    // Clamp: cannot exceed Quantity
+                    if (effectivePrinted > job.Quantity)
+                        effectivePrinted = job.Quantity;
+
+                    _logger.LogDebug("PauseJobAsync: SPGGTP={Lifetime}, TotalBaseline={Baseline}, effectivePrinted={Effective}, confirmed={Confirmed}",
+                        lifetimeCounter, job.TotalBaseline, effectivePrinted, job.CodesConfirmed);
+                }
+                catch (Exception ex) when (ex is IOException or SocketException or InvalidOperationException)
+                {
+                    _logger.LogWarning(ex,
+                        "PauseJobAsync: printer I/O failed for Job {JobId}. Using CodesConfirmed={Confirmed} as fallback",
+                        jobId, job.CodesConfirmed);
+                    // effectivePrinted stays at job.CodesConfirmed (reloaded)
+                }
             }
 
             // --- DB mutations (inside transaction) ---
@@ -951,6 +1039,32 @@ public class PrintJobService : IPrintJobService
         }
 
         _logger.LogTrace("<- RespawnWatchersForPrinterAsync: respawned {Count} watcher(s)", readyJobs.Count);
+    }
+
+    private void EnsureSufficientDiskSpace()
+    {
+        try
+        {
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var root = Path.GetPathRoot(appDir);
+            if (root == null) return;
+
+            var drive = new DriveInfo(root);
+            const long criticalThreshold = 100L * 1024 * 1024;  // 100 MB
+            const long warningThreshold = 500L * 1024 * 1024;   // 500 MB
+
+            if (drive.AvailableFreeSpace < criticalThreshold)
+                throw new InvalidOperationException(
+                    _loc["Error_InsufficientDiskSpace"]);
+            if (drive.AvailableFreeSpace < warningThreshold)
+                _alerts.Raise(AlertSeverity.Warning, _loc["Alert_System"],
+                    _loc["Alert_LowDiskSpace"],
+                    deduplicationKey: "low_disk_space");
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            _logger.LogWarning(ex, "Failed to check disk space");
+        }
     }
 
     /// <summary>

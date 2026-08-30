@@ -408,5 +408,9 @@
   "Alert_CounterJump": "Unexpected counter jump (+{0})",
   "Alert_JobCompleted": "Job #{0} completed ({1}/{1})",
 
-  "Language_Label": "Language"
+  "Language_Label": "Language",
+
+  "Error_InsufficientDiskSpace": "Insufficient disk space. Free up space before creating new jobs.",
+  "Alert_System": "System",
+  "Alert_LowDiskSpace": "Disk space is running low. Consider freeing up space."
 }

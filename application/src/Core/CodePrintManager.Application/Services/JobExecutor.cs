@@ -29,6 +29,12 @@ public class JobExecutor
     private int _consecutiveFailures;
     private readonly Stopwatch _jobTimer = new();
 
+    /// <summary>
+    /// Maximum consecutive poll failures before escalating the job to Error.
+    /// At ~2.5s per failure (500ms poll + 2000ms retry delay), 30 failures ≈ 75 seconds.
+    /// </summary>
+    private const int MaxConsecutiveFailures = 30;
+
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
     public event EventHandler<JobCompletedEvent>? Completed;
 
@@ -62,6 +68,10 @@ public class JobExecutor
 
     public void Start()
     {
+        if (_pollTask != null)
+            throw new InvalidOperationException(
+                $"JobExecutor for Job {_job.Id} is already running. Call StopAsync() first.");
+
         _logger.LogTrace("-> JobExecutor.Start() for Job {JobId}", _job.Id);
         _logger.LogInformation("Executor STARTED: Job {JobId} (qty={Qty}, confirmed={Confirmed}, offset={Offset})",
             _job.Id, _job.Quantity, _job.CodesConfirmed, _counterOffset);
@@ -137,10 +147,15 @@ public class JobExecutor
                 // misinterpreted as SPGGCP due to unsolicited frame shift).
                 if (effectiveCounter > _job.Quantity)
                 {
+                    var overrun = effectiveCounter - _job.Quantity;
                     _logger.LogError(
-                        "Job {JobId}: effective counter {Counter} (raw={Raw}, offset={Offset}) exceeds quantity {Qty}! " +
+                        "Job {JobId}: effective counter {Counter} (raw={Raw}, offset={Offset}) exceeds quantity {Qty} by {Overrun}! " +
                         "Capping to quantity. SPPL stream may be corrupted.",
-                        _job.Id, effectiveCounter, snapshot.Counter, _counterOffset, _job.Quantity);
+                        _job.Id, effectiveCounter, snapshot.Counter, _counterOffset, _job.Quantity, overrun);
+                    _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
+                        $"Printer may have printed {overrun} extra label(s) beyond requested quantity on Job #{_job.Id}.",
+                        printerId: _job.PrinterId, jobId: _job.Id,
+                        deduplicationKey: "counter_overrun");
                     effectiveCounter = _job.Quantity;
                 }
 
@@ -151,17 +166,20 @@ public class JobExecutor
                 // On real hardware, power cycles cause TCP disconnect first (handled by Check 4
                 // in RunPostReconnectInspectionAsync). This catches edge cases where the counter
                 // goes backward without a network disruption.
+                // Route through the inspection path for proper SPGGTP reconciliation and code
+                // accounting rather than halting immediately.
                 if (_previousCounter >= 0 && snapshot.Counter < _previousCounter)
                 {
-                    _logger.LogError(
+                    _logger.LogWarning(
                         "Job {JobId}: SPGGCP went backward ({Previous} → {Current}). " +
-                        "Possible power cycle or firmware reset. Halting job.",
+                        "Possible power cycle or firmware reset. Triggering inspection for proper SPGGTP reconciliation.",
                         _job.Id, _previousCounter, snapshot.Counter);
-                    _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
-                        $"SPGGCP went backward ({_previousCounter} → {snapshot.Counter}). Job #{_job.Id} halted.",
+                    _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
+                        $"SPGGCP went backward ({_previousCounter} → {snapshot.Counter}). " +
+                        $"Job #{_job.Id}: running inspection.",
                         printerId: _job.PrinterId, jobId: _job.Id);
-                    await SetJobErrorAsync("SPGGCP went backward — possible power cycle");
-                    return;
+                    _needsInspection = true;
+                    continue; // Skip remaining poll logic, run inspection on next cycle
                 }
 
                 var safe = DetectAnomalies(snapshot, effectiveCounter);
@@ -203,7 +221,7 @@ public class JobExecutor
                 _logger.LogError(ex, "Job {JobId} ADAPTER DISCONNECTED on poll #{Cycle}", _job.Id, _pollCycleCount);
                 _needsInspection = true;
                 _consecutiveFailures++;
-                if (_consecutiveFailures >= 10)
+                if (_consecutiveFailures >= MaxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
                         _job.Id, _consecutiveFailures);
@@ -224,7 +242,7 @@ public class JobExecutor
                     deduplicationKey: "connection_lost");
                 _needsInspection = true;
                 _consecutiveFailures++;
-                if (_consecutiveFailures >= 10)
+                if (_consecutiveFailures >= MaxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
                         _job.Id, _consecutiveFailures);
@@ -239,11 +257,34 @@ public class JobExecutor
                 try { await Task.Delay(2000, ct); }
                 catch (OperationCanceledException) { return; }
             }
+            catch (FormatException ex)
+            {
+                // SPPL stream corruption (e.g., unsolicited frame shift, partial response).
+                // Run a full inspection on the next poll to re-sync.
+                _logger.LogError(ex, "Job {JobId} SPPL FORMAT ERROR on poll #{Cycle} — possible stream corruption",
+                    _job.Id, _pollCycleCount);
+                _alerts.Raise(AlertSeverity.Warning, _job.Printer.Name,
+                    $"SPPL format error on Job #{_job.Id}. Running inspection.",
+                    printerId: _job.PrinterId, jobId: _job.Id,
+                    deduplicationKey: "format_error");
+                _needsInspection = true;
+                _consecutiveFailures++;
+                if (_consecutiveFailures >= MaxConsecutiveFailures)
+                {
+                    _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
+                        _job.Id, _consecutiveFailures);
+                    await QuarantineRemainingCodesAsync();
+                    await SetJobErrorAsync($"{_consecutiveFailures} consecutive failures — SPPL stream corruption");
+                    return;
+                }
+                try { await Task.Delay(2000, ct); }
+                catch (OperationCanceledException) { return; }
+            }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Job {JobId} UNEXPECTED ERROR on poll #{Cycle}", _job.Id, _pollCycleCount);
                 _consecutiveFailures++;
-                if (_consecutiveFailures >= 10)
+                if (_consecutiveFailures >= MaxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
                         _job.Id, _consecutiveFailures);

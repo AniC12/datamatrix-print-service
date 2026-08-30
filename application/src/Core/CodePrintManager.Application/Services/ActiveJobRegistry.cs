@@ -86,6 +86,32 @@ public class ActiveJobRegistry
     }
 
     /// <summary>
+    /// Stops all running executors and watchers. Called during graceful shutdown
+    /// to ensure poll loops are terminated before adapters are disposed.
+    /// </summary>
+    public async Task StopAllAsync()
+    {
+        _logger.LogInformation("StopAllAsync: stopping {ExecutorCount} executor(s), {WatcherCount} watcher(s)",
+            _executors.Count, _watchers.Count);
+
+        foreach (var (jobId, watcher) in _watchers)
+        {
+            try { await watcher.StopAsync(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Error stopping watcher for Job {JobId}", jobId); }
+        }
+        _watchers.Clear();
+
+        foreach (var (jobId, executor) in _executors)
+        {
+            try { await executor.StopAsync(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Error stopping executor for Job {JobId}", jobId); }
+        }
+        _executors.Clear();
+
+        _logger.LogInformation("StopAllAsync: all executors and watchers stopped");
+    }
+
+    /// <summary>
     /// Stops and removes all ReadyWatchers for jobs on the given printer.
     /// Called when a printer is manually disconnected so watchers don't poll a stale adapter.
     /// Returns the job IDs whose watchers were stopped (for potential respawn on reconnect).

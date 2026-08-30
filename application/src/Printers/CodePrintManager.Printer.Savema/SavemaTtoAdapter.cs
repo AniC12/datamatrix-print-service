@@ -46,7 +46,10 @@ public class SavemaTtoAdapter : IPrinterAdapter
                 ReceiveTimeout = SpplConstants.DefaultReceiveTimeoutMs,
                 SendTimeout = SpplConstants.DefaultSendTimeoutMs
             };
-            _logger.LogDebug("TCP socket created, connecting to {Host}:{Port}...", host, port);
+            // Enable TCP keepalive to detect half-open connections faster
+            _client.Client.SetSocketOption(
+                SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            _logger.LogDebug("TCP socket created (keepalive=on), connecting to {Host}:{Port}...", host, port);
             await _client.ConnectAsync(host, port, ct);
             _stream = _client.GetStream();
             _lastConnectedHost = host;

@@ -17,5 +17,8 @@ public class PrinterConfiguration : IEntityTypeConfiguration<Printer>
         builder.Property(e => e.AdapterType).HasDefaultValue("savema_tto");
         builder.Property(e => e.IsActive).HasDefaultValue(true);
         builder.Property(e => e.QuarantineMargin).HasDefaultValue(0);
+
+        // Prevent two DB records pointing to the same physical printer
+        builder.HasIndex(e => new { e.IpAddress, e.Port }).IsUnique();
     }
 }

@@ -184,44 +184,55 @@ public class PrinterConnectionManager : IDisposable
 
         _ = Task.Run(async () =>
         {
-            var delay = 1000;
-            const int maxDelay = 30000;
-
-            while (!cts.Token.IsCancellationRequested)
+            try
             {
-                await Task.Delay(delay, cts.Token);
+                var delay = 1000;
+                const int maxDelay = 30000;
 
-                var attemptNum = _reconnectAttemptCounts.AddOrUpdate(printer.Id, 1, (_, c) => c + 1);
-                var disconnectedFor = _disconnectedSince.TryGetValue(printer.Id, out var since)
-                    ? (DateTime.Now - since).TotalSeconds : 0;
-
-                _logger.LogDebug("Reconnect attempt #{Attempt} for '{Name}' (Id={PrinterId}), delay={Delay}ms, disconnected for {DisconnectedSec:F1}s",
-                    attemptNum, printer.Name, printer.Id, delay, disconnectedFor);
-
-                if (_adapters.TryGetValue(printer.Id, out var adapter))
+                while (!cts.Token.IsCancellationRequested)
                 {
-                    var success = await adapter.ConnectAsync(printer.IpAddress, printer.Port, cts.Token);
-                    if (success)
-                    {
-                        _logger.LogInformation(
-                            "RECONNECTED to '{Name}' (Id={PrinterId}) after {Attempts} attempts ({DisconnectedSec:F1}s offline)",
-                            printer.Name, printer.Id, attemptNum, disconnectedFor);
-                        _disconnectedSince.TryRemove(printer.Id, out _);
-                        _reconnectAttemptCounts.TryRemove(printer.Id, out _);
-                        await CheckSerialNumberAsync(printer.Id, adapter);
-                        PrinterStatusChanged?.Invoke(this,
-                            new PrinterStatusChangedEvent(printer.Id, PrinterStatus.Offline, PrinterStatus.Idle));
-                        _reconnectCts.TryRemove(printer.Id, out _);
-                        return;
-                    }
-                    else
-                    {
-                        _logger.LogDebug("Reconnect attempt #{Attempt} FAILED for '{Name}' (Id={PrinterId}), next delay={NextDelay}ms",
-                            attemptNum, printer.Name, printer.Id, Math.Min(delay * 2, maxDelay));
-                    }
-                }
+                    await Task.Delay(delay, cts.Token);
 
-                delay = Math.Min(delay * 2, maxDelay);
+                    var attemptNum = _reconnectAttemptCounts.AddOrUpdate(printer.Id, 1, (_, c) => c + 1);
+                    var disconnectedFor = _disconnectedSince.TryGetValue(printer.Id, out var since)
+                        ? (DateTime.Now - since).TotalSeconds : 0;
+
+                    _logger.LogDebug("Reconnect attempt #{Attempt} for '{Name}' (Id={PrinterId}), delay={Delay}ms, disconnected for {DisconnectedSec:F1}s",
+                        attemptNum, printer.Name, printer.Id, delay, disconnectedFor);
+
+                    if (_adapters.TryGetValue(printer.Id, out var adapter))
+                    {
+                        var success = await adapter.ConnectAsync(printer.IpAddress, printer.Port, cts.Token);
+                        if (success)
+                        {
+                            _logger.LogInformation(
+                                "RECONNECTED to '{Name}' (Id={PrinterId}) after {Attempts} attempts ({DisconnectedSec:F1}s offline)",
+                                printer.Name, printer.Id, attemptNum, disconnectedFor);
+                            _disconnectedSince.TryRemove(printer.Id, out _);
+                            _reconnectAttemptCounts.TryRemove(printer.Id, out _);
+                            await CheckSerialNumberAsync(printer.Id, adapter);
+                            PrinterStatusChanged?.Invoke(this,
+                                new PrinterStatusChangedEvent(printer.Id, PrinterStatus.Offline, PrinterStatus.Idle));
+                            _reconnectCts.TryRemove(printer.Id, out _);
+                            return;
+                        }
+                        else
+                        {
+                            _logger.LogDebug("Reconnect attempt #{Attempt} FAILED for '{Name}' (Id={PrinterId}), next delay={NextDelay}ms",
+                                attemptNum, printer.Name, printer.Id, Math.Min(delay * 2, maxDelay));
+                        }
+                    }
+
+                    delay = Math.Min(delay * 2, maxDelay);
+                }
+            }
+            catch (OperationCanceledException) { /* expected on shutdown / manual disconnect */ }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Reconnect loop for printer '{Name}' (Id={PrinterId}) crashed unexpectedly. " +
+                    "Reconnection will not be retried automatically.",
+                    printer.Name, printer.Id);
             }
         }, cts.Token);
 
