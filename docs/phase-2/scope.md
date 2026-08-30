@@ -2,6 +2,8 @@
 
 This document defines the Phase 2 scope for Code Print Manager. Phase 2 focuses exclusively on **new features and capabilities**. All safety-critical bugs and production-readiness gaps were addressed in Phase 1.
 
+> **Approval required:** All items in this document are proposals only. Nothing here may be implemented without explicit approval from Vahe. Each feature must be reviewed, scoped, and agreed upon before any work begins.
+
 ---
 
 ## New Features
