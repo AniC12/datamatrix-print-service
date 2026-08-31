@@ -91,6 +91,115 @@ public static class MockControlEndpoints
             factory.NextSerialNumber = req.Serial;
             return Results.Ok(new { NextSerialNumber = factory.NextSerialNumber });
         });
+
+        // ─── New fault injection endpoints ───
+
+        group.MapPost("/{id:int}/inject-io-failure", (int id, InjectIOFailureRequest req, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.InjectIOFailure(req.Count);
+            return Results.Ok(new { IOFailuresQueued = req.Count });
+        });
+
+        group.MapPost("/{id:int}/clear-io-failure", (int id, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.ClearIOFailure();
+            return Results.Ok(new { Status = "IO failures cleared" });
+        });
+
+        group.MapPost("/{id:int}/power-cycle-while-printing", (int id, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SimulatePowerCycleWhilePrinting();
+            return Results.Ok(new
+            {
+                Status = "Power cycle simulated while printing",
+                CurrentCounter = adapter.InspectCurrentCounter,
+                LifetimeCounter = adapter.InspectLifetimeCounter,
+                ActiveTemplate = adapter.InspectActiveTemplate
+            });
+        });
+
+        group.MapPost("/{id:int}/inject-blocked", (int id, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.InjectBlockedState();
+            return Results.Ok(new { Status = "BLOCKED state injected" });
+        });
+
+        group.MapPost("/{id:int}/clear-blocked", (int id, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.ClearBlockedState();
+            return Results.Ok(new { Status = "BLOCKED state cleared" });
+        });
+
+        group.MapPost("/{id:int}/external-template-load", (int id, ExternalTemplateRequest req, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SimulateExternalTemplateLoad(req.Template);
+            return Results.Ok(new { ActiveTemplate = req.Template });
+        });
+
+        group.MapPost("/{id:int}/external-prints", (int id, ExternalPrintsRequest req, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SimulateExternalPrints(req.Count);
+            return Results.Ok(new
+            {
+                ExternalPrints = req.Count,
+                CurrentCounter = adapter.InspectCurrentCounter,
+                LifetimeCounter = adapter.InspectLifetimeCounter
+            });
+        });
+
+        // Simulate TCP connection drop without removing the adapter from
+        // PrinterConnectionManager. The adapter stays registered but throws
+        // IOException on all commands until TryReconnectAsync reconnects it in-place.
+        // Use this instead of /api/printers/{id}/disconnect for network-drop tests.
+        group.MapPost("/{id:int}/network-drop", (int id, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SimulateNetworkDrop();
+            return Results.Ok(new { Status = "Network drop simulated", IsConnected = adapter.IsConnected });
+        });
+
+        group.MapPost("/{id:int}/delete-csv", (int id, DeleteCsvRequest req, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.DeleteCsvFromStorage(req.Filename);
+            return Results.Ok(new { Deleted = req.Filename });
+        });
+
+        group.MapGet("/{id:int}/csv-contents/{filename}", (int id, string filename, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            var contents = adapter.InspectCsvContents(filename);
+            if (contents == null) return Results.NotFound(new { Error = $"CSV '{filename}' not found" });
+
+            return Results.Ok(new { Filename = filename, Codes = contents, Count = contents.Count });
+        });
     }
 }
 
@@ -98,3 +207,7 @@ public record InjectErrorRequest(string Status);
 public record SetSpeedRequest(int Ms);
 public record SetSerialRequest(string Serial);
 public record SetCountersRequest(int CurrentCounter, int LifetimeCounter);
+public record InjectIOFailureRequest(int Count);
+public record ExternalTemplateRequest(string Template);
+public record ExternalPrintsRequest(int Count);
+public record DeleteCsvRequest(string Filename);

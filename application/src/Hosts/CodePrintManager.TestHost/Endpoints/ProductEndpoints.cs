@@ -79,6 +79,19 @@ public static class ProductEndpoints
             var result = await codePool.ImportCodesAsync(id, req.BatchName ?? "api-import", req.Codes);
             return Results.Ok(new { result.Imported, result.Duplicates, result.Errors });
         });
+
+        group.MapGet("/{id:int}/code-stats", async (int id, ICodePoolService codePool) =>
+        {
+            var stats = await codePool.GetPoolStatsAsync(id);
+            return Results.Ok(new
+            {
+                Available = stats.GetValueOrDefault(CodePrintManager.Domain.Enums.CodeStatus.Available, 0),
+                Reserved = stats.GetValueOrDefault(CodePrintManager.Domain.Enums.CodeStatus.Reserved, 0),
+                Printed = stats.GetValueOrDefault(CodePrintManager.Domain.Enums.CodeStatus.Printed, 0),
+                Quarantined = stats.GetValueOrDefault(CodePrintManager.Domain.Enums.CodeStatus.Quarantined, 0),
+                Burned = stats.GetValueOrDefault(CodePrintManager.Domain.Enums.CodeStatus.Burned, 0)
+            });
+        });
     }
 }
 

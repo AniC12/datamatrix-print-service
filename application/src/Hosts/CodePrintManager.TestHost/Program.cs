@@ -34,6 +34,8 @@ app.MapProductEndpoints();
 app.MapJobEndpoints();
 app.MapDashboardEndpoints();
 app.MapMockControlEndpoints();
+app.MapAuditEndpoints();
+app.MapRecoveryEndpoints();
 app.MapEventEndpoints();
 
 app.Run();

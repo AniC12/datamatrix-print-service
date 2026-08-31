@@ -408,6 +408,7 @@
   "Error_CodeContainsForbidden": "Code contains forbidden sequence '{0}'",
 
   "Alert_ConnectionLost": "Connection lost. Job #{0} paused.",
+  "Alert_PrinterError": "Printer error on Job #{0}: {1}. Remaining codes quarantined.",
   "Alert_CounterMismatch": "Counter mismatch: SPGGCP={0}, SPGGTP delta={1}",
   "Alert_CounterJump": "Unexpected counter jump (+{0})",
   "Alert_JobCompleted": "Job #{0} completed ({1}/{1})",

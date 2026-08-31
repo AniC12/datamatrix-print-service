@@ -20,6 +20,7 @@ public class JobExecutor
     private readonly ILocalizationService _loc;
 
     private readonly int _counterOffset;
+    private readonly Func<int, CancellationToken, Task<bool>>? _tryReconnect;
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
     private int _previousCounter = -1;
@@ -28,6 +29,7 @@ public class JobExecutor
     private int _pollCycleCount;
     private int _consecutiveFailures;
     private int? _lastKnownLifetimeCounter;
+    private PrinterStatus? _previousErrorStatus; // for two-consecutive-polls error confirmation
     private readonly Stopwatch _jobTimer = new();
 
     /// <summary>
@@ -46,6 +48,11 @@ public class JobExecutor
     /// For fresh starts: offset = -spggcpBaseline (so effective starts at 0).
     /// For resumes: offset = CodesConfirmed - spggcpBaseline.
     /// </param>
+    /// <param name="tryReconnect">
+    /// Optional callback to attempt reconnection after IOException. Called with (printerId, ct).
+    /// Returns true if reconnection succeeded (adapter is alive again), false otherwise.
+    /// The adapter object is reconnected in-place, so the executor's _adapter reference stays valid.
+    /// </param>
     public JobExecutor(
         PrintJob job,
         IPrinterAdapter adapter,
@@ -54,7 +61,8 @@ public class JobExecutor
         AppDbContext db,
         ILogger logger,
         ILocalizationService loc,
-        int counterOffset = 0)
+        int counterOffset = 0,
+        Func<int, CancellationToken, Task<bool>>? tryReconnect = null)
     {
         _job = job;
         _adapter = adapter;
@@ -64,6 +72,7 @@ public class JobExecutor
         _logger = logger;
         _loc = loc;
         _counterOffset = counterOffset;
+        _tryReconnect = tryReconnect;
         _logger.LogTrace("-> JobExecutor constructed (jobId={JobId}, qty={Qty}, confirmed={Confirmed}, offset={Offset})",
             job.Id, job.Quantity, job.CodesConfirmed, counterOffset);
     }
@@ -167,6 +176,48 @@ public class JobExecutor
                 CountersUpdated?.Invoke(this,
                     new JobCountersUpdatedEvent(_job.Id, snapshot.Counter, _lastKnownLifetimeCounter, effectiveCounter));
 
+                // Periodic printer status check (every 10th poll ≈ 5 seconds).
+                // Detects hardware errors (ribbon break, mechanical failure) that don't
+                // cause IOException but stop the printer from advancing the counter.
+                // Uses two-consecutive-polls confirmation to avoid false positives
+                // from transient error states.
+                if (_pollCycleCount % 10 == 0)
+                {
+                    var status = await _adapter.GetStatusAsync(ct);
+                    if (status is PrinterStatus.Error or PrinterStatus.Blocked)
+                    {
+                        if (_previousErrorStatus == status)
+                        {
+                            // Confirmed persistent — two checks ~5s apart both returned error.
+                            // Don't send SPPSTP (never auto-stop a running printer).
+                            _logger.LogError(
+                                "Job {JobId}: printer status {Status} confirmed persistent (2 consecutive checks)",
+                                _job.Id, status);
+                            _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
+                                _loc.Format("Alert_PrinterError", _job.Id, status),
+                                printerId: _job.PrinterId, jobId: _job.Id);
+                            await QuarantineRemainingCodesAsync();
+                            await SetJobErrorAsync($"Printer {status} detected during polling");
+                            return;
+                        }
+                        // First sighting — record and confirm on next status check
+                        _previousErrorStatus = status;
+                        _logger.LogWarning(
+                            "Job {JobId}: printer status {Status} — will confirm on next status check",
+                            _job.Id, status);
+                    }
+                    else
+                    {
+                        if (_previousErrorStatus.HasValue)
+                        {
+                            _logger.LogInformation(
+                                "Job {JobId}: transient {OldStatus} cleared to {NewStatus}",
+                                _job.Id, _previousErrorStatus, status);
+                        }
+                        _previousErrorStatus = null;
+                    }
+                }
+
                 // Defense-in-depth: detect backward SPGGCP movement during normal polling.
                 // On real hardware, power cycles cause TCP disconnect first (handled by Check 4
                 // in RunPostReconnectInspectionAsync). This catches edge cases where the counter
@@ -222,9 +273,11 @@ public class JobExecutor
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("Not connected"))
             {
-                // "Not connected to printer" from SendCommandAsync — treat as connection error
+                // "Not connected to printer" from SendCommandAsync — treat as connection error.
+                // Attempt reconnection before counting as failure.
                 _logger.LogError(ex, "Job {JobId} ADAPTER DISCONNECTED on poll #{Cycle}", _job.Id, _pollCycleCount);
-                _needsInspection = true;
+                if (await TryReconnectAdapterAsync(ct))
+                    continue; // Reconnected — run inspection on next cycle
                 _consecutiveFailures++;
                 if (_consecutiveFailures >= MaxConsecutiveFailures)
                 {
@@ -239,14 +292,18 @@ public class JobExecutor
             }
             catch (IOException ex)
             {
-                _logger.LogError(ex, "Job {JobId} CONNECTION LOST on poll #{Cycle} (connected={Connected})",
-                    _job.Id, _pollCycleCount, _adapter.IsConnected);
+                _consecutiveFailures++;
+                _logger.LogError(ex, "Job {JobId} CONNECTION LOST on poll #{Cycle} (failure #{Failure}, connected={Connected})",
+                    _job.Id, _pollCycleCount, _consecutiveFailures, _adapter.IsConnected);
                 _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,
                     _loc.Format("Alert_ConnectionLost", _job.Id),
                     printerId: _job.PrinterId, jobId: _job.Id,
                     deduplicationKey: "connection_lost");
-                _needsInspection = true;
-                _consecutiveFailures++;
+
+                // Check failure threshold FIRST — persistent failures must escalate
+                // regardless of whether reconnection would succeed. This handles cases
+                // where ConnectAsync succeeds but subsequent commands still fail (e.g.,
+                // firmware crash, persistent protocol errors).
                 if (_consecutiveFailures >= MaxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
@@ -255,6 +312,14 @@ public class JobExecutor
                     await SetJobErrorAsync($"{_consecutiveFailures} consecutive failures — operator intervention required");
                     return;
                 }
+
+                // Attempt reconnection — if the network comes back, the same adapter
+                // object gets a fresh TCP connection and the executor continues.
+                // _consecutiveFailures is NOT reset here; it resets naturally when
+                // the first successful poll completes after reconnection.
+                if (await TryReconnectAdapterAsync(ct))
+                    continue; // Reconnected — run inspection on next cycle
+
                 // Cancellation-safe delay: if StopAsync cancels the CTS during this
                 // delay, we exit cleanly instead of throwing TaskCanceledException
                 // from inside the catch block (which would propagate as an unhandled
@@ -302,6 +367,40 @@ public class JobExecutor
             }
         }
         _logger.LogTrace("<- PollLoopAsync loop ended (token cancelled, {Cycles} total cycles)", _pollCycleCount);
+    }
+
+    /// <summary>
+    /// Attempts to reconnect the adapter via the connection manager callback.
+    /// If successful, sets _needsInspection so the next poll cycle runs
+    /// RunPostReconnectInspectionAsync.  Does NOT reset _consecutiveFailures —
+    /// the counter is only cleared when a poll actually succeeds, proving
+    /// the connection is healthy.  This prevents infinite reconnect loops when
+    /// ConnectAsync succeeds but subsequent commands still fail.
+    /// Returns true if reconnected, false if unavailable or failed.
+    /// </summary>
+    private async Task<bool> TryReconnectAdapterAsync(CancellationToken ct)
+    {
+        if (_tryReconnect == null)
+            return false;
+
+        try
+        {
+            _logger.LogInformation("Job {JobId}: attempting reconnection via connection manager", _job.Id);
+            var reconnected = await _tryReconnect(_job.PrinterId, ct);
+            if (reconnected)
+            {
+                _logger.LogInformation("Job {JobId}: reconnected successfully — will run inspection", _job.Id);
+                _needsInspection = true;
+                return true;
+            }
+            _logger.LogDebug("Job {JobId}: reconnection attempt failed", _job.Id);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception reEx)
+        {
+            _logger.LogWarning(reEx, "Job {JobId}: reconnection attempt threw exception", _job.Id);
+        }
+        return false;
     }
 
     /// <summary>
@@ -473,10 +572,23 @@ public class JobExecutor
             }
             else if (lifetimeDelta.HasValue && lifetimeDelta.Value == _job.CodesConfirmed)
             {
-                // No additional prints, but row pointer is still lost
+                // No additional prints, but row pointer is still lost.
+                // Quarantine remaining codes — the data buffer position is unknown
+                // and we can't be sure which codes will be printed next.
                 _logger.LogWarning(
                     "Job {JobId}: no additional prints during disconnect, but SPGGCP was reset. " +
-                    "Row pointer lost — full Resume Procedure required.", _job.Id);
+                    "Row pointer lost — quarantining remaining codes.", _job.Id);
+                await QuarantineRemainingCodesAsync();
+            }
+            else
+            {
+                // lifetimeDelta < CodesConfirmed or lifetimeDelta is null:
+                // Counter regressed or unknown — quarantine everything remaining.
+                _logger.LogWarning(
+                    "Job {JobId}: power cycle with uncertain state (lifetimeDelta={Delta}, confirmed={Confirmed}). " +
+                    "Quarantining remaining codes.",
+                    _job.Id, lifetimeDelta, _job.CodesConfirmed);
+                await QuarantineRemainingCodesAsync();
             }
 
             _alerts.Raise(AlertSeverity.Error, _job.Printer.Name,

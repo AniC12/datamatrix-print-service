@@ -6,9 +6,9 @@
 
 ## Current State Assessment
 
-> **Last updated: 2026-08-17**
+> **Last updated: 2026-08-30**
 
-The codebase compiles (0 errors, 0 warnings), all 5 test suites pass, and the application starts correctly. **18 of 32 stories complete (75 SP / 133 SP = 56%).** The critical path (end-to-end flow) and minimum viable demo are fully functional. Epics 0–5 are complete. Remaining work: E4-2 (Verify flow), E6-3 (Pause/Resume), E7 (testing), and E8 (polish/deployment).
+The codebase compiles (0 errors), all 5 test suites pass (279 tests), and the application starts correctly. **29 of 40 stories complete (122 SP / 164 SP = 74%).** The critical path (end-to-end flow) and minimum viable demo are fully functional. Epics 0–6, E9, and E10 are complete. E7-2 (SPPL tests) done; E7-1 and E7-7 partial. Remaining work: E7 (testing gaps) and E8 (polish/deployment).
 
 **Recent fixes (not tied to a story):**
 - **Job completion UI bug** — `JobsViewModel.OnJobCompleted` and `DashboardViewModel.OnJobCompleted` used `Dispatcher.Invoke(async () => ...)`, which silently became `async void` and swallowed DB query exceptions. Jobs stayed stuck on "Printing" status after the simulator reported completion. Fixed by using synchronous in-place updates from `JobCompletedEvent.FinalStatus` instead of re-querying the DB.
@@ -25,7 +25,7 @@ The codebase compiles (0 errors, 0 warnings), all 5 test suites pass, and the ap
 | Printer.Savema (adapter, SPPL protocol, factory) | Fully implemented |
 | Desktop (ViewModels, Views, Converters, Styles) | Redesigned to match spec; most features wired |
 | PrinterTestHarness | Complete |
-| Tests | Placeholder only (UnitTest1.cs in all 4 projects) |
+| Tests | 279 tests passing: Domain (13), Savema SPPL (48), Application/ViewModel (165), Integration E2E (52), Data (1 placeholder) |
 
 ### What this plan covers
 
@@ -39,14 +39,14 @@ Every task required to go from "compiles" to "production-ready Phase 1 matching 
 | E1: Core Print Flow | 4/4 | 0 | 18 | 0 |
 | E2: Safety & Recovery | 3/3 | 0 | 15 | 0 |
 | E3: Product Management | 2/2 | 0 | 8 | 0 |
-| E4: Printer Management | 1/2 | 1 (E4-2) | 5 | 5 |
+| E4: Printer Management | 2/2 | 0 | 10 | 0 |
 | E5: Dashboard & Real-Time | 2/2 | 0 | 11 | 0 |
-| E6: Job Management | 2/3 | 1 (E6-3) | 8 | 8 |
-| E7: Testing | 0/7 | 7 | 0 | 33 |
+| E6: Job Management | 3/3 | 0 | 16 | 0 |
+| E7: Testing | 1/7 (2 partial) | 4 (+2 partial) | 3 | 30 |
 | E8: Polish & Deployment | 0/5 | 5 | 0 | 12 |
 | E9: Codes Management | 6/6 | 0 | 26 | 0 |
 | E10: UI Preferences | 2/2 | 0 | 5 | 0 |
-| **Total** | **26/40** | **14** | **106** | **58** |
+| **Total** | **29/40** | **11** | **122** | **42** |
 
 ---
 
@@ -175,21 +175,11 @@ Inline forms for Add Folder/Add Product with parent resolution. `BrowseNewTempla
 
 Storage tab with two DataGrids (templates, CSV files). Cross-references files with product configurations using filename-only comparison (case-insensitive). Checkboxes disabled for mapped files. Orphaned files pre-selected. Delete button deletes both templates and CSVs via adapter. Audit log entry on deletion (`printer_files_deleted` event with file list).
 
-### E4-2. Verify flow
+### E4-2. Verify flow — DONE
 
-**Points: 5** | **Depends on: E4-1** | **Blocks: nothing**
+**Points: 5** | **Depends on: E4-1** | **Blocks: nothing** | **Status: DONE**
 
-Design (phase1-design.md §3.3): Operator clicks "Verify" on a printer to check stored files, active template, and counters against app records.
-
-- Add `VerifyCommand` to `PrintersViewModel`:
-  1. Check stored files (`SPLGSD`): expected CSV present?
-  2. Check active template (`SPLGAT`): matches expected?
-  3. Read counters: `SPGGTP` vs app's `total_baseline + codes_confirmed` for active job (if any)
-  4. Display summary: green/yellow/red per check with details
-- Create a `VerifyResultViewModel` with status items
-- Show results inline in the Printers screen or as a dialog
-
-**Acceptance:** Clicking Verify on a printer with an active job shows whether files are present, template is correct, and counters match. Mismatches are highlighted with actionable details.
+`VerifyPrinterAsync` in `PrintersViewModel` runs 4 checks: (1) CSV file on printer via `VerifyCsvExistsAsync`, (2) active template via `GetActiveTemplateAsync` with exact filename match, (3) SPGGTP counter vs `TotalBaseline + CodesConfirmed` with ahead/behind/consistent reporting, (4) printer status via `GetStatusAsync`. Results shown inline in Verify tab with pass/warning/fail icons (`VerifyResultItem` + `VerifyStatus` enum). Overall status: "ALL OK" / "WARNINGS" / "ISSUES FOUND". Handles no-active-job and offline-printer cases gracefully. `IsVerifying` loading state disables button during check. 29 `Verify_*` localization keys in EN and RU.
 
 ---
 
@@ -227,33 +217,11 @@ Live progress in list items via collection item replacement on progress tick. Co
 
 `FilterPrinter`/`FilterProduct` properties with reactive `LoadHistoryAsync` on change. ComboBox dropdowns for printer and product filtering. `ClearFiltersCommand` resets both. Expanded row detail in Border for `SelectedHistoryJob` showing product, printer, quantity, and result.
 
-### E6-3. Pause / Resume support
+### E6-3. Pause / Resume support — DONE
 
-**Points: 8** | **Depends on: E1-3** | **Blocks: nothing**
+**Points: 8** | **Depends on: E1-3** | **Blocks: nothing** | **Status: DONE**
 
-Design (phase1-design.md §6.2, §6.5) shows [Pause] and [Resume] buttons. The current `JobStatus` enum has no `Paused` state.
-
-This is a significant feature requiring changes across layers:
-
-- Add `Paused` to `JobStatus` enum
-- `PrintJobService.PauseJobAsync(int jobId)`:
-  1. Acquire printer lock
-  2. Signal JobExecutor to stop polling (but don't destroy it)
-  3. Call `adapter.StopPrintAsync()` (SPPSTP)
-  4. Set job status = Paused
-  5. Release printer lock
-- `PrintJobService.ResumeJobAsync(int jobId)` (already exists, needs enhancement):
-  1. Acquire printer lock
-  2. Check printer is still WAITING
-  3. Call `adapter.StartPrintAsync()` (SPPSAP)
-  4. Set job status = Printing
-  5. Restart JobExecutor polling loop
-  6. Release printer lock
-- Update partial unique indexes to include `Paused` in the active states filter
-- Update ViewModels: action button visibility for Paused state
-- Update EF migration (alter filtered index)
-
-**Acceptance:** Pausing a printing job stops the printer and freezes progress. Resuming restarts the printer and polling continues from the last confirmed count.
+Full cross-layer implementation. `Paused` added to `JobStatus` enum. `PauseJobAsync`: acquires printer lock, stops executor polling via `StopAsync()`, sends `SPPSTP` via adapter, reconciles counter via SPGGTP (with clamping for negatives/regressions), sets status=Paused in DB transaction, audits `job_paused`. `ResumeJobAsync`: acquires printer lock, follows full Section 10 recovery procedure (determines remaining reserved codes, deletes old CSV, uploads NEW CSV with only remaining codes, verifies upload, checks/re-uploads template, reloads template via `ActivateTemplateAsync`, records fresh SPGGTP+SPGGCP baselines, sets print quantity, starts printing, spawns new `JobExecutor` with `counterOffset` for correct delta tracking). Handles crash recovery (Printing with no executor → transitions to Paused first). Handles connection loss after template activation with 10-attempt reconnect retry. Migration `20260809172830_AddPausedToActiveJobFilter` adds `Paused` to both partial unique index filters. `JobStatusToActionVisibilityConverter`: Pause visible when Printing, Resume visible when Paused, Cancel includes Paused. Buttons wired in both `JobsView.xaml` and `DashboardView.xaml`. TestHost exposes `POST /{id}/pause` and `POST /{id}/resume` endpoints. Localized (EN+RU).
 
 ---
 
@@ -261,75 +229,74 @@ This is a significant feature requiring changes across layers:
 
 > **Real test coverage.** Tests can be written in parallel with feature work after E0 completes.
 
-### E7-1. Domain entity and enum tests
+### E7-1. Domain entity and enum tests — PARTIAL
 
-**Points: 2** | **Depends on: E0-1** | **Blocks: nothing** | **Parallelizable**
+**Points: 2** | **Depends on: E0-1** | **Blocks: nothing** | **Parallelizable** | **Status: PARTIAL**
 
-- Test `CodeStatus` transitions (valid and invalid)
-- Test `ProductNode` tree relationships
-- Test `PrintJob` status rules
+`CodeValidatorTests` (13 tests) in Domain.Tests covers SPPL-forbidden sequences (`^`, `~gt~`, `~sc~`, `~`, `|`, `\n`, `\r`), empty/whitespace, and valid codes. Missing: `CodeStatus` transition tests, `ProductNode` tree relationship tests, `PrintJob` status rule tests. These entity behaviors are exercised by the 52 integration tests but have no dedicated unit tests.
 
-### E7-2. SPPL protocol tests
+- [x] Test code validation (SPPL forbidden sequences)
+- [ ] Test `CodeStatus` transitions (valid and invalid)
+- [ ] Test `ProductNode` tree relationships
+- [ ] Test `PrintJob` status rules
 
-**Points: 3** | **Depends on: nothing** | **Blocks: nothing** | **Parallelizable**
+### E7-2. SPPL protocol tests — DONE
 
-- `SpplCommandBuilder`: verify every command produces correct SPPL string
-- `SpplResponseParser.Parse`: test OK, FAIL, scalar, list, status variants
-- `SpplResponseParser.ParseStatus`: test WAITING, RUNNING, ERROR with message, BLOCKED
-- `SpplResponseParser.IsValidCodeValue`: test all forbidden sequences
-- Edge cases: empty payload, malformed response, missing terminator
+**Points: 3** | **Depends on: nothing** | **Blocks: nothing** | **Parallelizable** | **Status: DONE**
+
+48 tests in `Printer.Savema.Tests`: `SpplCommandBuilderTests` (15 tests — every SPPL command verified) + `SpplResponseParserTests` (18 tests — Parse happy paths, whitespace tolerance, 6 malformed-input edge cases, ParseStatus for WAITING/ERROR/RUNNING+BLOCKED, IsValidCodeValue with all forbidden sequences) + `SpplResponseTests` (15 tests — AsInt, AsList, IsOk/IsFail, empty/single/multi payloads).
 
 ### E7-3. Data layer tests (in-memory SQLite)
 
-**Points: 5** | **Depends on: E0-1** | **Blocks: nothing** | **Parallelizable**
+**Points: 5** | **Depends on: E0-1** | **Blocks: nothing** | **Parallelizable** | **Status: NOT DONE**
 
-- Test entity configurations (required fields, defaults, relationships)
-- Test partial unique indexes (attempt to insert two active jobs for same printer — expect failure)
-- Test code uniqueness constraint
-- Test cascade delete behavior
+Only placeholder `UnitTest1` (1 empty test) in `Data.Tests`. Partial unique index enforcement is verified by integration test `TwoJobsSamePrinter_SecondFails`. Code uniqueness is verified by `ImportDuplicateCodes_SkipsDuplicates`. No dedicated unit tests for entity configurations, cascade delete, or constraint behavior in isolation.
+
+- [ ] Test entity configurations (required fields, defaults, relationships)
+- [ ] Test partial unique indexes (two active jobs for same printer)
+- [ ] Test code uniqueness constraint
+- [ ] Test cascade delete behavior
 
 ### E7-4. CodePoolService tests
 
-**Points: 5** | **Depends on: E0-1, E0-3, E0-4** | **Blocks: nothing** | **Parallelizable**
+**Points: 5** | **Depends on: E0-1, E0-3, E0-4** | **Blocks: nothing** | **Parallelizable** | **Status: NOT DONE (covered by integration)**
 
-- Import: duplicate detection, SPPL validation, batch tracking, import order
-- Reserve: FIFO order, quantity validation, status transition
-- Return: codes become Available again (E0-3)
-- Quarantine: single code at correct index
-- MarkPrinted: range-based marking
-- Edge cases: reserve more than available, import empty list, import with all duplicates
+No dedicated unit tests in `Application.Tests`. All behaviors are exercised by integration tests: import duplicate detection (`ImportDuplicateCodes_SkipsDuplicates`, `ImportWithinBatchDuplicates`), reserve/FIFO (every print cycle test), return (`CancelReadyJob_ReturnsAllCodes`), quarantine (`CancelPrintingJob_QuarantinesBoundaryCode`, margin 0/1/2 variants), mark printed (every completion test), insufficient codes (`CreateJob_InsufficientCodes`), pool depletion (`MultipleJobsDepleteCodes`).
+
+- [ ] Dedicated unit tests with in-memory DB (not via TestHost)
 
 ### E7-5. PrintJobService tests
 
-**Points: 8** | **Depends on: E2-3, E1-1** | **Blocks: nothing** | **Parallelizable**
+**Points: 8** | **Depends on: E2-3, E1-1** | **Blocks: nothing** | **Parallelizable** | **Status: NOT DONE (covered by integration)**
 
-- Create: job created with correct initial status
-- Prepare: mock adapter, verify SPPL command sequence (delete CSV → upload → verify → check template → activate)
-- Start: verify baseline recorded, quantity set, print started, executor spawned
-- Cancel while Printing: verify quarantine logic (per-printer QuarantineMargin), code return, printer stop
-- Cancel while Preparing: verify all codes returned
-- Cancel while Ready: verify all codes returned
-- Concurrent: attempt two jobs on same printer — expect failure (partial unique index)
+No dedicated unit tests. Extensively covered by 52 integration tests across 8 test classes: `FullE2ETests` (20 tests — happy path, 19 corner cases), `CancelJobTests` (4 — quarantine margin 0/1/2), `PauseResumeTests` (2 — pause+resume cycle, invalid state), `RecoveryScenarioTests` (10 — CSV rebuild, multi-resume, serial mismatch, baseline capture), `CumulativeCounterTests` (6 — high counter, power cycle detection, lifetime reconciliation), `DisconnectSafetyTests` (3 — offline cancel/pause, crash recovery), `MockPrinterTests` (4 — state inspection, error injection), `PrintCycleTests` (3 — full cycle, active jobs).
+
+- [ ] Dedicated unit tests with mocked adapter (not via TestHost)
 
 ### E7-6. SavemaTtoAdapter integration tests
 
-**Points: 5** | **Depends on: nothing** | **Blocks: nothing** | **Parallelizable**
+**Points: 5** | **Depends on: nothing** | **Blocks: nothing** | **Parallelizable** | **Status: NOT DONE (biggest gap)**
 
-- Use a mock TCP server that responds with canned SPPL responses
-- Test connect, disconnect, reconnect
-- Test command serialization through the SemaphoreSlim lock
-- Test response parsing end-to-end
-- Test timeout behavior, connection loss
+No tests exist for the real `SavemaTtoAdapter` TCP layer. All integration tests use `MockPrinterAdapter`. The SPPL protocol builder/parser are well-tested (E7-2), but the adapter's TCP connect/disconnect/reconnect, `SemaphoreSlim` serialization, timeout handling, and connection-loss behavior have no automated coverage. This is the most significant testing gap — bugs here would only surface with real hardware or the Python simulator.
 
-### E7-7. ViewModel tests
+- [ ] Create mock TCP server with canned SPPL responses
+- [ ] Test connect, disconnect, reconnect
+- [ ] Test command serialization through SemaphoreSlim
+- [ ] Test response parsing end-to-end through TCP
+- [ ] Test timeout behavior, connection loss
 
-**Points: 5** | **Depends on: E1-1, E2-3** | **Blocks: nothing** | **Parallelizable**
+### E7-7. ViewModel tests — PARTIAL
 
-- Test `NewJobViewModel`: Prepare flow, Start flow, error handling
-- Test `ProductsViewModel`: load tree, import CSV, refresh counts
-- Test `PrintersViewModel`: add, connect, disconnect, delete
-- Test `JobsViewModel`: load active/history, cancel, filter
-- Use NSubstitute mocks for all services
+**Points: 5** | **Depends on: E1-1, E2-3** | **Blocks: nothing** | **Parallelizable** | **Status: PARTIAL (2/4 ViewModels)**
+
+164 tests in `Application.Tests` using NSubstitute + in-memory EF Core + `MockPrinterAdapter`:
+- `PrintersViewModelTests` (~90 tests): loading, add printer form lifecycle (F1/F2/F11), selection & status (F7/F9), connect/disconnect (F10), delete (F3), storage refresh & file mapping (F4/F5), delete selected files, verify printer (F8), new job navigation, helper types.
+- `ProductsViewModelTests` (~74 tests): tree loading, selection & detail pane, add folder/product parent resolution (§3.3/3.4), activity history merged timeline (§4b), code pool stats refresh, delete guards (§3.5), new job navigation (§3.2), deselect & root-level creation, rename, edge cases.
+- `UnitTest1`: 1 placeholder (can be removed).
+
+Missing:
+- [ ] Test `NewJobViewModel`: Prepare flow, Start flow, error handling
+- [ ] Test `JobsViewModel`: load active/history, cancel, pause, resume, filter
 
 ---
 

@@ -114,7 +114,10 @@ public class CancelJobTests : IntegrationTestBase
         var productId = await SetupProductAsync("MarginTwoProduct", "m2.csv");
         await ImportCodesAsync(productId, 20);
 
-        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 100 });
+        // Use slower speed to ensure the mock hasn't finished all prints before cancel arrives.
+        // With 300ms/label and 10 codes, the mock takes ~3s. The cancel should arrive well
+        // before completion, leaving enough remaining codes for the quarantine margin.
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 300 });
 
         var createResponse = await Client.PostAsJsonAsync("/api/jobs", new
             { ProductId = productId, PrinterId = printerId, Quantity = 10 });

@@ -384,7 +384,8 @@ public class PrintJobService : IPrintJobService
             }
 
             var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
-                counterOffset: -currentCounterBaseline);
+                counterOffset: -currentCounterBaseline,
+                tryReconnect: (pid, ct) => _connectionManager.TryReconnectAsync(pid, ct));
             executor.ProgressChanged += (_, e) =>
             {
                 _eventBus.RaiseProgressChanged(this, e);
@@ -562,6 +563,44 @@ public class PrintJobService : IPrintJobService
                 // of Reserved status, so the remaining Reserved set IS the unprinted codes.
                 if (job.CodesConfirmed < job.Quantity)
                     await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity - job.CodesConfirmed);
+            }
+            else if (job.Status == JobStatus.Error)
+            {
+                // Error job: the executor may have already quarantined some codes,
+                // but some error paths (power cycle with no additional prints, etc.)
+                // set Error without quarantining. Any remaining Reserved codes are
+                // uncertain — they must be quarantined, not returned to Available.
+                // Safety invariant: Error + Cancel must never silently return ambiguous
+                // codes back to the available pool.
+
+                // Attempt to stop the printer — clears the print buffer/mechanism.
+                // On a real printer this sends SPPSTP; may fail if printer is unreachable.
+                var adapter = _connectionManager.GetAdapter(job.PrinterId);
+                if (adapter != null)
+                {
+                    try
+                    {
+                        await adapter.StopPrintAsync();
+                        _logger.LogDebug("CancelJobAsync: stopped printer for Error job {JobId}", jobId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "CancelJobAsync: failed to stop printer for Error job {JobId} (non-fatal)", jobId);
+                    }
+                }
+
+                var remaining = await _db.Codes
+                    .Where(c => c.JobId == jobId && c.Status == CodeStatus.Reserved)
+                    .CountAsync();
+                if (remaining > 0)
+                {
+                    _logger.LogWarning(
+                        "CancelJobAsync: Error job {JobId} has {Remaining} remaining Reserved codes. " +
+                        "Quarantining (not returning) — state is uncertain.",
+                        jobId, remaining);
+                    await _codePool.QuarantineCodesAsync(jobId, job.CodesConfirmed, remaining);
+                }
             }
             else if (job.Status is JobStatus.Preparing or JobStatus.Ready)
             {
@@ -942,7 +981,8 @@ public class PrintJobService : IPrintJobService
             }
 
             var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
-                counterOffset: counterOffset);
+                counterOffset: counterOffset,
+                tryReconnect: (pid, ct) => _connectionManager.TryReconnectAsync(pid, ct));
             executor.ProgressChanged += (_, e) =>
             {
                 _eventBus.RaiseProgressChanged(this, e);
@@ -1071,7 +1111,9 @@ public class PrintJobService : IPrintJobService
 
     /// <summary>
     /// Called when a ReadyWatcher detects external printing.
-    /// Transitions the job from Ready to Printing and spawns a JobExecutor.
+    /// Creates a fresh DI scope to avoid using the (potentially disposed) request-scoped
+    /// DbContext/services, then transitions the job from Ready to Printing.
+    /// If transition fails, re-registers the watcher so external printing isn't lost.
     /// </summary>
     private async Task HandleExternalPrintDetectedAsync(int jobId)
     {
@@ -1080,7 +1122,19 @@ public class PrintJobService : IPrintJobService
         {
             _logger.LogWarning(
                 "EXTERNAL PRINT DETECTED for Job {JobId} - transitioning to Printing", jobId);
-            await StartJobAsync(jobId);
+
+            if (_scopeFactory != null)
+            {
+                // Use a fresh scope — the original HTTP request scope may be disposed
+                using var scope = _scopeFactory.CreateScope();
+                var scopedJobService = scope.ServiceProvider.GetRequiredService<IPrintJobService>();
+                await scopedJobService.StartJobAsync(jobId);
+            }
+            else
+            {
+                // Fallback for WPF host (long-lived scope)
+                await StartJobAsync(jobId);
+            }
             _logger.LogTrace("<- HandleExternalPrintDetectedAsync completed");
         }
         catch (Exception ex)
@@ -1090,6 +1144,37 @@ public class PrintJobService : IPrintJobService
             _alerts.Raise(AlertSeverity.Error, "System",
                 $"External printing detected on Job #{jobId} but failed to start tracking: {ex.Message}",
                 jobId: jobId);
+
+            // Re-register watcher so the system isn't left blind to ongoing external printing.
+            // The watcher was removed before this callback; failure to start means
+            // the job is still Ready but nobody is watching.
+            try
+            {
+                if (_scopeFactory != null)
+                {
+                    using var retryScope = _scopeFactory.CreateScope();
+                    var db = retryScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var job = await db.PrintJobs.Include(j => j.Printer)
+                        .FirstOrDefaultAsync(j => j.Id == jobId);
+                    if (job != null && job.Status == JobStatus.Ready)
+                    {
+                        var adapter = _connectionManager.GetAdapter(job.PrinterId);
+                        if (adapter != null && adapter.IsConnected)
+                        {
+                            var currentCounter = await adapter.GetCurrentCounterAsync();
+                            SpawnReadyWatcher(job, adapter, currentCounter);
+                            _logger.LogWarning(
+                                "Re-registered ReadyWatcher for Job {JobId} after failed start", jobId);
+                        }
+                    }
+                }
+            }
+            catch (Exception reEx)
+            {
+                _logger.LogError(reEx,
+                    "Failed to re-register ReadyWatcher for Job {JobId}", jobId);
+            }
+
             _logger.LogTrace("<- HandleExternalPrintDetectedAsync FAILED");
         }
     }

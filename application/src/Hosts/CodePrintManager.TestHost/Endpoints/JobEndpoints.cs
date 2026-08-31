@@ -115,10 +115,25 @@ public static class JobEndpoints
             }
         });
 
-        group.MapPost("/{id:int}/resume", async (int id, IPrintJobService jobService) =>
+        group.MapPost("/{id:int}/resume", async (int id, IPrintJobService jobService,
+            PrinterConnectionManager connMgr, AppDbContext db) =>
         {
             try
             {
+                // Pre-load template onto mock printer (may be new adapter after reconnect)
+                var job = await db.PrintJobs.Include(j => j.Product).FirstOrDefaultAsync(j => j.Id == id);
+                if (job?.Product?.TemplateFile != null)
+                {
+                    var adapter = connMgr.GetAdapter(job.PrinterId);
+                    if (adapter != null)
+                    {
+                        var templateName = Path.GetFileName(job.Product.TemplateFile);
+                        var templates = await adapter.ListTemplatesAsync();
+                        if (!templates.Contains(templateName))
+                            await adapter.UploadTemplateAsync(templateName, new byte[] { 0x00 });
+                    }
+                }
+
                 await jobService.ResumeJobAsync(id);
                 return Results.Ok(new { Status = "Printing" });
             }
