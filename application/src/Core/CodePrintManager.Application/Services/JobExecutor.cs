@@ -27,18 +27,31 @@ public class JobExecutor
     private bool _needsInspection;
     private int _pollCycleCount;
     private int _consecutiveFailures;
+    private bool _connectionLostNotified;
     private int? _lastKnownLifetimeCounter;
     private readonly Stopwatch _jobTimer = new();
 
     /// <summary>
     /// Maximum consecutive poll failures before escalating the job to Error.
-    /// At ~2.5s per failure (500ms poll + 2000ms retry delay), 30 failures ≈ 75 seconds.
+    /// At ~2s per failure (inspection retry delay), 150 failures ≈ 5 minutes.
+    /// This gives the reconnect loop ample time to restore the connection
+    /// after a cable pull before the job is escalated to Error.
     /// </summary>
-    private const int MaxConsecutiveFailures = 30;
+    private const int MaxConsecutiveFailures = 150;
 
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
     public event EventHandler<JobCompletedEvent>? Completed;
     public event EventHandler<JobCountersUpdatedEvent>? CountersUpdated;
+
+    /// <summary>
+    /// Raised when the executor detects a connection loss (IOException or adapter disconnected).
+    /// The int parameter is the printer ID, allowing the connection manager to start
+    /// a reconnect loop for the correct printer.
+    /// </summary>
+    public event EventHandler<int>? ConnectionLost;
+
+    /// <summary>The printer ID this executor is monitoring.</summary>
+    public int PrinterId => _job.PrinterId;
 
     /// <param name="counterOffset">
     /// Offset to add to the raw SPGGCP counter to get the effective job-level counter.
@@ -120,6 +133,8 @@ public class JobExecutor
                     {
                         var shouldContinue = await RunPostReconnectInspectionAsync(ct);
                         _needsInspection = false; // clear ONLY after successful completion
+                        _consecutiveFailures = 0;
+                        _connectionLostNotified = false;
                         if (!shouldContinue)
                         {
                             _logger.LogTrace("<- PollLoopAsync exiting (inspection escalated)");
@@ -128,12 +143,33 @@ public class JobExecutor
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        // FormatException, InvalidOperationException, etc. from SPPL
-                        // misalignment or disconnected adapter. _needsInspection stays
-                        // true so we retry on the next poll.
+                        // FormatException, InvalidOperationException, IOException, etc.
+                        // from SPPL misalignment or disconnected adapter. _needsInspection
+                        // stays true so we retry on the next poll.
+                        _consecutiveFailures++;
+
+                        // Notify connection manager if this is a connection-type error
+                        if (!_connectionLostNotified && ex is IOException or InvalidOperationException)
+                        {
+                            _connectionLostNotified = true;
+                            ConnectionLost?.Invoke(this, _job.PrinterId);
+                        }
+
                         _logger.LogWarning(ex,
-                            "Job {JobId}: inspection failed with non-IO error. Will retry on next poll.",
-                            _job.Id);
+                            "Job {JobId}: inspection failed ({Failures}/{Max}). Will retry on next poll.",
+                            _job.Id, _consecutiveFailures, MaxConsecutiveFailures);
+
+                        if (_consecutiveFailures >= MaxConsecutiveFailures)
+                        {
+                            _logger.LogError(
+                                "Job {JobId}: {Failures} consecutive inspection failures — escalating to Error",
+                                _job.Id, _consecutiveFailures);
+                            await QuarantineRemainingCodesAsync();
+                            await SetJobErrorAsync(
+                                $"{_consecutiveFailures} consecutive failures — printer unreachable");
+                            return;
+                        }
+
                         try { await Task.Delay(2000, ct); }
                         catch (OperationCanceledException) { return; }
                         continue;
@@ -226,6 +262,11 @@ public class JobExecutor
                 _logger.LogError(ex, "Job {JobId} ADAPTER DISCONNECTED on poll #{Cycle}", _job.Id, _pollCycleCount);
                 _needsInspection = true;
                 _consecutiveFailures++;
+                if (!_connectionLostNotified)
+                {
+                    _connectionLostNotified = true;
+                    ConnectionLost?.Invoke(this, _job.PrinterId);
+                }
                 if (_consecutiveFailures >= MaxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
@@ -247,6 +288,11 @@ public class JobExecutor
                     deduplicationKey: "connection_lost");
                 _needsInspection = true;
                 _consecutiveFailures++;
+                if (!_connectionLostNotified)
+                {
+                    _connectionLostNotified = true;
+                    ConnectionLost?.Invoke(this, _job.PrinterId);
+                }
                 if (_consecutiveFailures >= MaxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",

@@ -398,6 +398,11 @@ public class PrintJobService : IPrintJobService
                 JobCompleted?.Invoke(this, e);
             };
             executor.CountersUpdated += (_, e) => _eventBus.RaiseCountersUpdated(this, e);
+            executor.ConnectionLost += (_, printerId) =>
+            {
+                try { _connectionManager.NotifyConnectionLost(printerId); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
+            };
             _jobRegistry.Register(jobId, executor);
             _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope}, counterOffset={Offset})",
                 jobId, _scopeFactory != null, -currentCounterBaseline);
@@ -956,6 +961,11 @@ public class PrintJobService : IPrintJobService
                 JobCompleted?.Invoke(this, e);
             };
             executor.CountersUpdated += (_, e) => _eventBus.RaiseCountersUpdated(this, e);
+            executor.ConnectionLost += (_, printerId) =>
+            {
+                try { _connectionManager.NotifyConnectionLost(printerId); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
+            };
             _jobRegistry.Register(jobId, executor);
             executor.Start();
 
@@ -983,6 +993,11 @@ public class PrintJobService : IPrintJobService
             _logger.LogDebug("ReadyWatcher ExternalPrintDetected event fired for Job {JobId}", jobId);
             _jobRegistry.TryRemoveWatcher(jobId);
             _ = HandleExternalPrintDetectedAsync(jobId);
+        };
+        watcher.ConnectionLost += (_, printerId) =>
+        {
+            try { _connectionManager.NotifyConnectionLost(printerId); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
         };
         _jobRegistry.RegisterWatcher(job.Id, watcher);
         watcher.Start();

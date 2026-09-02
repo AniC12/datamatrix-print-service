@@ -131,6 +131,65 @@ public class PrinterConnectionManager : IDisposable
         _logger.LogTrace("<- ConnectAsync completed ({ElapsedMs}ms)", sw.ElapsedMilliseconds);
     }
 
+    /// <summary>
+    /// Called by the job executor or watcher when a mid-session connection loss is detected.
+    /// Starts a reconnect loop if one isn't already running for this printer.
+    /// The reconnect loop reuses the same adapter instance from <see cref="_adapters"/>,
+    /// so any <see cref="JobExecutor"/> holding a direct reference to the adapter will
+    /// automatically benefit from reconnection (the adapter's internal TCP socket is
+    /// replaced, but the object identity stays the same).
+    /// </summary>
+    public void NotifyConnectionLost(int printerId)
+    {
+        _logger.LogTrace("-> NotifyConnectionLost(printerId={PrinterId})", printerId);
+
+        // Guard: reconnect loop already active for this printer
+        if (_reconnectCts.TryGetValue(printerId, out var existingCts)
+            && !existingCts.IsCancellationRequested)
+        {
+            _logger.LogDebug("NotifyConnectionLost: reconnect already active for printer {PrinterId}", printerId);
+            return;
+        }
+
+        // Guard: adapter must exist (if removed via manual disconnect, skip)
+        if (!_adapters.ContainsKey(printerId))
+        {
+            _logger.LogDebug("NotifyConnectionLost: no adapter for printer {PrinterId} (manually disconnected?)", printerId);
+            return;
+        }
+
+        _disconnectedSince.TryAdd(printerId, DateTime.Now);
+
+        // Notify UI that printer is offline
+        PrinterStatusChanged?.Invoke(this,
+            new PrinterStatusChangedEvent(printerId, PrinterStatus.Idle, PrinterStatus.Offline));
+
+        _logger.LogWarning("Connection loss detected for printer {PrinterId}. Starting reconnect loop.", printerId);
+
+        // Look up printer from DB and start reconnect loop (fire-and-forget)
+        _ = StartReconnectFromNotificationAsync(printerId);
+    }
+
+    private async Task StartReconnectFromNotificationAsync(int printerId)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var printer = await db.Printers.AsNoTracking().FirstOrDefaultAsync(p => p.Id == printerId);
+            if (printer == null)
+            {
+                _logger.LogWarning("NotifyConnectionLost: printer {PrinterId} not found in DB", printerId);
+                return;
+            }
+            StartReconnectLoop(printer);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to start reconnect loop for printer {PrinterId}", printerId);
+        }
+    }
+
     public async Task DisconnectAsync(int printerId)
     {
         _logger.LogTrace("-> DisconnectAsync(printerId={PrinterId})", printerId);
@@ -142,6 +201,13 @@ public class PrinterConnectionManager : IDisposable
         if (stoppedJobIds.Count > 0)
             _logger.LogInformation("Stopped {Count} ReadyWatcher(s) for printer {PrinterId} on disconnect: jobs [{JobIds}]",
                 stoppedJobIds.Count, printerId, string.Join(", ", stoppedJobIds));
+
+        // Stop any running executors for this printer before disposing the adapter.
+        // Without this, executors keep polling a disposed adapter and loop forever.
+        var stoppedExecutorIds = await _jobRegistry.StopExecutorsForPrinterAsync(printerId);
+        if (stoppedExecutorIds.Count > 0)
+            _logger.LogWarning("Stopped {Count} executor(s) for printer {PrinterId} on disconnect: jobs [{JobIds}]",
+                stoppedExecutorIds.Count, printerId, string.Join(", ", stoppedExecutorIds));
 
         if (_reconnectCts.TryRemove(printerId, out var cts))
         {

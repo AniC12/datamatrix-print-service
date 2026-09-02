@@ -112,6 +112,32 @@ public class ActiveJobRegistry
     }
 
     /// <summary>
+    /// Stops and removes all executors for jobs on the given printer.
+    /// Called when a printer is manually disconnected so executors don't poll a disposed adapter.
+    /// Jobs stay in their current DB status — user must resume after reconnecting.
+    /// </summary>
+    public async Task<List<int>> StopExecutorsForPrinterAsync(int printerId)
+    {
+        _logger.LogTrace("-> StopExecutorsForPrinterAsync(printerId={PrinterId})", printerId);
+        var stoppedJobIds = new List<int>();
+
+        foreach (var (jobId, executor) in _executors)
+        {
+            if (executor.PrinterId == printerId)
+            {
+                try { await executor.StopAsync(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error stopping executor for Job {JobId}", jobId); }
+                _executors.TryRemove(jobId, out _);
+                stoppedJobIds.Add(jobId);
+                _logger.LogDebug("Executor stopped for Job {JobId} (printer disconnect)", jobId);
+            }
+        }
+
+        _logger.LogTrace("<- StopExecutorsForPrinterAsync: stopped {Count} executor(s)", stoppedJobIds.Count);
+        return stoppedJobIds;
+    }
+
+    /// <summary>
     /// Stops and removes all ReadyWatchers for jobs on the given printer.
     /// Called when a printer is manually disconnected so watchers don't poll a stale adapter.
     /// Returns the job IDs whose watchers were stopped (for potential respawn on reconnect).

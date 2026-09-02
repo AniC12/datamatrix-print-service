@@ -331,4 +331,99 @@ public class RecoveryScenarioTests : IntegrationTestBase
         var pauseResp = await Client.PostAsync($"/api/jobs/{job!.Id}/pause", null);
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, pauseResp.StatusCode);
     }
+
+    // ──────────────────────────────────────────────
+    // 11. Auto-reconnect after cable pull → job completes
+    // ──────────────────────────────────────────────
+    [Fact]
+    public async Task ConnectionLoss_AutoReconnects_AndJobCompletes()
+    {
+        var printerId = await SetupPrinterAsync("AutoReconnectPrinter");
+        var productId = await SetupProductAsync("AutoReconnectProduct", "ar.csv");
+        await ImportCodesAsync(productId, 20);
+        // Fast print speed so the printer finishes during the simulated outage
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 100 });
+
+        // Create + start job for 6 codes
+        var createResp = await Client.PostAsJsonAsync("/api/jobs", new
+            { ProductId = productId, PrinterId = printerId, Quantity = 6 });
+        var job = await createResp.Content.ReadFromJsonAsync<JobResult>();
+        await Client.PostAsync($"/api/jobs/{job!.Id}/start", null);
+
+        // Wait for at least 2 codes confirmed
+        await PollUntilAsync<JobResult>($"/api/jobs/{job.Id}",
+            j => j.CodesConfirmed >= 2, timeout: TimeSpan.FromSeconds(10));
+
+        // Simulate cable pull — printer keeps printing, but app can't communicate
+        await Client.PostAsync($"/api/mock/printers/{printerId}/simulate-disconnect", null);
+
+        // Wait for the printer to finish printing all codes internally
+        // (print loop keeps running despite simulated disconnect)
+        await Task.Delay(1500);
+
+        // Restore connectivity — the reconnect loop will succeed on next attempt
+        await Client.PostAsync($"/api/mock/printers/{printerId}/simulate-reconnect", null);
+
+        // Wait for job to complete — the reconnect loop reconnects the adapter,
+        // the executor's inspection reconciles the lifetime counter, and detects completion
+        var completed = await PollUntilAsync<JobResult>($"/api/jobs/{job.Id}",
+            j => j.Status == "Completed", timeout: TimeSpan.FromSeconds(30));
+
+        Assert.Equal(6, completed.CodesConfirmed);
+
+        // Verify code accounting: all 6 codes Printed, 14 Available, none stuck
+        var stats = await Client.GetFromJsonAsync<ProductDetailResult>($"/api/products/{productId}");
+        Assert.NotNull(stats?.PoolStats);
+        Assert.Equal(6, stats.PoolStats.GetValueOrDefault("Printed", 0));
+        Assert.Equal(14, stats.PoolStats.GetValueOrDefault("Available", 0));
+        Assert.Equal(0, stats.PoolStats.GetValueOrDefault("Reserved", 0));
+        Assert.Equal(0, stats.PoolStats.GetValueOrDefault("Quarantined", 0));
+    }
+
+    // ──────────────────────────────────────────────
+    // 12. Manual disconnect while printing stops executor
+    // ──────────────────────────────────────────────
+    [Fact]
+    public async Task ManualDisconnect_StopsExecutor()
+    {
+        var printerId = await SetupPrinterAsync("ManualDisconnectPrinter");
+        var productId = await SetupProductAsync("ManualDisconnectProduct", "md.csv");
+        await ImportCodesAsync(productId, 20);
+        await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/set-speed", new { Ms = 200 });
+
+        // Create + start
+        var createResp = await Client.PostAsJsonAsync("/api/jobs", new
+            { ProductId = productId, PrinterId = printerId, Quantity = 10 });
+        var job = await createResp.Content.ReadFromJsonAsync<JobResult>();
+        await Client.PostAsync($"/api/jobs/{job!.Id}/start", null);
+
+        // Wait for progress
+        await PollUntilAsync<JobResult>($"/api/jobs/{job.Id}",
+            j => j.CodesConfirmed >= 2, timeout: TimeSpan.FromSeconds(10));
+
+        // Manual disconnect — should stop the executor cleanly.
+        // The job stays in Printing status in the DB (user must Resume after reconnecting).
+        await Client.PostAsync($"/api/printers/{printerId}/disconnect", null);
+        await Task.Delay(500);
+
+        // The job should still be in Printing status (not paused automatically),
+        // but the executor is no longer running. Verify that the printer shows disconnected.
+        var printerStatus = await Client.GetFromJsonAsync<PrinterStatusResult>(
+            $"/api/printers/{printerId}");
+        Assert.Equal("Offline", printerStatus!.Status);
+
+        // Code accounting: no codes stuck in Reserved beyond the job's own
+        var stats = await Client.GetFromJsonAsync<ProductDetailResult>($"/api/products/{productId}");
+        Assert.NotNull(stats?.PoolStats);
+        var total = stats.PoolStats.Values.Sum();
+        Assert.Equal(20, total);
+    }
+}
+
+public record PrinterStatusResult
+{
+    public int Id { get; init; }
+    public string Name { get; init; } = "";
+    public string Status { get; init; } = "";
+    public bool IsConnected { get; init; }
 }

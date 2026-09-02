@@ -20,6 +20,7 @@ public class MockPrinterAdapter : IPrinterAdapter
     private int _printQuantity;
     private string? _activeTemplate;
     private PrinterStatus? _injectedError;
+    private bool _simulateDisconnect;
 
     // Storage
     private readonly ConcurrentDictionary<string, byte[]> _templates = new();
@@ -45,9 +46,19 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<bool> ConnectAsync(string host, int port, CancellationToken ct = default)
     {
+        if (_simulateDisconnect)
+        {
+            _logger.LogDebug("Mock: ConnectAsync rejected (simulated disconnect active)");
+            return Task.FromResult(false);
+        }
+
         _logger.LogDebug("Mock: Connected to {Host}:{Port}", host, port);
         IsConnected = true;
-        _status = PrinterStatus.Idle;
+        // Only set Idle on initial connect (from Offline).
+        // On reconnect after cable pull, preserve the actual printer state
+        // (may have finished printing → Idle, or still printing → Printing).
+        if (_status == PrinterStatus.Offline)
+            _status = PrinterStatus.Idle;
         return Task.FromResult(true);
     }
 
@@ -62,26 +73,31 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<string?> GetSerialNumberAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult<string?>(SerialNumber);
     }
 
     public Task<PrinterStatus> GetStatusAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_injectedError ?? _status);
     }
 
     public Task<int> GetCurrentCounterAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_currentCounter);
     }
 
     public Task<int> GetTotalCounterAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_lifetimeCounter);
     }
 
     public Task<int?> GetRemainingQuantityAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         var remaining = _printQuantity - _currentCounter;
         return Task.FromResult<int?>(remaining > 0 ? remaining : 0);
     }
@@ -89,17 +105,20 @@ public class MockPrinterAdapter : IPrinterAdapter
     // Template management
     public Task<List<string>> ListTemplatesAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_templates.Keys.ToList());
     }
 
     public Task<bool> UploadTemplateAsync(string name, byte[] rox, CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         _templates[name] = rox;
         return Task.FromResult(true);
     }
 
     public Task<bool> ActivateTemplateAsync(string name, CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         _activeTemplate = name;
         // Real hardware: SPGGCP is cumulative and does NOT reset on SPLLTF.
         // The application uses baseline-delta tracking to handle this.
@@ -108,39 +127,46 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<string?> GetActiveTemplateAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_activeTemplate);
     }
 
     public Task<bool> DeleteTemplateAsync(string name, CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_templates.TryRemove(name, out _));
     }
 
     // CSV management
     public Task<List<string>> ListCsvFilesAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_csvFiles.Keys.ToList());
     }
 
     public Task<bool> UploadCsvAsync(string filename, IReadOnlyList<string> codes, CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         _csvFiles[filename] = codes.ToList();
         return Task.FromResult(true);
     }
 
     public Task<bool> VerifyCsvExistsAsync(string filename, CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_csvFiles.ContainsKey(filename));
     }
 
     public Task<bool> DeleteCsvAsync(string filename, CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         return Task.FromResult(_csvFiles.TryRemove(filename, out _));
     }
 
     // Print control
     public Task<bool> SetPrintQuantityAsync(int quantity, CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         // "Print quantity more from current position" — matches SPPL SPPSLQ semantics
         _printQuantity = _currentCounter + quantity;
         return Task.FromResult(true);
@@ -148,6 +174,7 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<bool> StartPrintAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         lock (_lock)
         {
             if (_status == PrinterStatus.Printing)
@@ -163,6 +190,7 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<bool> StopPrintAsync(CancellationToken ct = default)
     {
+        ThrowIfDisconnected();
         _logger.LogDebug("Mock: Print stopped at counter={Counter}", _currentCounter);
         StopPrintInternal();
         _status = PrinterStatus.Idle;
@@ -190,6 +218,42 @@ public class MockPrinterAdapter : IPrinterAdapter
         _lifetimeCounter = lifetimeCounter;
         _logger.LogInformation("Mock: Counters set to current={Current}, lifetime={Lifetime}",
             currentCounter, lifetimeCounter);
+    }
+
+    /// <summary>
+    /// Simulates a mid-session connection loss (e.g., network cable pull).
+    /// All adapter commands will throw <see cref="IOException"/>.
+    /// <see cref="ConnectAsync"/> will return false until <see cref="SimulateConnectionRestore"/> is called.
+    /// The internal print loop is NOT stopped — the printer continues printing physically,
+    /// incrementing counters, just like real hardware would when the cable is pulled.
+    /// </summary>
+    public void SimulateConnectionLoss()
+    {
+        _logger.LogInformation("Mock: Simulating connection loss (IsConnected → false, print loop continues)");
+        _simulateDisconnect = true;
+        IsConnected = false;
+        // Do NOT call StopPrintInternal() — printer keeps printing physically
+        // Do NOT change _status — printer state is unchanged by cable pull
+    }
+
+    /// <summary>
+    /// Restores the ability to connect after a simulated connection loss.
+    /// The next <see cref="ConnectAsync"/> call will succeed.
+    /// </summary>
+    public void SimulateConnectionRestore()
+    {
+        _logger.LogInformation("Mock: Connection restore allowed (next ConnectAsync will succeed)");
+        _simulateDisconnect = false;
+    }
+
+    /// <summary>
+    /// Throws <see cref="IOException"/> if the adapter is not connected.
+    /// Used to simulate connection failures on all command methods during a simulated disconnect.
+    /// </summary>
+    private void ThrowIfDisconnected()
+    {
+        if (!IsConnected)
+            throw new IOException("Mock: not connected to printer");
     }
 
     // Simulate power cycle: reset current counter but keep lifetime.
