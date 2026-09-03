@@ -21,11 +21,13 @@ public class ReadyWatcher
     private readonly IAlertService _alerts;
     private readonly ILogger _logger;
     private readonly int _spggcpBaseline;
+    private readonly int? _recoveryLifetimeBaseline;
 
     private CancellationTokenSource? _cts;
     private Task? _watchTask;
     private int _pollCount;
     private bool _connectionLostNotified;
+    private bool _recoveryValidated;
 
     /// <summary>The printer ID this watcher is monitoring.</summary>
     public int PrinterId => _job.PrinterId;
@@ -44,25 +46,41 @@ public class ReadyWatcher
     /// </summary>
     public event EventHandler<int>? ConnectionLost;
 
+    /// <summary>
+    /// Raised when a recovered Ready job fails SPGGTP validation on the first poll.
+    /// The printer's lifetime counter moved since the job was prepared, indicating
+    /// unexpected printing occurred while the application was down.
+    /// The int parameter is the job ID.
+    /// </summary>
+    public event EventHandler<int>? RecoveryValidationFailed;
+
     /// <param name="spggcpBaseline">
     /// SPGGCP value recorded right after template activation during Prepare.
     /// SPGGCP is cumulative on real hardware (does NOT reset on SPLLTF),
     /// so external printing is detected as currentCounter > baseline.
+    /// </param>
+    /// <param name="recoveryLifetimeBaseline">
+    /// If set, this watcher was spawned during crash recovery. On the first poll,
+    /// it reads SPGGTP and compares to this baseline to detect unexpected printing
+    /// that occurred while the application was down. Null for normal (non-recovery) watchers.
     /// </param>
     public ReadyWatcher(
         PrintJob job,
         IPrinterAdapter adapter,
         IAlertService alerts,
         ILogger logger,
-        int spggcpBaseline = 0)
+        int spggcpBaseline = 0,
+        int? recoveryLifetimeBaseline = null)
     {
         _job = job;
         _adapter = adapter;
         _alerts = alerts;
         _logger = logger;
         _spggcpBaseline = spggcpBaseline;
-        _logger.LogTrace("-> ReadyWatcher constructed (jobId={JobId}, printerId={PrinterId}, spggcpBaseline={Baseline})",
-            job.Id, job.PrinterId, spggcpBaseline);
+        _recoveryLifetimeBaseline = recoveryLifetimeBaseline;
+        _recoveryValidated = !recoveryLifetimeBaseline.HasValue; // skip validation for non-recovery watchers
+        _logger.LogTrace("-> ReadyWatcher constructed (jobId={JobId}, printerId={PrinterId}, spggcpBaseline={Baseline}, recoveryBaseline={RecoveryBaseline})",
+            job.Id, job.PrinterId, spggcpBaseline, recoveryLifetimeBaseline);
     }
 
     public void Start()
@@ -113,6 +131,49 @@ public class ReadyWatcher
             {
                 _pollCount++;
                 _logger.LogTrace("   WatchLoopAsync poll #{PollCount} for Job {JobId}", _pollCount, _job.Id);
+
+                // First-poll SPGGTP validation for recovered Ready jobs.
+                // Detects unexpected printing that occurred while the app was down.
+                // NOTE: _recoveryValidated is set AFTER successful validation so that
+                // an IOException during GetTotalCounterAsync allows retry on the next poll.
+                if (!_recoveryValidated)
+                {
+                    int lifetimeCounter;
+                    try
+                    {
+                        lifetimeCounter = await _adapter.GetTotalCounterAsync(ct);
+                    }
+                    catch (IOException ex)
+                    {
+                        // Connection lost during validation — don't mark as validated.
+                        // The outer catch will handle reconnect; next poll retries validation.
+                        _logger.LogWarning(ex,
+                            "ReadyWatcher: IOException during recovery validation for Job {JobId}. Will retry.",
+                            _job.Id);
+                        throw; // Let outer IOException handler deal with reconnect
+                    }
+
+                    _logger.LogInformation(
+                        "ReadyWatcher recovery validation for Job {JobId}: SPGGTP={Lifetime}, baseline={Baseline}",
+                        _job.Id, lifetimeCounter, _recoveryLifetimeBaseline);
+
+                    if (lifetimeCounter != _recoveryLifetimeBaseline!.Value)
+                    {
+                        var delta = lifetimeCounter - _recoveryLifetimeBaseline.Value;
+                        _logger.LogError(
+                            "ReadyWatcher: RECOVERY VALIDATION FAILED for Job {JobId}! " +
+                            "SPGGTP moved from {Baseline} to {Lifetime} (delta={Delta}). " +
+                            "Unexpected printing occurred while app was down.",
+                            _job.Id, _recoveryLifetimeBaseline, lifetimeCounter, delta);
+                        RecoveryValidationFailed?.Invoke(this, _job.Id);
+                        return; // Stop watching — caller will handle the error
+                    }
+
+                    _recoveryValidated = true;
+                    _logger.LogInformation(
+                        "ReadyWatcher: recovery validation PASSED for Job {JobId} (SPGGTP unchanged at {Lifetime})",
+                        _job.Id, lifetimeCounter);
+                }
 
                 var status = await _adapter.GetStatusAsync(ct);
                 var currentCounter = await _adapter.GetCurrentCounterAsync(ct);

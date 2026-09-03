@@ -311,13 +311,14 @@ public partial class PrintersViewModel : ObservableObject
             _logger.LogTrace("<- ConnectPrinterAsync (SelectedPrinter is null)");
             return;
         }
-        _logger.LogInformation("Printers: Connect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
-        await _connectionManager.ConnectAsync(SelectedPrinter);
+        var printer = SelectedPrinter;
+        _logger.LogInformation("Printers: Connect requested for '{Name}' (Id={Id})", printer.Name, printer.Id);
+        await _connectionManager.ConnectAsync(printer);
 
         // Respawn ReadyWatchers for any Ready jobs on this printer.
         // After a manual disconnect/reconnect the old watchers were stopped
         // because they held a reference to the now-disposed adapter.
-        await _printJobService.RespawnWatchersForPrinterAsync(SelectedPrinter.Id);
+        await _printJobService.RespawnWatchersForPrinterAsync(printer.Id);
         _logger.LogTrace("<- ConnectPrinterAsync");
     }
 
@@ -339,14 +340,16 @@ public partial class PrintersViewModel : ObservableObject
             return;
         }
 
+        var printer = SelectedPrinter;
+
         // Warn if printer has active jobs
         var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused };
         var hasActiveJobs = await _db.PrintJobs
-            .AnyAsync(j => j.PrinterId == SelectedPrinter.Id && activeStatuses.Contains(j.Status));
+            .AnyAsync(j => j.PrinterId == printer.Id && activeStatuses.Contains(j.Status));
         if (hasActiveJobs)
         {
             if (!_dialog.Confirm(
-                _loc.Format("Dialog_ConfirmDisconnectActiveJobs", SelectedPrinter.Name),
+                _loc.Format("Dialog_ConfirmDisconnectActiveJobs", printer.Name),
                 _loc["DialogTitle_ActiveJobsWarning"]))
             {
                 _logger.LogTrace("<- DisconnectPrinterAsync (user cancelled active-jobs warning)");
@@ -354,8 +357,8 @@ public partial class PrintersViewModel : ObservableObject
             }
         }
 
-        _logger.LogInformation("Printers: Disconnect requested for '{Name}' (Id={Id})", SelectedPrinter.Name, SelectedPrinter.Id);
-        await _connectionManager.DisconnectAsync(SelectedPrinter.Id);
+        _logger.LogInformation("Printers: Disconnect requested for '{Name}' (Id={Id})", printer.Name, printer.Id);
+        await _connectionManager.DisconnectAsync(printer.Id);
         SelectedPrinterStatus = PrinterStatus.Offline;
         _logger.LogTrace("<- DisconnectPrinterAsync");
     }

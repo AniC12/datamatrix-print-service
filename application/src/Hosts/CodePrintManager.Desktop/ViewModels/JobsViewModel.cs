@@ -409,30 +409,19 @@ public partial class JobsViewModel : ObservableObject
         _logger.LogInformation("Jobs: Job {JobId} completed (live)", e.JobId);
         System.Windows.Application.Current.Dispatcher.Invoke(() =>
         {
-            // Update the completed job in-place (no async DB query — avoids
-            // DbContext concurrency issues and the async-void Dispatcher pitfall)
+            // Remove the completed job from active list — it belongs in history now.
             for (int i = 0; i < ActiveJobs.Count; i++)
             {
                 if (ActiveJobs[i].Id == e.JobId)
                 {
-                    var job = ActiveJobs[i];
-                    job.Status = e.FinalStatus;
-                    job.CompletedAt = DateTime.UtcNow;
-                    var wasSelected = SelectedJob?.Id == e.JobId;
-
-                    // RemoveAt/Insert forces WPF to fully re-bind the list item.
-                    // A plain ActiveJobs[i] = job reuses the same reference and
-                    // WPF may skip re-reading property values (e.g. CodesConfirmed).
                     ActiveJobs.RemoveAt(i);
-                    ActiveJobs.Insert(i, job);
-
-                    if (wasSelected)
-                    {
-                        SelectedJob = job; // triggers OnSelectedJobChanged → updates detail pane
-                    }
                     break;
                 }
             }
+
+            HasActiveJobs = ActiveJobs.Count > 0;
+            if (SelectedJob?.Id == e.JobId)
+                SelectedJob = null;
 
             _ = LoadHistoryAsync();
         });

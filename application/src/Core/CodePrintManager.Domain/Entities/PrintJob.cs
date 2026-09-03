@@ -11,6 +11,13 @@ public class PrintJob
     public JobStatus Status { get; set; } = JobStatus.Preparing;
     public int? TotalBaseline { get; set; }
     public int CodesConfirmed { get; set; }
+
+    // Executor state persisted for crash recovery.
+    // Allows exact restoration of the polling executor after app restart.
+    public int? CounterOffset { get; set; }
+    public int? PreviousCounter { get; set; }
+    public int? LastKnownLifetime { get; set; }
+
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime CreatedAt { get; set; }

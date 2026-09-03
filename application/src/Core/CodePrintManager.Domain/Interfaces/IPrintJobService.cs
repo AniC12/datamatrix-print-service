@@ -18,4 +18,13 @@ public interface IPrintJobService
     /// Called after a manual reconnect so watchers use the new adapter instance.
     /// </summary>
     Task RespawnWatchersForPrinterAsync(int printerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Restores stale jobs automatically at startup (replaces the old RecoveryDialog flow).
+    /// - Preparing → auto-cancelled (incomplete preparation)
+    /// - Ready → restored with ReadyWatcher + first-poll SPGGTP validation
+    /// - Printing → restored with executor from persisted state + post-reconnect inspection
+    /// - Paused → left as Paused (operator resumes or cancels manually)
+    /// </summary>
+    Task RestoreStaleJobsAsync(CancellationToken ct = default);
 }

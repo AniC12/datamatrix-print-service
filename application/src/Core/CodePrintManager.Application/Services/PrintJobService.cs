@@ -137,7 +137,7 @@ public class PrintJobService : IPrintJobService
         using var _ = LogContext.PushProperty("JobId", jobId);
         using var __ = LogContext.PushProperty("PrinterId", job.PrinterId);
         _logger.LogInformation("Job {JobId} PREPARING (product='{Product}', printer='{Printer}', qty={Qty})",
-            jobId, job.Product?.Name, job.Printer?.Name, job.Quantity);
+            jobId, job.Product.Name, job.Printer.Name, job.Quantity);
 
         var printerLock = _jobRegistry.GetPrinterLock(job.PrinterId);
         await printerLock.WaitAsync(ct);
@@ -189,46 +189,9 @@ public class PrintJobService : IPrintJobService
             _logger.LogDebug("Job {JobId}: CSV uploaded and verified", jobId);
             progress?.Report("data_uploaded");
 
-            // Step 4: Check template
+            // Step 4: Upload (if local) + activate template
             progress?.Report("loading_template");
-            var templateName = job.Product.TemplateFile
-                ?? throw new InvalidOperationException(_loc["Error_NoTemplateConfigured"]);
-            // Use filename only for comparison — printer stores filenames, not full paths
-            var templateFileName = Path.GetFileName(templateName);
-            _logger.LogDebug("Job {JobId}: checking template '{Template}' (filename='{FileName}')", jobId, templateName, templateFileName);
-            var templates = await adapter.ListTemplatesAsync(ct);
-            if (!templates.Contains(templateFileName))
-            {
-                // Attempt to upload .rox file from disk
-                if (File.Exists(templateName))
-                {
-                    var roxBytes = await File.ReadAllBytesAsync(templateName, ct);
-                    var uploadTemplateOk = await adapter.UploadTemplateAsync(
-                        Path.GetFileName(templateName), roxBytes, ct);
-                    if (!uploadTemplateOk)
-                    {
-                        _alerts.Raise(AlertSeverity.Error, job.Printer.Name,
-                            _loc["Alert_TemplateUploadFailed"],
-                            printerId: job.PrinterId, jobId: job.Id);
-                        throw new InvalidOperationException(_loc["Error_TemplateUploadFailed"]);
-                    }
-                    _logger.LogInformation("Job {JobId}: template '{Template}' uploaded from disk", jobId, templateName);
-                    // Use the filename (without path) for activation
-                    templateName = Path.GetFileName(templateName);
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        _loc.Format("Error_TemplateNotFound", templateName));
-                }
-            }
-
-            // Activate template (resets counter, loads CSV buffer)
-            ct.ThrowIfCancellationRequested();
-            var activateOk = await adapter.ActivateTemplateAsync(templateFileName, ct);
-            if (!activateOk)
-                throw new InvalidOperationException(_loc["Error_TemplateActivationFailed"]);
-            _logger.LogDebug("Job {JobId}: template activated", jobId);
+            var templateFileName = await EnsureTemplateAsync(job, adapter, ct);
 
             progress?.Report("template_loaded");
 
@@ -353,8 +316,13 @@ public class PrintJobService : IPrintJobService
             await adapter.SetPrintQuantityAsync(job.Quantity, ct);
             await adapter.StartPrintAsync(ct);
 
+            var initialOffset = -currentCounterBaseline;
             job.Status = JobStatus.Printing;
             job.StartedAt = DateTime.UtcNow;
+            // Persist initial executor state for crash recovery
+            job.CounterOffset = initialOffset;
+            job.PreviousCounter = -1; // sentinel: no previous poll yet
+            job.LastKnownLifetime = job.TotalBaseline;
             await _db.SaveChangesAsync();
 
             _logger.LogInformation("Job {JobId} started (SPGGTP baseline={TotalBaseline}, SPGGCP baseline={CounterBaseline}, qty={Quantity})",
@@ -384,7 +352,7 @@ public class PrintJobService : IPrintJobService
             }
 
             var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
-                counterOffset: -currentCounterBaseline,
+                counterOffset: initialOffset,
                 tryReconnect: (pid, ct) => _connectionManager.TryReconnectAsync(pid, ct));
             executor.ProgressChanged += (_, e) =>
             {
@@ -488,7 +456,7 @@ public class PrintJobService : IPrintJobService
                                 "CancelJobAsync Job {JobId}: COUNTER DISCREPANCY! effectivePrinted={Effective} < CodesConfirmed={Confirmed}. " +
                                 "Possible TotalBaseline corruption or counter rollover. Using CodesConfirmed as floor.",
                                 jobId, effectivePrinted, job.CodesConfirmed);
-                            _alerts.Raise(AlertSeverity.Error, job.Printer?.Name ?? "Printer",
+                            _alerts.Raise(AlertSeverity.Error, job.Printer.Name,
                                 $"Counter discrepancy: printer reports {effectivePrinted} prints but {job.CodesConfirmed} already confirmed. " +
                                 $"Investigate Job #{jobId}.",
                                 printerId: job.PrinterId, jobId: jobId);
@@ -886,38 +854,8 @@ public class PrintJobService : IPrintJobService
             if (!exists)
                 throw new InvalidOperationException(_loc["Error_CsvVerificationFailed"]);
 
-            // Step 5: Check template is still in storage
-            var templateName = job.Product.TemplateFile
-                ?? throw new InvalidOperationException(_loc["Error_NoTemplateConfigured"]);
-            // Use filename only (template may be stored as full path)
-            var templateFileName = Path.GetFileName(templateName);
-            var templates = await adapter.ListTemplatesAsync(ct);
-            if (!templates.Contains(templateFileName))
-            {
-                // Re-upload from disk if available
-                if (File.Exists(templateName))
-                {
-                    var roxBytes = await File.ReadAllBytesAsync(templateName, ct);
-                    var uploadTemplateOk = await adapter.UploadTemplateAsync(templateFileName, roxBytes, ct);
-                    if (!uploadTemplateOk)
-                        throw new InvalidOperationException(_loc["Error_TemplateUploadFailed"]);
-                    _logger.LogInformation("Job {JobId}: template '{Template}' re-uploaded from disk",
-                        jobId, templateFileName);
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        _loc.Format("Error_TemplateNotFound", templateFileName));
-                }
-            }
-
-            ct.ThrowIfCancellationRequested();
-
-            // Step 6: Reload template (reloads data buffer from new CSV)
-            var activateOk = await adapter.ActivateTemplateAsync(templateFileName, ct);
-            if (!activateOk)
-                throw new InvalidOperationException(_loc["Error_TemplateActivationFailed"]);
-            _logger.LogDebug("Job {JobId}: template reloaded", jobId);
+            // Step 5–6: Upload (if local) + activate template
+            var templateFileName = await EnsureTemplateAsync(job, adapter, ct);
 
             // Step 7: Record fresh lifetime baseline + SPGGCP baseline.
             // NOTE: Real Savema printers may drop the TCP connection after
@@ -958,15 +896,19 @@ public class PrintJobService : IPrintJobService
             // Step 9: Start printing
             await adapter.StartPrintAsync(ct);
 
-            job.Status = JobStatus.Printing;
-            await _db.SaveChangesAsync();
-
             // Step 10: Spawn new JobExecutor with counter offset.
             // SPGGCP may or may not reset on SPLLTF depending on firmware version.
             // We always baseline it so the offset formula works either way:
             //   effective = raw_SPGGCP + offset = raw_SPGGCP + (CodesConfirmed - baseline)
             //             = CodesConfirmed + (raw_SPGGCP - baseline) = CodesConfirmed + session_delta
             var counterOffset = job.CodesConfirmed - currentCounterBaseline;
+
+            job.Status = JobStatus.Printing;
+            // Persist executor state for crash recovery
+            job.CounterOffset = counterOffset;
+            job.PreviousCounter = -1; // sentinel: no previous poll yet
+            job.LastKnownLifetime = totalBaseline;
+            await _db.SaveChangesAsync();
 
             IServiceScope? executorScope = null;
             AppDbContext executorDb;
@@ -1024,10 +966,12 @@ public class PrintJobService : IPrintJobService
 
     // --- ReadyWatcher helpers ---
 
-    private void SpawnReadyWatcher(PrintJob job, IPrinterAdapter adapter, int spggcpBaseline = 0)
+    private void SpawnReadyWatcher(PrintJob job, IPrinterAdapter adapter, int spggcpBaseline = 0,
+        int? recoveryLifetimeBaseline = null)
     {
-        _logger.LogTrace("-> SpawnReadyWatcher(jobId={JobId}, spggcpBaseline={Baseline})", job.Id, spggcpBaseline);
-        var watcher = new ReadyWatcher(job, adapter, _alerts, _logger, spggcpBaseline);
+        _logger.LogTrace("-> SpawnReadyWatcher(jobId={JobId}, spggcpBaseline={Baseline}, recoveryBaseline={RecoveryBaseline})",
+            job.Id, spggcpBaseline, recoveryLifetimeBaseline);
+        var watcher = new ReadyWatcher(job, adapter, _alerts, _logger, spggcpBaseline, recoveryLifetimeBaseline);
         watcher.ExternalPrintDetected += (_, jobId) =>
         {
             _logger.LogDebug("ReadyWatcher ExternalPrintDetected event fired for Job {JobId}", jobId);
@@ -1039,10 +983,76 @@ public class PrintJobService : IPrintJobService
             try { _connectionManager.NotifyConnectionLost(printerId); }
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
         };
+        if (recoveryLifetimeBaseline.HasValue)
+        {
+            watcher.RecoveryValidationFailed += (_, jobId) =>
+            {
+                _logger.LogError("Recovery: SPGGTP validation FAILED for Ready job #{JobId}. Marking as Error.", jobId);
+                _jobRegistry.TryRemoveWatcher(jobId);
+                _ = HandleRecoveryValidationFailedAsync(jobId);
+            };
+        }
         _jobRegistry.RegisterWatcher(job.Id, watcher);
         watcher.Start();
-        _logger.LogDebug("ReadyWatcher spawned for Job {JobId}", job.Id);
+        _logger.LogDebug("ReadyWatcher spawned for Job {JobId} (recoveryValidation={HasRecovery})",
+            job.Id, recoveryLifetimeBaseline.HasValue);
         _logger.LogTrace("<- SpawnReadyWatcher completed");
+    }
+
+    /// <summary>
+    /// Ensures the template is on the printer and activated.
+    /// If a local .rox file exists, always uploads via SPLTDS (stores + loads).
+    /// SPLTDS already activates the template, so SPLLTF is skipped after upload.
+    /// If no local file, verifies the template exists on the printer, then
+    /// activates via SPLLTF (loads CSV buffer, resets counter).
+    /// Returns the template filename (without path).
+    /// </summary>
+    private async Task<string> EnsureTemplateAsync(
+        PrintJob job, IPrinterAdapter adapter, CancellationToken ct)
+    {
+        var templateName = job.Product.TemplateFile
+            ?? throw new InvalidOperationException(_loc["Error_NoTemplateConfigured"]);
+        var templateFileName = Path.GetFileName(templateName);
+        _logger.LogDebug("Job {JobId}: checking template '{Template}' (filename='{FileName}')",
+            job.Id, templateName, templateFileName);
+
+        if (File.Exists(templateName))
+        {
+            // Local .rox file exists — always upload to ensure printer has latest version.
+            // SPLTDS stores AND loads the template, so no separate SPLLTF needed.
+            // Note: the printer often drops the TCP connection after template load —
+            // the caller handles reconnection before subsequent commands.
+            var roxBytes = await File.ReadAllBytesAsync(templateName, ct);
+            var uploadOk = await adapter.UploadTemplateAsync(templateFileName, roxBytes, ct);
+            if (!uploadOk)
+            {
+                _alerts.Raise(AlertSeverity.Error, job.Printer.Name,
+                    _loc["Alert_TemplateUploadFailed"],
+                    printerId: job.PrinterId, jobId: job.Id);
+                throw new InvalidOperationException(_loc["Error_TemplateUploadFailed"]);
+            }
+            _logger.LogInformation("Job {JobId}: template '{Template}' uploaded and loaded via SPLTDS",
+                job.Id, templateFileName);
+        }
+        else
+        {
+            // No local file — verify the template exists on the printer
+            var templates = await adapter.ListTemplatesAsync(ct);
+            if (!templates.Contains(templateFileName))
+                throw new InvalidOperationException(
+                    _loc.Format("Error_TemplateNotFound", templateFileName));
+            _logger.LogDebug("Job {JobId}: template '{Template}' already on printer, activating via SPLLTF",
+                job.Id, templateFileName);
+
+            // Activate template (loads CSV buffer, resets counter)
+            ct.ThrowIfCancellationRequested();
+            var activateOk = await adapter.ActivateTemplateAsync(templateFileName, ct);
+            if (!activateOk)
+                throw new InvalidOperationException(_loc["Error_TemplateActivationFailed"]);
+            _logger.LogDebug("Job {JobId}: template activated", job.Id);
+        }
+
+        return templateFileName;
     }
 
     private async Task StopReadyWatcherAsync(int jobId)
@@ -1089,13 +1099,258 @@ public class PrintJobService : IPrintJobService
 
             // Read fresh SPGGCP baseline from the new adapter
             var spggcpBaseline = await adapter.GetCurrentCounterAsync(ct);
-            SpawnReadyWatcher(job, adapter, spggcpBaseline);
+            // Pass TotalBaseline for SPGGTP validation — detects unexpected printing
+            // that occurred while the printer was disconnected.
+            SpawnReadyWatcher(job, adapter, spggcpBaseline, recoveryLifetimeBaseline: job.TotalBaseline);
             _logger.LogInformation(
-                "ReadyWatcher respawned for Job {JobId} on printer {PrinterId} after reconnect (SPGGCP baseline={Baseline})",
-                job.Id, printerId, spggcpBaseline);
+                "ReadyWatcher respawned for Job {JobId} on printer {PrinterId} after reconnect " +
+                "(SPGGCP baseline={Baseline}, SPGGTP baseline={TpBaseline})",
+                job.Id, printerId, spggcpBaseline, job.TotalBaseline);
         }
 
         _logger.LogTrace("<- RespawnWatchersForPrinterAsync: respawned {Count} watcher(s)", readyJobs.Count);
+    }
+
+    public async Task RestoreStaleJobsAsync(CancellationToken ct = default)
+    {
+        _logger.LogInformation("-> RestoreStaleJobsAsync: scanning for stale jobs");
+
+        var staleJobs = await _db.PrintJobs
+            .Include(j => j.Product)
+            .Include(j => j.Printer)
+            .Where(j => j.Status == JobStatus.Preparing
+                     || j.Status == JobStatus.Ready
+                     || j.Status == JobStatus.Printing
+                     || j.Status == JobStatus.Paused)
+            .ToListAsync(ct);
+
+        if (staleJobs.Count == 0)
+        {
+            _logger.LogInformation("RestoreStaleJobsAsync: no stale jobs found");
+            return;
+        }
+
+        _logger.LogInformation("RestoreStaleJobsAsync: found {Count} stale job(s)", staleJobs.Count);
+
+        foreach (var job in staleJobs)
+        {
+            try
+            {
+                switch (job.Status)
+                {
+                    case JobStatus.Preparing:
+                        // Preparation was incomplete — auto-cancel and return codes.
+                        await CancelJobAsync(job.Id);
+                        _logger.LogInformation("Recovery: auto-cancelled stale Preparing job #{JobId}", job.Id);
+                        break;
+
+                    case JobStatus.Ready:
+                        await RestoreReadyJobAsync(job, ct);
+                        break;
+
+                    case JobStatus.Printing:
+                        await RestorePrintingJobAsync(job, ct);
+                        break;
+
+                    case JobStatus.Paused:
+                        // Job was explicitly paused before the crash. Leave as Paused —
+                        // the operator can Resume (full Resume Procedure) or Cancel
+                        // from the Jobs tab.
+                        _logger.LogInformation(
+                            "Recovery: Paused job #{JobId} left as Paused — operator can Resume or Cancel.",
+                            job.Id);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Recovery: failed to restore job #{JobId} ({Status})", job.Id, job.Status);
+            }
+        }
+
+        _logger.LogInformation("<- RestoreStaleJobsAsync: completed");
+    }
+
+    /// <summary>
+    /// Restores a Ready job by spawning a ReadyWatcher with SPGGTP validation.
+    /// The watcher's first poll checks whether the printer's lifetime counter moved
+    /// since the job was prepared — if it did, the job is marked as Error.
+    /// </summary>
+    private async Task RestoreReadyJobAsync(PrintJob job, CancellationToken ct)
+    {
+        _logger.LogInformation("Recovery: restoring Ready job #{JobId} on printer {PrinterId}",
+            job.Id, job.PrinterId);
+
+        var adapter = _connectionManager.GetAdapter(job.PrinterId);
+        if (adapter == null || !adapter.IsConnected)
+        {
+            _logger.LogWarning(
+                "Recovery: printer {PrinterId} is offline for Ready job #{JobId}. " +
+                "Job stays Ready — watcher will be spawned when printer reconnects.",
+                job.PrinterId, job.Id);
+            return;
+        }
+
+        // Read fresh SPGGCP baseline from the adapter for ongoing monitoring.
+        var spggcpBaseline = await adapter.GetCurrentCounterAsync(ct);
+
+        // Use TotalBaseline (recorded during Prepare) as the recovery lifetime baseline.
+        // The first poll will read SPGGTP and compare to detect unexpected printing.
+        SpawnReadyWatcher(job, adapter, spggcpBaseline, recoveryLifetimeBaseline: job.TotalBaseline);
+
+        _logger.LogInformation(
+            "Recovery: ReadyWatcher spawned for job #{JobId} (SPGGCP baseline={CpBaseline}, SPGGTP baseline={TpBaseline})",
+            job.Id, spggcpBaseline, job.TotalBaseline);
+    }
+
+    /// <summary>
+    /// Restores a Printing job by reconstructing the executor from persisted state.
+    /// The executor's post-reconnect inspection will validate the printer state on its
+    /// first poll cycle, handling power cycles, template mismatches, etc.
+    /// </summary>
+    private async Task RestorePrintingJobAsync(PrintJob job, CancellationToken ct)
+    {
+        _logger.LogInformation(
+            "Recovery: restoring Printing job #{JobId} on printer {PrinterId} " +
+            "(confirmed={Confirmed}, offset={Offset}, prevCounter={Prev}, lastLifetime={Lifetime})",
+            job.Id, job.PrinterId,
+            job.CodesConfirmed, job.CounterOffset, job.PreviousCounter, job.LastKnownLifetime);
+
+        var adapter = _connectionManager.GetAdapter(job.PrinterId);
+        if (adapter == null)
+        {
+            _logger.LogWarning(
+                "Recovery: no adapter registered for printer {PrinterId} (Printing job #{JobId}). " +
+                "Job stays Printing — operator must reconnect printer and Resume manually.",
+                job.PrinterId, job.Id);
+            return;
+        }
+
+        // If no persisted executor state, fall back to safe defaults.
+        // This handles jobs from before the persistence feature was added.
+        var counterOffset = job.CounterOffset ?? 0;
+        var previousCounter = job.PreviousCounter ?? -1;
+        var lastKnownLifetime = job.LastKnownLifetime;
+
+        // Create executor with its own DI scope
+        IServiceScope? executorScope = null;
+        AppDbContext executorDb;
+        ICodePoolService executorCodePool;
+
+        if (_scopeFactory != null)
+        {
+            executorScope = _scopeFactory.CreateScope();
+            executorDb = executorScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            executorCodePool = executorScope.ServiceProvider.GetRequiredService<ICodePoolService>();
+            // Re-attach the job entity to the new context
+            job = await executorDb.PrintJobs
+                .Include(j => j.Printer)
+                .FirstAsync(j => j.Id == job.Id, ct);
+        }
+        else
+        {
+            executorDb = _db;
+            executorCodePool = _codePool;
+        }
+
+        var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
+            counterOffset: counterOffset,
+            tryReconnect: (pid, innerCt) => _connectionManager.TryReconnectAsync(pid, innerCt),
+            previousCounter: previousCounter,
+            lastKnownLifetime: lastKnownLifetime);
+
+        // The executor starts with _needsInspection = false, but the first poll will
+        // trigger an IOException (if printer is offline) or read counters (if online).
+        // For a crash-recovered executor, we want to force a post-reconnect inspection
+        // to validate printer state before resuming normal polling.
+        // We achieve this by letting the executor's normal flow handle it:
+        // - If the adapter is connected, the first poll reads counters normally.
+        //   The persisted _previousCounter allows anomaly detection to work correctly.
+        // - If the adapter is disconnected, IOException triggers reconnect + inspection.
+
+        executor.ProgressChanged += (_, e) =>
+        {
+            _eventBus.RaiseProgressChanged(this, e);
+            JobProgressChanged?.Invoke(this, e);
+        };
+        executor.Completed += (_, e) =>
+        {
+            _jobRegistry.TryRemove(job.Id);
+            executorScope?.Dispose();
+            _eventBus.RaiseCompleted(this, e);
+            JobCompleted?.Invoke(this, e);
+        };
+        executor.CountersUpdated += (_, e) => _eventBus.RaiseCountersUpdated(this, e);
+        executor.ConnectionLost += (_, printerId) =>
+        {
+            try { _connectionManager.NotifyConnectionLost(printerId); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
+        };
+        _jobRegistry.Register(job.Id, executor);
+        executor.Start();
+
+        _logger.LogInformation(
+            "Recovery: executor spawned for job #{JobId} (offset={Offset}, prevCounter={Prev})",
+            job.Id, counterOffset, previousCounter);
+    }
+
+    /// <summary>
+    /// Handles a ReadyWatcher's recovery validation failure.
+    /// Quarantines all reserved codes and marks the job as Error.
+    /// </summary>
+    private async Task HandleRecoveryValidationFailedAsync(int jobId)
+    {
+        _logger.LogTrace("-> HandleRecoveryValidationFailedAsync(jobId={JobId})", jobId);
+        try
+        {
+            if (_scopeFactory != null)
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var codePool = scope.ServiceProvider.GetRequiredService<ICodePoolService>();
+                var job = await db.PrintJobs.Include(j => j.Printer)
+                    .FirstOrDefaultAsync(j => j.Id == jobId);
+                if (job == null) return;
+
+                // Quarantine all reserved codes — status is uncertain
+                var remaining = job.Quantity - job.CodesConfirmed;
+                if (remaining > 0)
+                    await codePool.QuarantineCodesAsync(jobId, job.CodesConfirmed, remaining);
+
+                job.Status = JobStatus.Error;
+                job.CompletedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+
+                _alerts.Raise(AlertSeverity.Error, job.Printer?.Name ?? "Printer",
+                    _loc.Format("Recovery_ValidationFailed", jobId),
+                    printerId: job.PrinterId, jobId: jobId);
+            }
+            else
+            {
+                var job = await _db.PrintJobs.Include(j => j.Printer)
+                    .FirstOrDefaultAsync(j => j.Id == jobId);
+                if (job == null) return;
+
+                var remaining = job.Quantity - job.CodesConfirmed;
+                if (remaining > 0)
+                    await _codePool.QuarantineCodesAsync(jobId, job.CodesConfirmed, remaining);
+
+                job.Status = JobStatus.Error;
+                job.CompletedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+
+                _alerts.Raise(AlertSeverity.Error, job.Printer?.Name ?? "Printer",
+                    _loc.Format("Recovery_ValidationFailed", jobId),
+                    printerId: job.PrinterId, jobId: jobId);
+            }
+
+            _logger.LogError("Recovery: job #{JobId} marked as Error due to SPGGTP validation failure", jobId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Recovery: failed to handle validation failure for job #{JobId}", jobId);
+        }
+        _logger.LogTrace("<- HandleRecoveryValidationFailedAsync completed");
     }
 
     private void EnsureSufficientDiskSpace()

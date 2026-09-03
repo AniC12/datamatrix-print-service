@@ -19,7 +19,7 @@ public class JobExecutor
     private readonly ILogger _logger;
     private readonly ILocalizationService _loc;
 
-    private readonly int _counterOffset;
+    private int _counterOffset;
     private readonly Func<int, CancellationToken, Task<bool>>? _tryReconnect;
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
@@ -75,7 +75,9 @@ public class JobExecutor
         ILogger logger,
         ILocalizationService loc,
         int counterOffset = 0,
-        Func<int, CancellationToken, Task<bool>>? tryReconnect = null)
+        Func<int, CancellationToken, Task<bool>>? tryReconnect = null,
+        int? previousCounter = null,
+        int? lastKnownLifetime = null)
     {
         _job = job;
         _adapter = adapter;
@@ -86,8 +88,12 @@ public class JobExecutor
         _loc = loc;
         _counterOffset = counterOffset;
         _tryReconnect = tryReconnect;
-        _logger.LogTrace("-> JobExecutor constructed (jobId={JobId}, qty={Qty}, confirmed={Confirmed}, offset={Offset})",
-            job.Id, job.Quantity, job.CodesConfirmed, counterOffset);
+        if (previousCounter.HasValue)
+            _previousCounter = previousCounter.Value;
+        if (lastKnownLifetime.HasValue)
+            _lastKnownLifetimeCounter = lastKnownLifetime.Value;
+        _logger.LogTrace("-> JobExecutor constructed (jobId={JobId}, qty={Qty}, confirmed={Confirmed}, offset={Offset}, prevCounter={Prev}, lastLifetime={Lifetime})",
+            job.Id, job.Quantity, job.CodesConfirmed, counterOffset, _previousCounter, _lastKnownLifetimeCounter);
     }
 
     public void Start()
@@ -488,7 +494,7 @@ public class JobExecutor
             _job.Id, status, currentCounter, lifetimeCounter, activeTemplate, serialNumber);
 
         // --- Check 0: Serial number mismatch (hardware swap) ---
-        var storedSerial = _job.Printer?.SerialNumber;
+        var storedSerial = _job.Printer.SerialNumber;
         if (!string.IsNullOrEmpty(storedSerial) && !string.IsNullOrEmpty(serialNumber)
             && !string.Equals(storedSerial, serialNumber, StringComparison.Ordinal))
         {
@@ -831,6 +837,10 @@ public class JobExecutor
         var sw = Stopwatch.StartNew();
         await _codePool.MarkCodesPrintedAsync(_job.Id, _job.CodesConfirmed, effectiveCounter);
         _job.CodesConfirmed = effectiveCounter;
+        // Persist executor state for crash recovery
+        _job.CounterOffset = _counterOffset;
+        _job.PreviousCounter = _previousCounter;
+        _job.LastKnownLifetime = _lastKnownLifetimeCounter;
         await _db.SaveChangesAsync();
 
         var pct = _job.Quantity > 0 ? (int)(100.0 * effectiveCounter / _job.Quantity) : 0;

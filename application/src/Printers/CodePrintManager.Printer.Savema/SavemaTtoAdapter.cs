@@ -413,22 +413,14 @@ public class SavemaTtoAdapter : IPrinterAdapter
             }
         }
 
-        // Template upload: ~SPLRTF{name>base64data}^
-        if (cmd.Contains("SPLRTF{"))
+        // Template upload: ~SPLTDS{<Template>...</Template>}^
+        if (cmd.Contains("SPLTDS{"))
         {
-            var start = cmd.IndexOf("SPLRTF{") + 7;
-            var end = cmd.LastIndexOf('}');
-            if (start > 7 && end > start)
-            {
-                var content = cmd[start..end];
-                var sepIdx = content.IndexOf('>');
-                if (sepIdx > 0)
-                {
-                    var name = content[..sepIdx];
-                    var dataLen = content.Length - sepIdx - 1;
-                    return $"SPLRTF{{{name}}} [{dataLen} base64 chars]";
-                }
-            }
+            // Extract template name from the XML <Name> element
+            var nameMatch = System.Text.RegularExpressions.Regex.Match(cmd, @"<Name>([^<]+)</Name>");
+            var tplName = nameMatch.Success ? nameMatch.Groups[1].Value : "?";
+            var xmlLen = cmd.Length - "~SPLTDS{}^".Length;
+            return $"SPLTDS{{{tplName}}} [{xmlLen} xml chars]";
         }
 
         // All other commands: show in full (they're short)

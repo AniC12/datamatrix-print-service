@@ -43,7 +43,7 @@ public class MockSpplTcpServer : IDisposable
         _responses["SPPSTP"] = "OK";
         _responses["SPPSLQ"] = "OK";
         _responses["SPLLTF"] = "OK";
-        _responses["SPLRTF"] = "OK";
+        _responses["SPLTDS"] = "OK";
         _responses["SPLCDF"] = "OK";
         _responses["SPLDTF"] = "OK";
         _responses["SPLDDF"] = "OK";

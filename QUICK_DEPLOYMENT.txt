@@ -1,0 +1,60 @@
+================================================================================
+  CODE PRINT MANAGER - QUICK DEPLOYMENT REFERENCE
+================================================================================
+
+PACKAGE LOCATION:
+  publish/CodePrintManager-v1.0.zip  (70 MB - ready to transfer)
+  publish/CodePrintManager/          (169 MB - uncompressed folder)
+
+DEPLOYMENT STEPS:
+  1. Copy the ZIP file to target PC
+  2. Extract to any folder (e.g., C:\CodePrintManager)
+  3. Run CodePrintManager.Desktop.exe
+  4. Done!
+
+SYSTEM REQUIREMENTS:
+  - Windows 10 or 11 (64-bit)
+  - No .NET installation needed (included)
+  - 2 GB RAM minimum
+  - 500 MB disk space
+
+FIRST RUN:
+  - Application creates codeprintmanager.db (database)
+  - Application creates logs/ folder
+  - No configuration needed
+
+TESTING WITHOUT HARDWARE:
+  CodePrintManager.Desktop.exe --mock
+
+PRINTER SETUP:
+  1. Printers tab → Add Printer
+  2. Enter IP address (e.g., 192.168.1.100)
+  3. Port: 9100 (default for Savema TTO)
+  4. Save
+
+DATA BACKUP:
+  Copy these files:
+  - codeprintmanager.db
+  - codeprintmanager.db-shm (if exists)
+  - codeprintmanager.db-wal (if exists)
+
+TROUBLESHOOTING:
+  - Won't start? → Try running as Administrator
+  - Can't connect? → Check IP address and firewall
+  - Database locked? → Close app, delete .db-shm and .db-wal files
+  - Need logs? → Check logs/ folder
+
+DOCUMENTATION:
+  - README.txt (in package) - User guide
+  - DEPLOYMENT_GUIDE.md - Full deployment instructions
+  - DEPLOYMENT_SUMMARY.md - Detailed reference
+
+REBUILD PACKAGE:
+  Run: create-deployment-package.bat
+
+SUPPORT:
+  - Check logs/ folder for errors
+  - See README.txt for detailed help
+  - Contact system administrator
+
+================================================================================

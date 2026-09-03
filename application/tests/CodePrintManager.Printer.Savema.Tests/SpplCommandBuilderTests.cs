@@ -62,11 +62,12 @@ public class SpplCommandBuilderTests
     [Fact]
     public void UploadTemplate_ReturnsExpectedCommand()
     {
-        var data = new byte[] { 1, 2, 3 };
-        var expectedBase64 = Convert.ToBase64String(data);
+        // SPLKTD sends raw XML content (the .rox file IS XML)
+        var xml = "<Template><General><Name>tpl.rox</Name></General></Template>";
+        var data = System.Text.Encoding.UTF8.GetBytes(xml);
 
         SpplCommandBuilder.UploadTemplate("tpl.rox", data)
-            .Should().Be($"~SPLRTF{{tpl.rox>{expectedBase64}}}^");
+            .Should().Be($"~SPLTDS{{{xml}}}^");
     }
 
     [Fact]

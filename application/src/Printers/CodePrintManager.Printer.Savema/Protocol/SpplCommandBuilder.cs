@@ -15,8 +15,12 @@ public static class SpplCommandBuilder
 
     public static string UploadTemplate(string name, byte[] data)
     {
-        var base64 = Convert.ToBase64String(data);
-        return Wrap($"SPLRTF{{{name}>{base64}}}");
+        // SPLTDS stores template to printer storage AND loads it.
+        // The prepare flow calls SPLLTF afterwards to reload with CSV buffer,
+        // so the auto-load from SPLTDS is harmless.
+        // SPLTDS is well-documented (§3.1) and widely supported across firmware.
+        var xml = System.Text.Encoding.UTF8.GetString(data);
+        return Wrap($"SPLTDS{{{xml}}}");
     }
 
     public static string ListCsvFiles() => Wrap("SPLGSD");
