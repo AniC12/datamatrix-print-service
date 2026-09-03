@@ -20,6 +20,7 @@ public class MockPrinterAdapter : IPrinterAdapter
     private int _printQuantity;
     private string? _activeTemplate;
     private PrinterStatus? _injectedError;
+    private bool _simulateDisconnect;
 
     // Fault injection
     private int _ioFailuresRemaining;
@@ -113,6 +114,12 @@ public class MockPrinterAdapter : IPrinterAdapter
 
     public Task<bool> ConnectAsync(string host, int port, CancellationToken ct = default)
     {
+        if (_simulateDisconnect)
+        {
+            _logger.LogDebug("Mock: ConnectAsync rejected (simulated disconnect active)");
+            return Task.FromResult(false);
+        }
+
         _logger.LogDebug("Mock: Connected to {Host}:{Port}", host, port);
         IsConnected = true;
         // If the print loop is still running (e.g., after a network drop while printing),
@@ -303,6 +310,32 @@ public class MockPrinterAdapter : IPrinterAdapter
         _lifetimeCounter = lifetimeCounter;
         _logger.LogInformation("Mock: Counters set to current={Current}, lifetime={Lifetime}",
             currentCounter, lifetimeCounter);
+    }
+
+    /// <summary>
+    /// Simulates a mid-session connection loss (e.g., network cable pull).
+    /// All adapter commands will throw <see cref="IOException"/>.
+    /// <see cref="ConnectAsync"/> will return false until <see cref="SimulateConnectionRestore"/> is called.
+    /// The internal print loop is NOT stopped — the printer continues printing physically,
+    /// incrementing counters, just like real hardware would when the cable is pulled.
+    /// </summary>
+    public void SimulateConnectionLoss()
+    {
+        _logger.LogInformation("Mock: Simulating connection loss (IsConnected → false, print loop continues)");
+        _simulateDisconnect = true;
+        IsConnected = false;
+        // Do NOT call StopPrintInternal() — printer keeps printing physically
+        // Do NOT change _status — printer state is unchanged by cable pull
+    }
+
+    /// <summary>
+    /// Restores the ability to connect after a simulated connection loss.
+    /// The next <see cref="ConnectAsync"/> call will succeed.
+    /// </summary>
+    public void SimulateConnectionRestore()
+    {
+        _logger.LogInformation("Mock: Connection restore allowed (next ConnectAsync will succeed)");
+        _simulateDisconnect = false;
     }
 
     // Simulate power cycle: reset current counter but keep lifetime.

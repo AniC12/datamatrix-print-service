@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Text;
 using System.Windows.Threading;
 using CodePrintManager.Domain.Entities;
 using CodePrintManager.Domain.Enums;
@@ -61,6 +63,9 @@ public partial class CodesTabViewModel : ObservableObject
     // Context
     [ObservableProperty]
     private int? _productId;
+
+    [ObservableProperty]
+    private string? _productName;
 
     public bool IsUnassignedMode => ProductId == null;
 
@@ -306,6 +311,91 @@ public partial class CodesTabViewModel : ObservableObject
             code.IsSelected = false;
         UpdateSelectionState();
         _logger.LogTrace("<- DeselectAll()");
+    }
+
+    [RelayCommand]
+    private async Task ExportCsvAsync()
+    {
+        _logger.LogTrace("-> ExportCsvAsync() ProductId={ProductId}, StatusFilter={StatusFilter}", ProductId, SelectedStatusFilterText);
+        try
+        {
+            var statusFilter = ParseStatusFilter();
+            var search = string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim();
+
+            // Fetch all codes matching current filter (no pagination)
+            var page = await _codeManagement.GetCodesPageAsync(
+                ProductId, statusFilter, search, 1, -1);
+
+            if (page.Codes.Count == 0)
+            {
+                System.Windows.MessageBox.Show(
+                    _loc["Error_NoCodesToExport"],
+                    _loc["DialogTitle_ExportCodes"],
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+                _logger.LogTrace("<- ExportCsvAsync() [no codes to export]");
+                return;
+            }
+
+            // Build default filename
+            var namePart = ProductName ?? "Unassigned";
+            var statusPart = statusFilter?.ToString() ?? "All";
+            var safeName = string.Join("_", $"{namePart}_{statusPart}".Split(Path.GetInvalidFileNameChars()));
+            var defaultFileName = $"{safeName}.csv";
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = _loc["Filter_CsvFiles"],
+                Title = _loc["DialogTitle_ExportCodes"],
+                FileName = defaultFileName
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                _logger.LogTrace("<- ExportCsvAsync() [cancelled by user]");
+                return;
+            }
+
+            // Write CSV
+            var sb = new StringBuilder();
+            sb.AppendLine("CodeText,Status,ImportBatch,JobId,StatusChangedAt");
+            foreach (var code in page.Codes)
+            {
+                var codeText = EscapeCsvField(code.CodeText);
+                var status = code.Status.ToString();
+                var batch = EscapeCsvField(code.ImportBatch ?? "");
+                var jobId = code.JobId?.ToString() ?? "";
+                var changed = code.StatusChangedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "";
+                sb.AppendLine($"{codeText},{status},{batch},{jobId},{changed}");
+            }
+
+            await File.WriteAllTextAsync(dialog.FileName, sb.ToString(), Encoding.UTF8);
+
+            System.Windows.MessageBox.Show(
+                _loc.Format("Dialog_ExportSuccess", page.Codes.Count, dialog.FileName),
+                _loc["DialogTitle_ExportCodes"],
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+
+            _logger.LogInformation("Exported {Count} codes to {Path}", page.Codes.Count, dialog.FileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export codes");
+            System.Windows.MessageBox.Show(
+                _loc.Format("Error_ExportFailed", ex.Message),
+                _loc["DialogTitle_Error"],
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+        _logger.LogTrace("<- ExportCsvAsync()");
+    }
+
+    private static string EscapeCsvField(string field)
+    {
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
+            return $"\"{field.Replace("\"", "\"\"")}\"";
+        return field;
     }
 
     private void UpdateSelectionState()

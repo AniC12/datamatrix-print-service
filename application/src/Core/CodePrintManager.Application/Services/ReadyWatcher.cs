@@ -25,6 +25,7 @@ public class ReadyWatcher
     private CancellationTokenSource? _cts;
     private Task? _watchTask;
     private int _pollCount;
+    private bool _connectionLostNotified;
 
     /// <summary>The printer ID this watcher is monitoring.</summary>
     public int PrinterId => _job.PrinterId;
@@ -35,6 +36,13 @@ public class ReadyWatcher
     /// The int parameter is the job ID.
     /// </summary>
     public event EventHandler<int>? ExternalPrintDetected;
+
+    /// <summary>
+    /// Raised when the watcher detects a connection loss (IOException).
+    /// The int parameter is the printer ID, allowing the connection manager
+    /// to start a reconnect loop.
+    /// </summary>
+    public event EventHandler<int>? ConnectionLost;
 
     /// <param name="spggcpBaseline">
     /// SPGGCP value recorded right after template activation during Prepare.
@@ -138,10 +146,15 @@ public class ReadyWatcher
             }
             catch (IOException ex)
             {
-                // Printer disconnected — wait longer, retry
+                // Printer disconnected — notify connection manager, wait longer, retry
                 _logger.LogDebug(
                     "ReadyWatcher: connection lost for Job {JobId} on poll #{PollCount}: {Error}",
                     _job.Id, _pollCount, ex.Message);
+                if (!_connectionLostNotified)
+                {
+                    _connectionLostNotified = true;
+                    ConnectionLost?.Invoke(this, _job.PrinterId);
+                }
                 await Task.Delay(5000, ct);
             }
             catch (Exception ex)

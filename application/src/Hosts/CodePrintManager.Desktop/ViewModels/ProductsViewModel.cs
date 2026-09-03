@@ -511,7 +511,10 @@ public partial class ProductsViewModel : ObservableObject
 
         // Load codes tab for leaf products
         if (value?.IsLeaf == true)
+        {
+            CodesTab.ProductName = value.Name;
             _ = CodesTab.LoadForProductAsync(value.Id);
+        }
         _logger.LogTrace("<- OnSelectedProductChanged()");
     }
 
@@ -521,6 +524,7 @@ public partial class ProductsViewModel : ObservableObject
         _logger.LogTrace("-> ShowUnassignedCodesAsync()");
         SelectedProduct = null;
         IsShowingUnassigned = true;
+        CodesTab.ProductName = null;
         await CodesTab.LoadForProductAsync(null);
         _logger.LogTrace("<- ShowUnassignedCodesAsync()");
     }

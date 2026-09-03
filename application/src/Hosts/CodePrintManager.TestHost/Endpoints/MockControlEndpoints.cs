@@ -84,6 +84,29 @@ public static class MockControlEndpoints
             return Results.Ok(new { SerialNumber = adapter.SerialNumber });
         });
 
+        // Simulate a mid-session connection loss (cable pull).
+        // The print loop continues — the printer keeps printing physically.
+        // Commands throw IOException. ConnectAsync returns false.
+        group.MapPost("/{id:int}/simulate-disconnect", (int id, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SimulateConnectionLoss();
+            return Results.Ok(new { Status = "Connection loss simulated" });
+        });
+
+        // Restore the ability to connect after a simulated connection loss.
+        // The next ConnectAsync (from the reconnect loop) will succeed.
+        group.MapPost("/{id:int}/simulate-reconnect", (int id, PrinterConnectionManager connMgr) =>
+        {
+            var adapter = connMgr.GetAdapter(id) as MockPrinterAdapter;
+            if (adapter == null) return Results.NotFound();
+
+            adapter.SimulateConnectionRestore();
+            return Results.Ok(new { Status = "Connection restore allowed" });
+        });
+
         // Set the serial number that the NEXT created adapter will use.
         // Useful for simulating hardware swaps across disconnect/reconnect cycles.
         group.MapPost("/factory/set-next-serial", (SetSerialRequest req, MockPrinterAdapterFactory factory) =>
