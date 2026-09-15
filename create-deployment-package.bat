@@ -15,7 +15,7 @@ if not exist "application\CodePrintManager.sln" (
     exit /b 1
 )
 
-echo [1/4] Building self-contained package...
+echo [1/5] Building self-contained package...
 cd application
 dotnet publish src/Hosts/CodePrintManager.Desktop -c Release -r win-x64 --self-contained -p:PublishSingleFile=false -p:IncludeNativeLibrariesForSelfExtract=true -o ../publish/CodePrintManager
 if errorlevel 1 (
@@ -27,14 +27,25 @@ if errorlevel 1 (
 cd ..
 
 echo.
-echo [2/4] Copying README...
+echo [2/5] Copying README...
 copy /Y DEPLOYMENT_README.txt publish\CodePrintManager\README.txt >nul
 if errorlevel 1 (
     echo WARNING: Could not copy README
 )
 
 echo.
-echo [3/4] Creating ZIP archive...
+echo [3/5] Copying user manuals...
+if exist "docs\user-manual\pdf\*.pdf" (
+    mkdir publish\CodePrintManager\docs 2>nul
+    copy /Y docs\user-manual\pdf\*.pdf publish\CodePrintManager\docs\ >nul
+    echo Copied user manuals to docs\ folder
+) else (
+    echo WARNING: No PDF manuals found in docs\user-manual\pdf\
+    echo          Run without manuals - generate PDFs and rebuild to include them.
+)
+
+echo.
+echo [4/5] Creating ZIP archive...
 powershell -Command "Compress-Archive -Path publish\CodePrintManager -DestinationPath publish\CodePrintManager-v1.0.zip -Force"
 if errorlevel 1 (
     echo ERROR: Failed to create ZIP archive
@@ -43,7 +54,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [4/4] Calculating package size...
+echo [5/5] Calculating package size...
 for %%A in (publish\CodePrintManager-v1.0.zip) do set size=%%~zA
 set /a sizeMB=%size% / 1048576
 

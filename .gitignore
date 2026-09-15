@@ -28,6 +28,9 @@ logs/
 *.nupkg
 packages/
 
+# Generated PDFs (manually converted from Markdown)
+docs/user-manual/pdf/
+
 # OS files
 Thumbs.db
 .DS_Store

@@ -44,10 +44,16 @@ TROUBLESHOOTING:
   - Database locked? → Close app, delete .db-shm and .db-wal files
   - Need logs? → Check logs/ folder
 
-DOCUMENTATION:
-  - README.txt (in package) - User guide
-  - DEPLOYMENT_GUIDE.md - Full deployment instructions
-  - DEPLOYMENT_SUMMARY.md - Detailed reference
+DOCUMENTATION (included in package under docs/):
+  - docs/quick-start-en.pdf  - Quick Start Guide (English)
+  - docs/manual-en.pdf       - Full Reference Manual (English)
+  - docs/quick-start-ru.pdf  - Quick Start Guide (Russian)
+  - docs/manual-ru.pdf       - Full Reference Manual (Russian)
+  - README.txt               - Deployment reference
+
+DEVELOPER DOCS (not in package):
+  - DEPLOYMENT_GUIDE.md      - Full deployment instructions
+  - DEPLOYMENT_SUMMARY.md    - Detailed reference
 
 REBUILD PACKAGE:
   Run: create-deployment-package.bat

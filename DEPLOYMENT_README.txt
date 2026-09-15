@@ -138,6 +138,17 @@ Application logs are stored in the "logs" folder and can be helpful for
 troubleshooting issues.
 
 ================================================================================
+  DOCUMENTATION
+================================================================================
+
+User manuals are in the docs/ folder:
+
+  docs/quick-start-en.pdf   - Quick Start Guide (English)
+  docs/manual-en.pdf        - Full Reference Manual (English)
+  docs/quick-start-ru.pdf   - Краткое руководство (Русский)
+  docs/manual-ru.pdf        - Справочное руководство (Русский)
+
+================================================================================
   FILE STRUCTURE
 ================================================================================
 
@@ -148,6 +159,11 @@ CodePrintManager/
 │   ├── en.json                     (English)
 │   ├── ru.json                     (Russian)
 │   └── hy.json                     (Armenian)
+├── docs/                           (User manuals)
+│   ├── quick-start-en.pdf
+│   ├── manual-en.pdf
+│   ├── quick-start-ru.pdf
+│   └── manual-ru.pdf
 ├── codeprintmanager.db             (Created on first run)
 ├── logs/                           (Created on first run)
 └── README.txt                      (This file)
