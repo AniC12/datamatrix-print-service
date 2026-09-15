@@ -333,9 +333,9 @@ public partial class JobsViewModel : ObservableObject
     private async Task ResumeJobAsync()
     {
         _logger.LogTrace("-> ResumeJobAsync(SelectedJobId={JobId})", SelectedJob?.Id);
-        if (SelectedJob == null || SelectedJob.Status != JobStatus.Paused)
+        if (SelectedJob == null || SelectedJob.Status is not (JobStatus.Paused or JobStatus.Disconnected))
         {
-            _logger.LogTrace("<- ResumeJobAsync() — skipped (no selection or not Paused)");
+            _logger.LogTrace("<- ResumeJobAsync() — skipped (no selection or not Paused/Disconnected)");
             return;
         }
         try

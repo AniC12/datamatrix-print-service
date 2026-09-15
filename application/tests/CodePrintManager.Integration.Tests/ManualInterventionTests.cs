@@ -9,7 +9,7 @@ namespace CodePrintManager.Integration.Tests;
 public class ManualInterventionTests : IntegrationTestBase
 {
     /// <summary>
-    /// I1. Disconnect → operator pauses (while disconnected) → reconnect → resume → complete.
+    /// I1. Disconnect → job transitions to Disconnected → reconnect → resume → complete.
     /// This is the primary manual intervention path that operators will use.
     /// </summary>
     [Fact]
@@ -26,23 +26,20 @@ public class ManualInterventionTests : IntegrationTestBase
         // Wait for progress
         await WaitForProgressAsync(jobId, 4);
 
-        // Disconnect printer
+        // Disconnect printer — transitions job to Disconnected
         await Client.PostAsync($"/api/printers/{printerId}/disconnect", null);
 
-        // Operator pauses the job while disconnected — should succeed using CodesConfirmed fallback
-        await PauseJobAsync(jobId);
-
-        // Verify job is Paused
-        var pausedJob = await GetJobAsync(jobId);
-        Assert.Equal("Paused", pausedJob!.Status);
-        Assert.True(pausedJob.CodesConfirmed >= 4,
-            $"Expected at least 4 confirmed, got {pausedJob.CodesConfirmed}");
+        // Verify job is Disconnected
+        var disconnectedJob = await WaitForJobStatusAsync(jobId, "Disconnected", TimeSpan.FromSeconds(10));
+        Assert.Equal("Disconnected", disconnectedJob.Status);
+        Assert.True(disconnectedJob.CodesConfirmed >= 4,
+            $"Expected at least 4 confirmed, got {disconnectedJob.CodesConfirmed}");
 
         // Reconnect printer
         await Client.PostAsync($"/api/printers/{printerId}/connect", null);
         await SetPrintSpeedAsync(printerId, 50);
 
-        // Resume — should rebuild CSV with remaining codes and continue
+        // Resume from Disconnected — runs full Resume Procedure (CSV rebuild, SPGGTP reconciliation)
         await ResumeJobAsync(jobId);
 
         // Wait for completion

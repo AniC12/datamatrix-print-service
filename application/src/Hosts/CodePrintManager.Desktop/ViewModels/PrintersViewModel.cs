@@ -343,7 +343,7 @@ public partial class PrintersViewModel : ObservableObject
         var printer = SelectedPrinter;
 
         // Warn if printer has active jobs
-        var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused };
+        var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused, JobStatus.Disconnected };
         var hasActiveJobs = await _db.PrintJobs
             .AnyAsync(j => j.PrinterId == printer.Id && activeStatuses.Contains(j.Status));
         if (hasActiveJobs)
@@ -440,7 +440,7 @@ public partial class PrintersViewModel : ObservableObject
         }
 
         // Block deletion if printer has active jobs
-        var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused };
+        var activeStatuses = new[] { JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused, JobStatus.Disconnected };
         var hasActiveJobs = await _db.PrintJobs
             .AnyAsync(j => j.PrinterId == SelectedPrinter.Id && activeStatuses.Contains(j.Status));
         if (hasActiveJobs)
@@ -662,7 +662,7 @@ public partial class PrintersViewModel : ObservableObject
                 .AsNoTracking()
                 .Include(j => j.Product)
                 .Where(j => j.PrinterId == SelectedPrinter.Id &&
-                    (j.Status == JobStatus.Printing || j.Status == JobStatus.Ready || j.Status == JobStatus.Preparing || j.Status == JobStatus.Paused))
+                    (j.Status == JobStatus.Printing || j.Status == JobStatus.Ready || j.Status == JobStatus.Preparing || j.Status == JobStatus.Paused || j.Status == JobStatus.Disconnected))
                 .OrderByDescending(j => j.CreatedAt)
                 .FirstOrDefaultAsync();
 

@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure lower failure threshold for faster test execution (production default: 150)
+builder.Configuration["MaxConsecutiveFailures"] = "10";
+
 // Database: use temp file by default, or configurable
 var dbPath = builder.Configuration["DbPath"]
     ?? Path.Combine(Path.GetTempPath(), $"cpm_test_{Guid.NewGuid():N}.db");

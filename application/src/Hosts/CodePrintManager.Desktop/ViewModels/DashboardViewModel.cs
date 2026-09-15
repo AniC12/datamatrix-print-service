@@ -96,11 +96,12 @@ public partial class DashboardViewModel : ObservableObject
         var sorted = PrinterCards.OrderBy(c => c.JobStatus switch
         {
             JobStatus.Printing => 0,
-            JobStatus.Paused => 1,
-            JobStatus.Error => 2,
-            JobStatus.Ready => 3,
-            JobStatus.Preparing => 4,
-            _ => 5
+            JobStatus.Disconnected => 1,
+            JobStatus.Paused => 2,
+            JobStatus.Error => 3,
+            JobStatus.Ready => 4,
+            JobStatus.Preparing => 5,
+            _ => 6
         }).ToList();
 
         PrinterCards.Clear();
@@ -341,6 +342,7 @@ public class AuditEntryViewModel
         JobStatus.Ready => "JobStatus_Ready",
         JobStatus.Printing => "JobStatus_Printing",
         JobStatus.Paused => "JobStatus_Paused",
+        JobStatus.Disconnected => "JobStatus_Disconnected",
         JobStatus.Completed => "JobStatus_Completed",
         JobStatus.Cancelled => "JobStatus_Cancelled",
         JobStatus.Error => "JobStatus_Error",

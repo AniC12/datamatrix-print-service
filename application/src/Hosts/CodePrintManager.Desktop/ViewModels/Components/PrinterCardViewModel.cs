@@ -82,7 +82,8 @@ public partial class PrinterCardViewModel : ObservableObject
         IsActive = job.Status is Domain.Enums.JobStatus.Printing
             or Domain.Enums.JobStatus.Ready
             or Domain.Enums.JobStatus.Preparing
-            or Domain.Enums.JobStatus.Paused;
+            or Domain.Enums.JobStatus.Paused
+            or Domain.Enums.JobStatus.Disconnected;
 
         UpdateDerivedProperties();
         UpdateSummaryText(job.Status);
@@ -96,7 +97,8 @@ public partial class PrinterCardViewModel : ObservableObject
         IsActive = value is Domain.Enums.JobStatus.Printing
             or Domain.Enums.JobStatus.Ready
             or Domain.Enums.JobStatus.Preparing
-            or Domain.Enums.JobStatus.Paused;
+            or Domain.Enums.JobStatus.Paused
+            or Domain.Enums.JobStatus.Disconnected;
         UpdateSummaryText(value);
     }
 
@@ -123,6 +125,7 @@ public partial class PrinterCardViewModel : ObservableObject
             Domain.Enums.JobStatus.Completed => _loc.Format("Status_CompletedDate", CompletedAt!),
             Domain.Enums.JobStatus.Cancelled => _loc.Format("Status_CancelledDate", CompletedAt!),
             Domain.Enums.JobStatus.Error => _loc["Status_ErrorOccurred"],
+            Domain.Enums.JobStatus.Disconnected => _loc.Format("Status_Disconnected", CurrentJobProgress, CurrentJobTotal),
             _ => null
         };
     }

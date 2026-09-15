@@ -125,7 +125,7 @@ public class PrinterErrorTests : IntegrationTestBase
         // Inject BLOCKED state — executor's polls fail with InvalidOperationException
         await Client.PostAsync($"/api/mock/printers/{printerId}/inject-blocked", null);
 
-        // Wait 2s — executor accumulates failures (below MaxConsecutiveFailures=30)
+        // Wait 2s — executor accumulates failures (below TestHost MaxConsecutiveFailures=10)
         await Task.Delay(2000);
 
         // Clear the blocked state — executor resumes polling successfully

@@ -82,7 +82,7 @@ public static class RecoveryEndpoints
 
                     var powerCycled = (currentCounter == 0 || !csvPresent)
                         && job.TotalBaseline.HasValue
-                        && (job.Status == JobStatus.Printing || job.Status == JobStatus.Ready);
+                        && (job.Status == JobStatus.Printing || job.Status == JobStatus.Ready || job.Status == JobStatus.Disconnected);
 
                     items.Add(new
                     {

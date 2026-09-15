@@ -95,7 +95,8 @@ public static class PrinterEndpoints
                 .Where(j => j.PrinterId == id &&
                     (j.Status == CodePrintManager.Domain.Enums.JobStatus.Printing ||
                      j.Status == CodePrintManager.Domain.Enums.JobStatus.Ready ||
-                     j.Status == CodePrintManager.Domain.Enums.JobStatus.Paused))
+                     j.Status == CodePrintManager.Domain.Enums.JobStatus.Paused ||
+                     j.Status == CodePrintManager.Domain.Enums.JobStatus.Disconnected))
                 .OrderByDescending(j => j.CreatedAt)
                 .FirstOrDefaultAsync();
 

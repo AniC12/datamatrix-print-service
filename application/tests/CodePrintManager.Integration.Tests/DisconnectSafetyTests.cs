@@ -128,7 +128,7 @@ public class DisconnectSafetyTests : IntegrationTestBase
     }
 
     // ──────────────────────────────────────────────
-    // CRIT-1: Pause while printer is disconnected
+    // CRIT-1: Disconnect transitions job to Disconnected with preserved CodesConfirmed
     // ──────────────────────────────────────────────
 
     [Fact]
@@ -153,25 +153,18 @@ public class DisconnectSafetyTests : IntegrationTestBase
         var midJob = await Client.GetFromJsonAsync<JobResult>($"/api/jobs/{job.Id}");
         var confirmedBeforeDisconnect = midJob!.CodesConfirmed;
 
-        // Disconnect printer
+        // Disconnect printer — transitions job to Disconnected immediately
         await Client.PostAsync($"/api/printers/{printerId}/disconnect", null);
-        await Task.Delay(300);
 
-        // Pause the job while printer is disconnected
-        // This should succeed using CodesConfirmed fallback (not throw)
-        var pauseResp = await Client.PostAsync($"/api/jobs/{job.Id}/pause", null);
-        pauseResp.EnsureSuccessStatusCode();
-        await Task.Delay(300);
-
-        // Verify job is Paused (not Error or stuck in Printing)
-        var finalJob = await Client.GetFromJsonAsync<JobResult>($"/api/jobs/{job.Id}");
-        Assert.Equal("Paused", finalJob!.Status);
+        // Verify job is Disconnected (not Error or stuck in Printing)
+        var finalJob = await WaitForJobStatusAsync(job.Id, "Disconnected", TimeSpan.FromSeconds(10));
+        Assert.Equal("Disconnected", finalJob.Status);
 
         // CodesConfirmed should be at least what we observed before disconnect
         Assert.True(finalJob.CodesConfirmed >= confirmedBeforeDisconnect,
             $"CodesConfirmed regressed: was {confirmedBeforeDisconnect}, now {finalJob.CodesConfirmed}");
 
-        // No codes stuck in Reserved beyond what's expected for a paused job
+        // No codes stuck in Reserved beyond what's expected for a disconnected job
         var stats = await Client.GetFromJsonAsync<ProductDetailResult>($"/api/products/{productId}");
         Assert.NotNull(stats?.PoolStats);
         var total = stats.PoolStats.Values.Sum();

@@ -10,6 +10,7 @@ namespace CodePrintManager.Application.Services;
 public class ActiveJobRegistry
 {
     private readonly ConcurrentDictionary<int, JobExecutor> _executors = new();
+    private readonly ConcurrentDictionary<int, IDisposable> _executorScopes = new();
     private readonly ConcurrentDictionary<int, ReadyWatcher> _watchers = new();
     private readonly ConcurrentDictionary<int, SemaphoreSlim> _printerLocks = new();
     private readonly ILogger<ActiveJobRegistry> _logger;
@@ -29,10 +30,12 @@ public class ActiveJobRegistry
 
     // --- Executors ---
 
-    public void Register(int jobId, JobExecutor executor)
+    public void Register(int jobId, JobExecutor executor, IDisposable? scope = null)
     {
         _logger.LogTrace("-> Register(jobId={JobId}, executor={Executor})", jobId, executor);
         _executors[jobId] = executor;
+        if (scope != null)
+            _executorScopes[jobId] = scope;
         _logger.LogTrace("<- Register");
     }
 
@@ -48,6 +51,11 @@ public class ActiveJobRegistry
     {
         _logger.LogTrace("-> TryRemove(jobId={JobId})", jobId);
         var removed = _executors.TryRemove(jobId, out _);
+        if (_executorScopes.TryRemove(jobId, out var scope))
+        {
+            try { scope.Dispose(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Error disposing executor scope for Job {JobId}", jobId); }
+        }
         _logger.LogTrace("<- TryRemove = {Removed} (key {Status})", removed, removed ? "found" : "not found");
         return removed;
     }
@@ -108,6 +116,13 @@ public class ActiveJobRegistry
         }
         _executors.Clear();
 
+        foreach (var (jobId, scope) in _executorScopes)
+        {
+            try { scope.Dispose(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Error disposing executor scope for Job {JobId}", jobId); }
+        }
+        _executorScopes.Clear();
+
         _logger.LogInformation("StopAllAsync: all executors and watchers stopped");
     }
 
@@ -128,6 +143,11 @@ public class ActiveJobRegistry
                 try { await executor.StopAsync(); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Error stopping executor for Job {JobId}", jobId); }
                 _executors.TryRemove(jobId, out _);
+                if (_executorScopes.TryRemove(jobId, out var scope))
+                {
+                    try { scope.Dispose(); }
+                    catch (Exception ex2) { _logger.LogWarning(ex2, "Error disposing executor scope for Job {JobId}", jobId); }
+                }
                 stoppedJobIds.Add(jobId);
                 _logger.LogDebug("Executor stopped for Job {JobId} (printer disconnect)", jobId);
             }

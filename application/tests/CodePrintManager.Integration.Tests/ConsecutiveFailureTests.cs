@@ -11,6 +11,9 @@ public class ConsecutiveFailureTests : IntegrationTestBase
 {
     // ──────────────────────────────────────────────
     // J1. Prolonged IO failures → MaxConsecutiveFailures → Error
+    // TestHost configures MaxConsecutiveFailures=10 (production=150).
+    // At ~2s retry delay, 10 failures ≈ 20s. We inject 200 to guarantee
+    // the threshold is reached even if some failures are consumed quickly.
     // ──────────────────────────────────────────────
 
     [Fact]
@@ -29,13 +32,13 @@ public class ConsecutiveFailureTests : IntegrationTestBase
         // Wait for 2+ confirmed
         await WaitForProgressAsync(jobId, 2);
 
-        // Inject 100 IO failures (well above MaxConsecutiveFailures=30)
+        // Inject 200 IO failures (well above TestHost MaxConsecutiveFailures=10)
         await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/inject-io-failure",
-            new { Count = 100 });
+            new { Count = 200 });
 
-        // Wait for job to go to Error (may take ~60s because of 2s retry delay)
+        // Wait for job to go to Error (10 failures × ~2s delay = ~20s + margin)
         var errorJob = await WaitForJobStatusAsync(jobId, "Error",
-            TimeSpan.FromSeconds(120));
+            TimeSpan.FromSeconds(60));
 
         // Assert: job status = Error
         Assert.Equal("Error", errorJob.Status);
@@ -68,7 +71,7 @@ public class ConsecutiveFailureTests : IntegrationTestBase
         // Wait for 2+ confirmed
         await WaitForProgressAsync(jobId, 2);
 
-        // Inject 5 IO failures (well below threshold of 30)
+        // Inject 5 IO failures (well below TestHost threshold of 10)
         await Client.PostAsJsonAsync($"/api/mock/printers/{printerId}/inject-io-failure",
             new { Count = 5 });
 

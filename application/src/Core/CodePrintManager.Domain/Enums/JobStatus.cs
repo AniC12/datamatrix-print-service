@@ -6,6 +6,7 @@ public enum JobStatus
     Ready,
     Printing,
     Paused,
+    Disconnected,
     Completed,
     Cancelled,
     Error

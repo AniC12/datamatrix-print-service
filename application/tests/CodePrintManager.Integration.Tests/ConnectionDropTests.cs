@@ -48,13 +48,12 @@ public class ConnectionDropTests : IntegrationTestBase
     }
 
     /// <summary>
-    /// A1b. Prolonged disconnect (adapter removed) → executor cannot reconnect → escalates to Error.
-    /// This tests the degraded path: user-initiated disconnect removes the adapter entirely,
-    /// so TryReconnectAsync returns false (adapter not in dictionary). After 30 consecutive
-    /// failures, the executor quarantines and sets Error.
+    /// A1b. Full disconnect (adapter removed) → job transitions to Disconnected immediately →
+    /// cancel Disconnected job → reconnect → start new job.
+    /// DisconnectAsync stops the executor and transitions the job to Disconnected.
+    /// No waiting for failure escalation — the transition is immediate.
     /// </summary>
     [Fact]
-    [Trait("Category", "Slow")]
     public async Task A1b_ProlongedDisconnect_EscalatesToError_CancelAndRestartNewJob()
     {
         var printerId = await SetupPrinterAsync("A1bPrinter");
@@ -68,23 +67,22 @@ public class ConnectionDropTests : IntegrationTestBase
         // Wait for some progress
         await WaitForProgressAsync(jobId, 3);
 
-        // Full disconnect — removes adapter from PrinterConnectionManager.
-        // TryReconnectAsync will return false because the adapter is gone.
+        // Full disconnect — removes adapter, stops executor, transitions job to Disconnected.
         await Client.PostAsync($"/api/printers/{printerId}/disconnect", null);
 
-        // Wait for job to escalate to Error (30 failures × ~2s delay = ~60s)
-        var job = await WaitForJobStatusAsync(jobId, "Error", TimeSpan.FromSeconds(120));
-        Assert.Equal("Error", job.Status);
+        // Job should transition to Disconnected immediately (no failure escalation needed)
+        var job = await WaitForJobStatusAsync(jobId, "Disconnected", TimeSpan.FromSeconds(10));
+        Assert.Equal("Disconnected", job.Status);
         var confirmed = job.CodesConfirmed;
         Assert.True(confirmed >= 3, $"Expected at least 3 confirmed, got {confirmed}");
 
-        // Cancel the Error job
+        // Cancel the Disconnected job — without adapter, uses CodesConfirmed + quarantine
         await CancelJobAsync(jobId);
 
         // Conservation invariant — all codes accounted for
         var stats = await AssertCodeConservationAsync(productId, 20);
         Assert.Equal(0, stats.Reserved);
-        Assert.True(stats.Quarantined > 0, "Expected quarantined codes from Error escalation");
+        Assert.True(stats.Quarantined >= 1, "Expected quarantined boundary codes from Disconnected cancel");
         Assert.True(stats.Printed >= confirmed, $"Expected at least {confirmed} printed");
 
         // Reconnect and start a new job with remaining available codes
@@ -148,7 +146,8 @@ public class ConnectionDropTests : IntegrationTestBase
     }
 
     /// <summary>
-    /// A3. Operator pauses quickly after disconnect (before 30 failures), then reconnects and resumes.
+    /// A3. Disconnect → job transitions to Disconnected → reconnect → Resume (full Resume Procedure
+    /// with SPGGTP reconciliation) → job completes.
     /// Uses full disconnect (adapter removed) — operator intervention path.
     /// </summary>
     [Fact]
@@ -165,21 +164,18 @@ public class ConnectionDropTests : IntegrationTestBase
         // Wait for some progress
         await WaitForProgressAsync(jobId, 4);
 
-        // Full disconnect (operator action)
+        // Full disconnect (operator action) — transitions to Disconnected
         await Client.PostAsync($"/api/printers/{printerId}/disconnect", null);
-        await Task.Delay(500);
 
-        // Quickly pause before the executor accumulates 30 failures
-        await PauseJobAsync(jobId);
-
-        var pausedJob = await GetJobAsync(jobId);
-        Assert.Equal("Paused", pausedJob!.Status);
+        // Job should be Disconnected immediately
+        var disconnectedJob = await WaitForJobStatusAsync(jobId, "Disconnected", TimeSpan.FromSeconds(10));
+        Assert.Equal("Disconnected", disconnectedJob.Status);
 
         // Reconnect — creates a new adapter
         await Client.PostAsync($"/api/printers/{printerId}/connect", null);
         await SetPrintSpeedAsync(printerId, 50);
 
-        // Resume — should rebuild CSV and continue with the new adapter
+        // Resume from Disconnected — runs full Resume Procedure (CSV rebuild, SPGGTP reconciliation)
         await ResumeJobAsync(jobId);
 
         await WaitForJobStatusAsync(jobId, "Completed", TimeSpan.FromSeconds(30));
@@ -216,7 +212,7 @@ public class ConnectionDropTests : IntegrationTestBase
             new { Count = 3 });
 
         // Wait — the executor should retry through the 3 failures and continue
-        // (3 failures is well below MaxConsecutiveFailures=30)
+        // (3 failures is well below TestHost MaxConsecutiveFailures=10)
         await Task.Delay(3000);
 
         // Job should still be running or close to completion

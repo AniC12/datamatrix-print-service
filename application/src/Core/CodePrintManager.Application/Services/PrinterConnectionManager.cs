@@ -209,6 +209,31 @@ public class PrinterConnectionManager : IDisposable
             _logger.LogWarning("Stopped {Count} executor(s) for printer {PrinterId} on disconnect: jobs [{JobIds}]",
                 stoppedExecutorIds.Count, printerId, string.Join(", ", stoppedExecutorIds));
 
+        // Transition orphaned Printing jobs to Disconnected — printer state is unknown.
+        foreach (var jobId in stoppedExecutorIds)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var job = await db.PrintJobs.Include(j => j.Printer).FirstOrDefaultAsync(j => j.Id == jobId);
+                if (job != null && job.Status == JobStatus.Printing)
+                {
+                    job.Status = JobStatus.Disconnected;
+                    await db.SaveChangesAsync();
+                    _logger.LogWarning("Job {JobId} → Disconnected (printer {PrinterId} disconnect)", jobId, printerId);
+                    _alerts.Raise(AlertSeverity.Warning,
+                        job.Printer?.Name ?? $"Printer {printerId}",
+                        $"Job #{jobId} disconnected — printer state unknown. Reconnect to resume or cancel.",
+                        printerId: printerId, jobId: jobId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to transition Job {JobId} to Disconnected on printer disconnect", jobId);
+            }
+        }
+
         if (_reconnectCts.TryRemove(printerId, out var cts))
         {
             _logger.LogDebug("Cancelling reconnect loop for printer {PrinterId}", printerId);

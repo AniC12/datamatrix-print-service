@@ -6,6 +6,7 @@ using CodePrintManager.Domain.Enums;
 using CodePrintManager.Domain.Events;
 using CodePrintManager.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog.Context;
@@ -24,6 +25,7 @@ public class PrintJobService : IPrintJobService
     private readonly ActiveJobRegistry _jobRegistry;
     private readonly JobEventBus _eventBus;
     private readonly IServiceScopeFactory? _scopeFactory;
+    private readonly int _maxConsecutiveFailures;
 
     public event EventHandler<JobProgressChangedEvent>? JobProgressChanged;
     public event EventHandler<JobCompletedEvent>? JobCompleted;
@@ -38,7 +40,8 @@ public class PrintJobService : IPrintJobService
         ILocalizationService loc,
         ActiveJobRegistry jobRegistry,
         JobEventBus eventBus,
-        IServiceScopeFactory? scopeFactory = null)
+        IServiceScopeFactory? scopeFactory = null,
+        IConfiguration? configuration = null)
     {
         _db = db;
         _codePool = codePool;
@@ -50,11 +53,13 @@ public class PrintJobService : IPrintJobService
         _jobRegistry = jobRegistry;
         _eventBus = eventBus;
         _scopeFactory = scopeFactory;
+        var thresholdStr = configuration?["MaxConsecutiveFailures"];
+        _maxConsecutiveFailures = int.TryParse(thresholdStr, out var parsed) ? parsed : 150;
     }
 
     private static readonly JobStatus[] ActiveStatuses =
     {
-        JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused
+        JobStatus.Preparing, JobStatus.Ready, JobStatus.Printing, JobStatus.Paused, JobStatus.Disconnected
     };
 
     public async Task<PrintJob> CreateJobAsync(int productId, int printerId, int quantity)
@@ -353,7 +358,8 @@ public class PrintJobService : IPrintJobService
 
             var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
                 counterOffset: initialOffset,
-                tryReconnect: (pid, ct) => _connectionManager.TryReconnectAsync(pid, ct));
+                tryReconnect: (pid, ct) => _connectionManager.TryReconnectAsync(pid, ct),
+                maxConsecutiveFailures: _maxConsecutiveFailures);
             executor.ProgressChanged += (_, e) =>
             {
                 _eventBus.RaiseProgressChanged(this, e);
@@ -362,7 +368,6 @@ public class PrintJobService : IPrintJobService
             executor.Completed += (_, e) =>
             {
                 _jobRegistry.TryRemove(jobId);
-                executorScope?.Dispose();
                 _eventBus.RaiseCompleted(this, e);
                 JobCompleted?.Invoke(this, e);
             };
@@ -372,7 +377,7 @@ public class PrintJobService : IPrintJobService
                 try { _connectionManager.NotifyConnectionLost(printerId); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
             };
-            _jobRegistry.Register(jobId, executor);
+            _jobRegistry.Register(jobId, executor, executorScope);
             _logger.LogDebug("Job {JobId} executor spawned (scopeFactory={HasScope}, counterOffset={Offset})",
                 jobId, _scopeFactory != null, -currentCounterBaseline);
             executor.Start();
@@ -536,6 +541,74 @@ public class PrintJobService : IPrintJobService
                 // of Reserved status, so the remaining Reserved set IS the unprinted codes.
                 if (job.CodesConfirmed < job.Quantity)
                     await _codePool.ReturnCodesToPoolAsync(jobId, 0, job.Quantity - job.CodesConfirmed);
+            }
+            else if (job.Status == JobStatus.Disconnected)
+            {
+                // Disconnected: counter was not reconciled, printer may still be running.
+                // If adapter is available (operator reconnected), use SPGGTP for better accuracy.
+                var disconnectedHandled = false;
+                var adapter = _connectionManager.GetAdapter(job.PrinterId);
+                if (adapter != null)
+                {
+                    try
+                    {
+                        await adapter.StopPrintAsync();
+                        _logger.LogDebug("CancelJobAsync: stopped printer for Disconnected job {JobId}", jobId);
+
+                        var lifetimeCounter = await adapter.GetTotalCounterAsync();
+                        var dcEffective = job.TotalBaseline.HasValue
+                            ? lifetimeCounter - job.TotalBaseline.Value
+                            : job.CodesConfirmed;
+
+                        // Clamp: same safety logic as Printing cancel
+                        if (dcEffective < 0 || dcEffective < job.CodesConfirmed)
+                            dcEffective = job.CodesConfirmed;
+                        if (dcEffective > job.Quantity)
+                            dcEffective = job.Quantity;
+
+                        _logger.LogDebug(
+                            "CancelJobAsync Disconnected: SPGGTP={Lifetime}, TotalBaseline={Baseline}, effectivePrinted={Effective}, confirmed={Confirmed}",
+                            lifetimeCounter, job.TotalBaseline, dcEffective, job.CodesConfirmed);
+
+                        if (dcEffective > job.CodesConfirmed)
+                            await _codePool.MarkCodesPrintedAsync(jobId, job.CodesConfirmed, dcEffective);
+
+                        var dcMargin = job.Printer?.QuarantineMargin ?? 1;
+                        var dcQuarantine = Math.Min(dcMargin, job.Quantity - dcEffective);
+                        if (dcQuarantine > 0)
+                            await _codePool.QuarantineCodesAsync(jobId, dcEffective, dcQuarantine);
+
+                        var dcRemaining = job.Quantity - dcEffective - dcQuarantine;
+                        if (dcRemaining > 0)
+                            await _codePool.ReturnCodesToPoolAsync(jobId, 0, dcRemaining);
+
+                        disconnectedHandled = true;
+                    }
+                    catch (Exception ex) when (ex is IOException or SocketException or InvalidOperationException)
+                    {
+                        _logger.LogWarning(ex,
+                            "CancelJobAsync: I/O failed for Disconnected Job {JobId}, falling back to CodesConfirmed",
+                            jobId);
+                    }
+                }
+
+                if (!disconnectedHandled)
+                {
+                    // Fallback: no adapter or I/O failed — use CodesConfirmed + quarantine boundary
+                    _logger.LogWarning(
+                        "CancelJobAsync: Disconnected Job {JobId} cancelled without adapter. " +
+                        "CodesConfirmed={Confirmed}, quarantining boundary.",
+                        jobId, job.CodesConfirmed);
+                    var remaining = job.Quantity - job.CodesConfirmed;
+                    if (remaining > 0)
+                    {
+                        var margin = Math.Max(1, job.Printer?.QuarantineMargin ?? 1);
+                        var toQuarantine = Math.Min(margin, remaining);
+                        await _codePool.QuarantineCodesAsync(jobId, job.CodesConfirmed, toQuarantine);
+                        if (remaining - toQuarantine > 0)
+                            await _codePool.ReturnCodesToPoolAsync(jobId, 0, remaining - toQuarantine);
+                    }
+                }
             }
             else if (job.Status == JobStatus.Error)
             {
@@ -724,7 +797,8 @@ public class PrintJobService : IPrintJobService
             .Where(j => j.Status == JobStatus.Preparing
                      || j.Status == JobStatus.Ready
                      || j.Status == JobStatus.Printing
-                     || j.Status == JobStatus.Paused)
+                     || j.Status == JobStatus.Paused
+                     || j.Status == JobStatus.Disconnected)
             .OrderByDescending(j => j.CreatedAt)
             .ToListAsync();
         _logger.LogTrace("<- GetActiveJobsAsync = {Count} jobs", result.Count);
@@ -760,7 +834,8 @@ public class PrintJobService : IPrintJobService
             .Where(j => j.Status == JobStatus.Preparing
                      || j.Status == JobStatus.Ready
                      || j.Status == JobStatus.Printing
-                     || j.Status == JobStatus.Paused)
+                     || j.Status == JobStatus.Paused
+                     || j.Status == JobStatus.Disconnected)
             .ToListAsync();
         _logger.LogTrace("<- GetStaleJobsAsync = {Count} stale jobs", result.Count);
         return result;
@@ -790,13 +865,13 @@ public class PrintJobService : IPrintJobService
         // Crash recovery: a Printing job with no running executor means the app
         // crashed while the job was active. Transition to Paused so the resume
         // procedure can handle it safely (CodesConfirmed is preserved).
-        if (job.Status == JobStatus.Printing)
+        if (job.Status is JobStatus.Printing or JobStatus.Disconnected)
         {
             if (_jobRegistry.TryGet(jobId, out var existingExec) && existingExec != null)
                 throw new InvalidOperationException(_loc["Error_JobStillRunning"]);
             _logger.LogWarning(
-                "ResumeJobAsync: Job {JobId} was Printing but has no executor (crash recovery). " +
-                "Transitioning to Paused.", jobId);
+                "ResumeJobAsync: Job {JobId} was {Status} but has no executor. Transitioning to Paused.",
+                jobId, job.Status);
             job.Status = JobStatus.Paused;
             await _db.SaveChangesAsync(ct);
         }
@@ -929,7 +1004,8 @@ public class PrintJobService : IPrintJobService
 
             var executor = new JobExecutor(job, adapter, executorCodePool, _alerts, executorDb, _logger, _loc,
                 counterOffset: counterOffset,
-                tryReconnect: (pid, ct) => _connectionManager.TryReconnectAsync(pid, ct));
+                tryReconnect: (pid, ct) => _connectionManager.TryReconnectAsync(pid, ct),
+                maxConsecutiveFailures: _maxConsecutiveFailures);
             executor.ProgressChanged += (_, e) =>
             {
                 _eventBus.RaiseProgressChanged(this, e);
@@ -938,7 +1014,6 @@ public class PrintJobService : IPrintJobService
             executor.Completed += (_, e) =>
             {
                 _jobRegistry.TryRemove(jobId);
-                executorScope?.Dispose();
                 _eventBus.RaiseCompleted(this, e);
                 JobCompleted?.Invoke(this, e);
             };
@@ -948,7 +1023,7 @@ public class PrintJobService : IPrintJobService
                 try { _connectionManager.NotifyConnectionLost(printerId); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
             };
-            _jobRegistry.Register(jobId, executor);
+            _jobRegistry.Register(jobId, executor, executorScope);
             executor.Start();
 
             await _audit.LogAsync("job_resumed", jobId: jobId, printerId: job.PrinterId,
@@ -1121,7 +1196,8 @@ public class PrintJobService : IPrintJobService
             .Where(j => j.Status == JobStatus.Preparing
                      || j.Status == JobStatus.Ready
                      || j.Status == JobStatus.Printing
-                     || j.Status == JobStatus.Paused)
+                     || j.Status == JobStatus.Paused
+                     || j.Status == JobStatus.Disconnected)
             .ToListAsync(ct);
 
         if (staleJobs.Count == 0)
@@ -1158,6 +1234,16 @@ public class PrintJobService : IPrintJobService
                         // from the Jobs tab.
                         _logger.LogInformation(
                             "Recovery: Paused job #{JobId} left as Paused — operator can Resume or Cancel.",
+                            job.Id);
+                        break;
+
+                    case JobStatus.Disconnected:
+                        // Job was disconnected before shutdown. Leave as Disconnected —
+                        // operator must reconnect printer and Resume or Cancel manually.
+                        // Do NOT auto-spawn an executor: printer state is unknown.
+                        _logger.LogInformation(
+                            "Recovery: Disconnected job #{JobId} left as Disconnected — " +
+                            "operator must reconnect printer and Resume or Cancel.",
                             job.Id);
                         break;
                 }
@@ -1257,7 +1343,8 @@ public class PrintJobService : IPrintJobService
             counterOffset: counterOffset,
             tryReconnect: (pid, innerCt) => _connectionManager.TryReconnectAsync(pid, innerCt),
             previousCounter: previousCounter,
-            lastKnownLifetime: lastKnownLifetime);
+            lastKnownLifetime: lastKnownLifetime,
+            maxConsecutiveFailures: _maxConsecutiveFailures);
 
         // The executor starts with _needsInspection = false, but the first poll will
         // trigger an IOException (if printer is offline) or read counters (if online).
@@ -1276,7 +1363,6 @@ public class PrintJobService : IPrintJobService
         executor.Completed += (_, e) =>
         {
             _jobRegistry.TryRemove(job.Id);
-            executorScope?.Dispose();
             _eventBus.RaiseCompleted(this, e);
             JobCompleted?.Invoke(this, e);
         };
@@ -1286,7 +1372,7 @@ public class PrintJobService : IPrintJobService
             try { _connectionManager.NotifyConnectionLost(printerId); }
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to notify connection loss for printer {PrinterId}", printerId); }
         };
-        _jobRegistry.Register(job.Id, executor);
+        _jobRegistry.Register(job.Id, executor, executorScope);
         executor.Start();
 
         _logger.LogInformation(

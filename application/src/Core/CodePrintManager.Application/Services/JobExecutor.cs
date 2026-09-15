@@ -38,8 +38,9 @@ public class JobExecutor
     /// At ~2s per failure (inspection retry delay), 150 failures ≈ 5 minutes.
     /// This gives the reconnect loop ample time to restore the connection
     /// after a cable pull before the job is escalated to Error.
+    /// Configurable via constructor for testability (default 150).
     /// </summary>
-    private const int MaxConsecutiveFailures = 150;
+    private readonly int _maxConsecutiveFailures;
 
     public event EventHandler<JobProgressChangedEvent>? ProgressChanged;
     public event EventHandler<JobCompletedEvent>? Completed;
@@ -77,7 +78,8 @@ public class JobExecutor
         int counterOffset = 0,
         Func<int, CancellationToken, Task<bool>>? tryReconnect = null,
         int? previousCounter = null,
-        int? lastKnownLifetime = null)
+        int? lastKnownLifetime = null,
+        int maxConsecutiveFailures = 150)
     {
         _job = job;
         _adapter = adapter;
@@ -88,6 +90,7 @@ public class JobExecutor
         _loc = loc;
         _counterOffset = counterOffset;
         _tryReconnect = tryReconnect;
+        _maxConsecutiveFailures = maxConsecutiveFailures;
         if (previousCounter.HasValue)
             _previousCounter = previousCounter.Value;
         if (lastKnownLifetime.HasValue)
@@ -172,9 +175,9 @@ public class JobExecutor
 
                         _logger.LogWarning(ex,
                             "Job {JobId}: inspection failed ({Failures}/{Max}). Will retry on next poll.",
-                            _job.Id, _consecutiveFailures, MaxConsecutiveFailures);
+                            _job.Id, _consecutiveFailures, _maxConsecutiveFailures);
 
-                        if (_consecutiveFailures >= MaxConsecutiveFailures)
+                        if (_consecutiveFailures >= _maxConsecutiveFailures)
                         {
                             _logger.LogError(
                                 "Job {JobId}: {Failures} consecutive inspection failures — escalating to Error",
@@ -326,7 +329,7 @@ public class JobExecutor
                     _connectionLostNotified = true;
                     ConnectionLost?.Invoke(this, _job.PrinterId);
                 }
-                if (_consecutiveFailures >= MaxConsecutiveFailures)
+                if (_consecutiveFailures >= _maxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
                         _job.Id, _consecutiveFailures);
@@ -351,7 +354,7 @@ public class JobExecutor
                 // regardless of whether reconnection would succeed. This handles cases
                 // where ConnectAsync succeeds but subsequent commands still fail (e.g.,
                 // firmware crash, persistent protocol errors).
-                if (_consecutiveFailures >= MaxConsecutiveFailures)
+                if (_consecutiveFailures >= _maxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
                         _job.Id, _consecutiveFailures);
@@ -386,7 +389,7 @@ public class JobExecutor
                     deduplicationKey: "format_error");
                 _needsInspection = true;
                 _consecutiveFailures++;
-                if (_consecutiveFailures >= MaxConsecutiveFailures)
+                if (_consecutiveFailures >= _maxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
                         _job.Id, _consecutiveFailures);
@@ -401,7 +404,7 @@ public class JobExecutor
             {
                 _logger.LogError(ex, "Job {JobId} UNEXPECTED ERROR on poll #{Cycle}", _job.Id, _pollCycleCount);
                 _consecutiveFailures++;
-                if (_consecutiveFailures >= MaxConsecutiveFailures)
+                if (_consecutiveFailures >= _maxConsecutiveFailures)
                 {
                     _logger.LogError("Job {JobId}: {Failures} consecutive poll failures — escalating to Error",
                         _job.Id, _consecutiveFailures);
@@ -472,22 +475,15 @@ public class JobExecutor
         string? activeTemplate;
         string? serialNumber;
 
-        try
-        {
-            status = await _adapter.GetStatusAsync(ct);
-            currentCounter = await _adapter.GetCurrentCounterAsync(ct);
-            lifetimeCounter = await _adapter.GetTotalCounterAsync(ct);
-            activeTemplate = await _adapter.GetActiveTemplateAsync(ct);
-            serialNumber = await _adapter.GetSerialNumberAsync(ct);
-        }
-        catch (IOException ex)
-        {
-            _logger.LogWarning(ex,
-                "Job {JobId}: inspection failed (connection lost again). Will retry on next reconnect.",
-                _job.Id);
-            _needsInspection = true;
-            return true; // Keep polling — the next IOException will trigger another retry
-        }
+        // If any read fails (IOException, InvalidOperationException, etc.), the exception
+        // propagates to the caller's catch block in PollLoopAsync, which increments
+        // _consecutiveFailures and checks the failure threshold. This ensures persistent
+        // connection loss during inspection correctly escalates to Error.
+        status = await _adapter.GetStatusAsync(ct);
+        currentCounter = await _adapter.GetCurrentCounterAsync(ct);
+        lifetimeCounter = await _adapter.GetTotalCounterAsync(ct);
+        activeTemplate = await _adapter.GetActiveTemplateAsync(ct);
+        serialNumber = await _adapter.GetSerialNumberAsync(ct);
 
         _logger.LogInformation(
             "Job {JobId} inspection: status={Status}, SPGGCP={Counter}, SPGGTP={Lifetime}, template={Template}, serial={Serial}",
