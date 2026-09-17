@@ -9,6 +9,7 @@ using CodePrintManager.Domain.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using Velopack;
 
 namespace CodePrintManager.Desktop.ViewModels;
 
@@ -24,6 +25,7 @@ public partial class MainViewModel : ObservableObject
     private readonly AppDbContext _db;
     private readonly ILogger<MainViewModel> _logger;
     private readonly ILocalizationService _loc;
+    private readonly UpdateService _updateService;
 
     [ObservableProperty]
     private ObservableObject? _currentView;
@@ -44,6 +46,24 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private LanguageOption? _selectedLanguage;
 
+    // Update state
+    private UpdateInfo? _pendingUpdate;
+
+    [ObservableProperty]
+    private string? _updateAvailableVersion;
+
+    [ObservableProperty]
+    private bool _isUpdateChecking;
+
+    [ObservableProperty]
+    private bool _isUpdateDownloading;
+
+    [ObservableProperty]
+    private int _updateProgress;
+
+    [ObservableProperty]
+    private string? _updateStatusMessage;
+
     private readonly DashboardViewModel _dashboard;
     private readonly ProductsViewModel _products;
     private readonly PrintersViewModel _printers;
@@ -58,6 +78,7 @@ public partial class MainViewModel : ObservableObject
         PrintersViewModel printers,
         JobsViewModel jobs,
         NewJobViewModel newJob,
+        UpdateService updateService,
         ILogger<MainViewModel> logger,
         ILocalizationService loc)
     {
@@ -65,6 +86,7 @@ public partial class MainViewModel : ObservableObject
         _db = db;
         _logger = logger;
         _loc = loc;
+        _updateService = updateService;
 
         _logger.LogTrace("-> MainViewModel()");
 
@@ -90,6 +112,9 @@ public partial class MainViewModel : ObservableObject
         _newJob.NavigateToJobRequested += (_, jobId) => NavigateToJobDetail(jobId);
 
         CurrentView = _dashboard;
+
+        // Silent background update check on startup
+        _ = CheckForUpdateSilentlyAsync();
 
         _logger.LogTrace("<- MainViewModel()");
     }
@@ -313,6 +338,109 @@ public partial class MainViewModel : ObservableObject
             _logger.LogWarning(ex, "Failed to save language to config");
         }
         _logger.LogTrace("<- SaveLanguageAsync()");
+    }
+
+    // ── Updates ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Silent startup check — no UI feedback on failure.
+    /// </summary>
+    private async Task CheckForUpdateSilentlyAsync()
+    {
+        try
+        {
+            var update = await _updateService.CheckForUpdateAsync();
+            if (update != null)
+            {
+                _pendingUpdate = update;
+                var ver = update.TargetFullRelease.Version.ToString();
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    UpdateAvailableVersion = ver;
+                    UpdateStatusMessage = _loc.Format("Update_Available", ver);
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Silent update check failed — ignored");
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdateAsync()
+    {
+        _logger.LogTrace("-> CheckForUpdateAsync()");
+        IsUpdateChecking = true;
+        UpdateStatusMessage = _loc["Update_Checking"];
+        UpdateAvailableVersion = null;
+        _pendingUpdate = null;
+
+        try
+        {
+            var update = await _updateService.CheckForUpdateAsync();
+            if (update != null)
+            {
+                _pendingUpdate = update;
+                var ver = update.TargetFullRelease.Version.ToString();
+                UpdateAvailableVersion = ver;
+                UpdateStatusMessage = _loc.Format("Update_Available", ver);
+            }
+            else
+            {
+                UpdateStatusMessage = _loc["Update_UpToDate"];
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Update check failed");
+            UpdateStatusMessage = _loc["Update_CheckFailed"];
+        }
+        finally
+        {
+            IsUpdateChecking = false;
+        }
+        _logger.LogTrace("<- CheckForUpdateAsync()");
+    }
+
+    [RelayCommand]
+    private async Task DownloadAndApplyUpdateAsync()
+    {
+        if (_pendingUpdate == null) return;
+
+        _logger.LogTrace("-> DownloadAndApplyUpdateAsync()");
+
+        // Safety gate: check for active print jobs
+        if (!await _updateService.CanApplyUpdateAsync())
+        {
+            UpdateStatusMessage = _loc["Update_ActiveJobsWarning"];
+            _logger.LogInformation("Update deferred — active print jobs exist");
+            return;
+        }
+
+        IsUpdateDownloading = true;
+        UpdateProgress = 0;
+
+        try
+        {
+            await _updateService.DownloadUpdateAsync(_pendingUpdate, progress =>
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    UpdateProgress = progress;
+                    UpdateStatusMessage = _loc.Format("Update_Downloading", progress);
+                });
+            });
+
+            _updateService.ApplyAndRestart(_pendingUpdate);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to download/apply update");
+            UpdateStatusMessage = _loc["Update_CheckFailed"];
+            IsUpdateDownloading = false;
+        }
+        _logger.LogTrace("<- DownloadAndApplyUpdateAsync()");
     }
 }
 

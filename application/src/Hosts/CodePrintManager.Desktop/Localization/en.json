@@ -401,5 +401,14 @@
 
   "Error_InsufficientDiskSpace": "Insufficient disk space. Free up space before creating new jobs.",
   "Alert_System": "System",
-  "Alert_LowDiskSpace": "Disk space is running low. Consider freeing up space."
+  "Alert_LowDiskSpace": "Disk space is running low. Consider freeing up space.",
+
+  "Update_CheckButton": "Check for updates",
+  "Update_Checking": "Checking...",
+  "Update_Available": "Update available: v{0}",
+  "Update_Install": "Install & Restart",
+  "Update_Downloading": "Downloading update... {0}%",
+  "Update_ActiveJobsWarning": "Please finish or cancel active print jobs before updating.",
+  "Update_CheckFailed": "Could not check for updates.",
+  "Update_UpToDate": "You are on the latest version."
 }

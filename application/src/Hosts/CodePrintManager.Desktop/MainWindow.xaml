@@ -69,6 +69,34 @@
                           ItemsSource="{Binding AvailableLanguages}"
                           SelectedItem="{Binding SelectedLanguage}"
                           DisplayMemberPath="DisplayName" />
+
+                <!-- Update section -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="16,0,16,8">
+                    <!-- Status message -->
+                    <TextBlock Text="{Binding UpdateStatusMessage}" TextWrapping="Wrap"
+                               Foreground="{StaticResource SidebarForeground}" FontSize="11"
+                               Opacity="0.85" Margin="0,0,0,4"
+                               Visibility="{Binding UpdateStatusMessage, Converter={StaticResource StringNotEmptyToVisibilityConverter}}" />
+
+                    <!-- Download progress bar -->
+                    <ProgressBar Value="{Binding UpdateProgress}" Minimum="0" Maximum="100"
+                                 Height="4" Margin="0,0,0,4"
+                                 Visibility="{Binding IsUpdateDownloading, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                    <!-- Install & Restart button (visible when update is downloaded or available) -->
+                    <Button Content="{loc:Loc Update_Install}"
+                            Command="{Binding DownloadAndApplyUpdateCommand}"
+                            Padding="8,4" Margin="0,0,0,4" Cursor="Hand"
+                            Visibility="{Binding UpdateAvailableVersion, Converter={StaticResource StringNotEmptyToVisibilityConverter}}" />
+
+                    <!-- Check for updates button -->
+                    <Button Content="{loc:Loc Update_CheckButton}"
+                            Command="{Binding CheckForUpdateCommand}"
+                            Padding="8,4" Cursor="Hand"
+                            IsEnabled="{Binding IsUpdateChecking, Converter={StaticResource InverseBoolConverter}}"
+                            Foreground="{StaticResource SidebarForeground}" Background="Transparent"
+                            BorderBrush="#4A5568" BorderThickness="1" FontSize="11" />
+                </StackPanel>
             </DockPanel>
         </Border>
 

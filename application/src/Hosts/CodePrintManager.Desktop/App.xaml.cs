@@ -103,6 +103,7 @@ public partial class App : System.Windows.Application
 
                 // Services
                 services.AddSingleton<IDialogService, WpfDialogService>();
+                services.AddSingleton<UpdateService>();
 
                 // ViewModels
                 services.AddTransient<MainViewModel>();
