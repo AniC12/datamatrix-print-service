@@ -8,13 +8,23 @@ For detailed information on all features, see the [Full Reference Manual](manual
 
 ## 1. Install and Launch
 
-1. Copy the **CodePrintManager** folder to your computer (e.g., `C:\CodePrintManager`)
+There are two ways to install. Both are self-contained — no additional software is required.
+
+**Installer (recommended — receives automatic updates)**
+
+1. Run **CodePrintManager-win-Setup.exe**
+2. Launch the application from the Start Menu or desktop shortcut
+
+The installer creates two executables. Always use the one named **CodePrintManager.exe** — it is a small launcher that always starts the current version. The `current\CodePrintManager.Desktop.exe` inside it is the real program and is replaced on every update; do not create shortcuts to it.
+
+**Portable ZIP (no updates)**
+
+1. Extract the ZIP to your computer (e.g., `C:\CodePrintManager`)
 2. Run **CodePrintManager.Desktop.exe**
-3. Done — no installation or additional software required
 
 **Requirements:** Windows 10 or 11 (64-bit), 2 GB RAM, 500 MB free disk space.
 
-On first launch, the application creates its database and log files automatically. You will see the Dashboard screen with no data yet.
+On first launch, the application creates its database and log files automatically. You will see the Dashboard screen with no data yet. See [Backing Up Your Data](manual-en.md#backing-up-your-data) for where these files are stored.
 
 ---
 

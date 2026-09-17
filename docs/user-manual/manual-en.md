@@ -144,13 +144,26 @@ After import, the **Code Pool** section shows the updated counts. The **Operatio
 
 ### Backing Up Your Data
 
-The application stores everything in a local database. To back up your data, copy these three files from the application folder:
+The application stores everything in a local database. Where it lives depends on how you installed the application:
+
+| Installation type | Data folder |
+| --- | --- |
+| Installed with `Setup.exe` | `%LocalAppData%\CodePrintManagerData` |
+| Portable (extracted ZIP) | The folder you extracted the application into |
+
+Paste `%LocalAppData%\CodePrintManagerData` into the Windows Explorer address bar to open it. The exact path is also written at the top of every log file as `DataDir`.
+
+To back up your data, copy these three files from the data folder:
 
 - `codeprintmanager.db`
 - `codeprintmanager.db-shm` (if it exists)
 - `codeprintmanager.db-wal` (if it exists)
 
 To restore, copy them back. Make sure the application is closed first.
+
+The data folder also holds a `backups\` subfolder — the application automatically saves a snapshot of the database each time it starts, keeping the last five.
+
+> **Note:** For installed builds the data folder is deliberately kept outside the installation directory so that application updates cannot delete your codes. This also means uninstalling the application leaves `%LocalAppData%\CodePrintManagerData` in place — delete it manually if you want to remove your data as well.
 
 ---
 
@@ -669,15 +682,15 @@ The application does not auto-resume because the printer's state is unknown. See
 
 - Make sure you are running Windows 10 or 11 (64-bit)
 - Try running as Administrator (right-click > Run as administrator)
-- Check the `logs/` folder in the application directory for error details
+- Check the `logs\` folder in the [data folder](#backing-up-your-data) for error details
 
 **"Database is locked" error**
 
 - Make sure only one instance of the application is running
 - Close the application completely
-- Delete `codeprintmanager.db-shm` and `codeprintmanager.db-wal` (the main `.db` file is safe to keep)
+- Delete `codeprintmanager.db-shm` and `codeprintmanager.db-wal` from the [data folder](#backing-up-your-data) (the main `.db` file is safe to keep)
 - Restart the application
 
 **Where are the log files?**
 
-In the `logs/` folder inside the application directory. Log files are organized by date. Send the latest log file when reporting issues to support.
+In the `logs\` folder inside the [data folder](#backing-up-your-data) — `%LocalAppData%\CodePrintManagerData\logs` for installed builds. Log files are organized by date. Send the latest log file when reporting issues to support.

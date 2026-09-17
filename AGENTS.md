@@ -156,6 +156,21 @@ dotnet publish src/Hosts/CodePrintManager.Desktop -c Release -r win-x64 --self-c
 - **Dispatcher.Invoke pitfall**: Never use `Dispatcher.Invoke(async () => ...)` — it creates `async void` and silently swallows exceptions. Use synchronous updates from event data inside Dispatcher callbacks.
 - **`AsNoTracking()` on read-only queries**: Always use `.AsNoTracking()` when querying data that will not be modified (e.g., lookups, projections, display-only reads). This avoids unnecessary change tracking overhead and prevents accidental flushes via `SaveChangesAsync()` on shared DbContext instances.
 
+## File Paths — Program vs Data
+
+The app is distributed via Velopack, which **replaces the entire `current\` folder on every update** and the entire install root on reinstall/uninstall. Never write mutable state next to the binaries.
+
+`AppPaths` (Desktop host) resolves the two directories:
+
+- **`AppPaths.ProgramDir`** = `AppContext.BaseDirectory` — read-only files shipped with the app (`appsettings.json`, `Localization\*.json`).
+- **`AppPaths.DataDir`** — everything writable: `codeprintmanager.db` (+ `-wal`/`-shm`), `backups\`, `logs\`.
+  - Installed build (Velopack layout detected via `current\sq.version` + `..\Update.exe`): `%LocalAppData%\CodePrintManagerData`, outside the install tree so no update/reinstall/uninstall can delete the code database.
+  - Portable / `dotnet run` / plain publish: `ProgramDir`, keeping the folder self-contained.
+
+**Rule:** any new writable file (exports, reports, caches, crash dumps) must be placed under `AppPaths.DataDir`, never `AppContext.BaseDirectory`. `DbInitializer` derives `backups\` from the DB path, so it follows automatically.
+
+The startup banner logs `AppDir`, `DataDir` and `Installed` — check these first when diagnosing "my data disappeared" reports.
+
 ## Localization
 
 The application supports multi-language UI (English, Russian, Armenian). All user-facing text must be localized.

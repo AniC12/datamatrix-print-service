@@ -32,8 +32,11 @@ public partial class App : System.Windows.Application
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
-        var appDir = AppContext.BaseDirectory;
-        var dbPath = Path.Combine(appDir, "codeprintmanager.db");
+        // appDir holds files shipped with the app; dataDir holds everything writable.
+        // They differ for installed builds — see AppPaths.
+        var appDir = AppPaths.ProgramDir;
+        var dataDir = AppPaths.DataDir;
+        var dbPath = AppPaths.DbPath;
 
         var useMockArg = Environment.GetCommandLineArgs().Contains("--mock");
 
@@ -46,7 +49,7 @@ public partial class App : System.Windows.Application
             .Enrich.WithThreadId()
             .Enrich.WithMachineName()
             .WriteTo.File(
-                Path.Combine(appDir, "logs", "app-.log"),
+                Path.Combine(AppPaths.LogDir, "app-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30,
                 outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [T{ThreadId}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
@@ -63,6 +66,8 @@ public partial class App : System.Windows.Application
         Log.Information("  OS:        {OS}", RuntimeInformation.OSDescription);
         Log.Information("  Machine:   {Machine}", Environment.MachineName);
         Log.Information("  AppDir:    {AppDir}", appDir);
+        Log.Information("  DataDir:   {DataDir}", dataDir);
+        Log.Information("  Installed: {Installed}", AppPaths.IsVelopackInstall);
         Log.Information("  DbPath:    {DbPath}", dbPath);
         Log.Information("  Mode:      {Mode}", useMockArg ? "MOCK PRINTER" : "REAL PRINTER");
         Log.Information("  StartTime: {StartTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
