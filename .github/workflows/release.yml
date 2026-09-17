@@ -45,7 +45,28 @@ jobs:
           # CodePrintManager.Desktop.csproj, and equals -u so that the execution stub and
           # the binary inside current\ are both named CodePrintManager.exe.
           vpk pack -u CodePrintManager -v ${{ steps.version.outputs.version }} -p publish -e CodePrintManager.exe --noPortable
-          vpk upload github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }} --publish --releaseName "Code Print Manager v${{ steps.version.outputs.version }}" --tag v${{ steps.version.outputs.version }}
+
+          # GitHub's release asset API is unreliable for the ~80 MB assets this app
+          # produces, and has failed mid-upload on most releases so far. vpk retries
+          # internally and then gives up, leaving a draft release; on a fresh attempt it
+          # uploads only the assets that are still missing, so retrying is safe and
+          # resumes rather than restarting. Without this, a flaky upload means the
+          # release has to be re-run by hand.
+          $PSNativeCommandUseErrorActionPreference = $false
+          $attempts = 4
+          for ($i = 1; $i -le $attempts; $i++) {
+            vpk upload github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }} --publish --releaseName "Code Print Manager v${{ steps.version.outputs.version }}" --tag v${{ steps.version.outputs.version }}
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "::notice::vpk upload succeeded on attempt $i of $attempts"
+              break
+            }
+            if ($i -eq $attempts) {
+              throw "vpk upload failed after $attempts attempts (last exit code $LASTEXITCODE)"
+            }
+            $wait = 30 * $i
+            Write-Host "::warning::vpk upload attempt $i failed (exit $LASTEXITCODE); retrying in $wait s"
+            Start-Sleep -Seconds $wait
+          }
 
       - name: Update releases repo README
         shell: pwsh
