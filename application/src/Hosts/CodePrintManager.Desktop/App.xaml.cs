@@ -67,7 +67,7 @@ public partial class App : System.Windows.Application
         Log.Information("  Machine:   {Machine}", Environment.MachineName);
         Log.Information("  AppDir:    {AppDir}", appDir);
         Log.Information("  DataDir:   {DataDir}", dataDir);
-        Log.Information("  Installed: {Installed}", AppPaths.IsVelopackInstall);
+        Log.Information("  Installed: {Installed}", AppPaths.IsPackagedBuild);
         Log.Information("  DbPath:    {DbPath}", dbPath);
         Log.Information("  Mode:      {Mode}", useMockArg ? "MOCK PRINTER" : "REAL PRINTER");
         Log.Information("  StartTime: {StartTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));

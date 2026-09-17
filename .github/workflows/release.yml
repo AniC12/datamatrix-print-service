@@ -40,7 +40,11 @@ jobs:
         run: |
           dotnet tool install -g vpk --version 1.2.0
           vpk download github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }}
-          vpk pack -u CodePrintManager -v ${{ steps.version.outputs.version }} -p publish -e CodePrintManager.Desktop.exe
+          # Installer only: --noPortable keeps the portable bundle out of the release so
+          # there is exactly one way to install. -e must match <AssemblyName> in
+          # CodePrintManager.Desktop.csproj, and equals -u so that the execution stub and
+          # the binary inside current\ are both named CodePrintManager.exe.
+          vpk pack -u CodePrintManager -v ${{ steps.version.outputs.version }} -p publish -e CodePrintManager.exe --noPortable
           vpk upload github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }} --publish --releaseName "Code Print Manager v${{ steps.version.outputs.version }}" --tag v${{ steps.version.outputs.version }}
 
       - name: Update releases repo README
@@ -57,16 +61,13 @@ jobs:
 
           ## Download
 
-          **[Download Code Print Manager v${version} (Installer)](https://github.com/AniC12/codeprintmanager-releases/releases/latest/download/CodePrintManager-win-Setup.exe)** - recommended, receives automatic updates.
+          **[Download Code Print Manager v${version}](https://github.com/AniC12/codeprintmanager-releases/releases/latest/download/CodePrintManager-win-Setup.exe)**
 
-          Run the installer, then launch the app from the Start Menu. The installer places a launcher named
-          ``CodePrintManager.exe`` in ``%LocalAppData%\CodePrintManager`` - always use that one, not the
-          ``current\CodePrintManager.Desktop.exe`` inside it (that folder is replaced on every update).
+          Run the installer and launch **Code Print Manager** from the Start Menu. No administrator
+          rights are required, and the application updates itself from then on.
 
-          [Portable ZIP](https://github.com/AniC12/codeprintmanager-releases/releases/latest/download/CodePrintManager-win-Portable.zip) - extract and run ``CodePrintManager.Desktop.exe``. No installation, but no automatic updates.
-
-          Your database, backups and logs are stored in ``%LocalAppData%\CodePrintManagerData`` for installed
-          builds, or alongside the executable for the portable version. Updates never touch them.
+          The program is always called ``CodePrintManager.exe``. Your database, backups and logs are
+          kept separately in ``%LocalAppData%\CodePrintManagerData``, so updates never touch them.
 
           ## All releases
 

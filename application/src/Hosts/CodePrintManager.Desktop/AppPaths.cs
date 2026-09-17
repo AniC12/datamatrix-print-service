@@ -12,6 +12,9 @@ namespace CodePrintManager.Desktop;
 /// reinstall/uninstall, so anything writable stored under the install directory is
 /// destroyed. Since every code in the database is single-use and unrecoverable once
 /// lost, installed builds keep their data outside the install tree entirely.
+///
+/// The app ships as an installer only, so there are exactly two cases to handle:
+/// an installed build and a development run.
 /// </summary>
 internal static class AppPaths
 {
@@ -19,11 +22,12 @@ internal static class AppPaths
     public static string ProgramDir { get; } = AppContext.BaseDirectory;
 
     /// <summary>
-    /// True when running from a Velopack install layout
-    /// (<c>&lt;root&gt;\current\app.exe</c> with <c>&lt;root&gt;\Update.exe</c>).
-    /// False for <c>dotnet run</c>, plain publish folders, and portable extracts.
+    /// True when running from a Velopack package layout
+    /// (<c>&lt;root&gt;\current\app.exe</c> alongside <c>&lt;root&gt;\Update.exe</c>),
+    /// i.e. any build produced by the installer. False for <c>dotnet run</c> and
+    /// plain <c>dotnet publish</c> output during development.
     /// </summary>
-    public static bool IsVelopackInstall { get; } = DetectVelopackInstall();
+    public static bool IsPackagedBuild { get; } = DetectPackagedBuild();
 
     /// <summary>Folder holding the database, its backups and the log files.</summary>
     public static string DataDir { get; } = ResolveDataDir();
@@ -32,7 +36,7 @@ internal static class AppPaths
 
     public static string LogDir => Path.Combine(DataDir, "logs");
 
-    private static bool DetectVelopackInstall()
+    private static bool DetectPackagedBuild()
     {
         // sq.version is written by Velopack into the versioned content folder.
         if (!File.Exists(Path.Combine(ProgramDir, "sq.version")))
@@ -46,8 +50,9 @@ internal static class AppPaths
 
     private static string ResolveDataDir()
     {
-        // Portable / dev: keep everything together so the folder stays self-contained.
-        if (!IsVelopackInstall)
+        // Development only: keep everything next to the binaries so a build output
+        // folder stays self-contained and disposable.
+        if (!IsPackagedBuild)
             return ProgramDir;
 
         // Installed: store outside the install tree so updates, reinstalls and

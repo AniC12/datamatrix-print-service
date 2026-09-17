@@ -8,6 +8,12 @@
     <UseWPF>true</UseWPF>
     <Version>1.0.2</Version>
     <StartupObject>CodePrintManager.Desktop.Program</StartupObject>
+    <!-- FROZEN PUBLIC CONTRACT: this is the shipped executable name. It must stay in
+         sync with the mainExe and packId arguments passed to vpk in
+         .github/workflows/release.yml, so that the Velopack execution stub and the
+         real binary inside current\ carry the same name on every future release.
+         Changing either value renames the exe users launch and breaks shortcuts. -->
+    <AssemblyName>CodePrintManager</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

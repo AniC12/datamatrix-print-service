@@ -156,6 +156,22 @@ dotnet publish src/Hosts/CodePrintManager.Desktop -c Release -r win-x64 --self-c
 - **Dispatcher.Invoke pitfall**: Never use `Dispatcher.Invoke(async () => ...)` — it creates `async void` and silently swallows exceptions. Use synchronous updates from event data inside Dispatcher callbacks.
 - **`AsNoTracking()` on read-only queries**: Always use `.AsNoTracking()` when querying data that will not be modified (e.g., lookups, projections, display-only reads). This avoids unnecessary change tracking overhead and prevents accidental flushes via `SaveChangesAsync()` on shared DbContext instances.
 
+## Distribution
+
+Shipped **installer only** — one artifact, so operators have nothing to choose and no way to end up on a build that cannot update itself. `.github/workflows/release.yml` packs with `--noPortable`; there is no portable ZIP and no hand-rolled packaging script.
+
+Two names are a **frozen public contract** and must always be equal:
+
+| Where | Value |
+| --- | --- |
+| `<AssemblyName>` in `CodePrintManager.Desktop.csproj` | `CodePrintManager` |
+| `vpk pack -u` (packId) | `CodePrintManager` |
+| `vpk pack -e` (mainExe) | `CodePrintManager.exe` |
+
+Velopack names the root execution stub after `packId` and the binary inside `current\` after `mainExe`. Keeping them equal means the executable is `CodePrintManager.exe` in both locations, on every release, forever. Changing either value renames the exe users launch and breaks existing shortcuts — don't.
+
+Note the project is still *named* `CodePrintManager.Desktop` (it is the Desktop host, vs `TestHost`); only the output assembly is renamed. Namespaces are unaffected.
+
 ## File Paths — Program vs Data
 
 The app is distributed via Velopack, which **replaces the entire `current\` folder on every update** and the entire install root on reinstall/uninstall. Never write mutable state next to the binaries.
@@ -164,8 +180,8 @@ The app is distributed via Velopack, which **replaces the entire `current\` fold
 
 - **`AppPaths.ProgramDir`** = `AppContext.BaseDirectory` — read-only files shipped with the app (`appsettings.json`, `Localization\*.json`).
 - **`AppPaths.DataDir`** — everything writable: `codeprintmanager.db` (+ `-wal`/`-shm`), `backups\`, `logs\`.
-  - Installed build (Velopack layout detected via `current\sq.version` + `..\Update.exe`): `%LocalAppData%\CodePrintManagerData`, outside the install tree so no update/reinstall/uninstall can delete the code database.
-  - Portable / `dotnet run` / plain publish: `ProgramDir`, keeping the folder self-contained.
+  - Installed build (`AppPaths.IsPackagedBuild`, detected via `current\sq.version` + `..\Update.exe`): `%LocalAppData%\CodePrintManagerData`, outside the install tree so no update/reinstall/uninstall can delete the code database.
+  - Development (`dotnet run` / plain `dotnet publish`): `ProgramDir`, so build output stays self-contained and disposable.
 
 **Rule:** any new writable file (exports, reports, caches, crash dumps) must be placed under `AppPaths.DataDir`, never `AppContext.BaseDirectory`. `DbInitializer` derives `backups\` from the DB path, so it follows automatically.
 

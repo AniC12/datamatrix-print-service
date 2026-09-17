@@ -8,19 +8,10 @@ For detailed information on all features, see the [Full Reference Manual](manual
 
 ## 1. Install and Launch
 
-There are two ways to install. Both are self-contained — no additional software is required.
-
-**Installer (recommended — receives automatic updates)**
-
 1. Run **CodePrintManager-win-Setup.exe**
-2. Launch the application from the Start Menu or desktop shortcut
+2. Launch **Code Print Manager** from the Start Menu
 
-The installer creates two executables. Always use the one named **CodePrintManager.exe** — it is a small launcher that always starts the current version. The `current\CodePrintManager.Desktop.exe` inside it is the real program and is replaced on every update; do not create shortcuts to it.
-
-**Portable ZIP (no updates)**
-
-1. Extract the ZIP to your computer (e.g., `C:\CodePrintManager`)
-2. Run **CodePrintManager.Desktop.exe**
+That is all. No administrator rights are needed, no additional software is required, and the application keeps itself up to date from now on.
 
 **Requirements:** Windows 10 or 11 (64-bit), 2 GB RAM, 500 MB free disk space.
 
@@ -55,7 +46,7 @@ The application connects to the printer automatically. A green status indicator 
 ```
 
 > **Tip:** To test without a real printer, start the application from the command line with:
-> `CodePrintManager.Desktop.exe --mock`
+> `CodePrintManager.exe --mock`
 
 ---
 

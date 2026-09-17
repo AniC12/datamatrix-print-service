@@ -144,14 +144,13 @@ After import, the **Code Pool** section shows the updated counts. The **Operatio
 
 ### Backing Up Your Data
 
-The application stores everything in a local database. Where it lives depends on how you installed the application:
+The application stores everything in a local database, in this folder:
 
-| Installation type | Data folder |
-| --- | --- |
-| Installed with `Setup.exe` | `%LocalAppData%\CodePrintManagerData` |
-| Portable (extracted ZIP) | The folder you extracted the application into |
+```
+%LocalAppData%\CodePrintManagerData
+```
 
-Paste `%LocalAppData%\CodePrintManagerData` into the Windows Explorer address bar to open it. The exact path is also written at the top of every log file as `DataDir`.
+Paste that path into the Windows Explorer address bar to open it. The exact location is also written at the top of every log file as `DataDir`.
 
 To back up your data, copy these three files from the data folder:
 
@@ -163,7 +162,7 @@ To restore, copy them back. Make sure the application is closed first.
 
 The data folder also holds a `backups\` subfolder — the application automatically saves a snapshot of the database each time it starts, keeping the last five.
 
-> **Note:** For installed builds the data folder is deliberately kept outside the installation directory so that application updates cannot delete your codes. This also means uninstalling the application leaves `%LocalAppData%\CodePrintManagerData` in place — delete it manually if you want to remove your data as well.
+> **Note:** The data folder is deliberately kept outside the installation directory so that application updates cannot delete your codes. This also means uninstalling the application leaves `%LocalAppData%\CodePrintManagerData` in place — delete it manually if you want to remove your data as well.
 
 ---
 
@@ -572,7 +571,7 @@ The application is designed to run on one computer that is connected to all prin
 
 Start the application from the command line with `--mock`:
 ```
-CodePrintManager.Desktop.exe --mock
+CodePrintManager.exe --mock
 ```
 This enables mock mode — you can add printers and run jobs without real hardware. The mock printers simulate printing with a configurable delay.
 
@@ -693,4 +692,4 @@ The application does not auto-resume because the printer's state is unknown. See
 
 **Where are the log files?**
 
-In the `logs\` folder inside the [data folder](#backing-up-your-data) — `%LocalAppData%\CodePrintManagerData\logs` for installed builds. Log files are organized by date. Send the latest log file when reporting issues to support.
+In `%LocalAppData%\CodePrintManagerData\logs`. Log files are organized by date. Send the latest log file when reporting issues to support.
