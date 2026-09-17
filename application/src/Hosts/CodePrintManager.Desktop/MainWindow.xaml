@@ -64,6 +64,12 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Running version, at the very bottom of the sidebar -->
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding AppVersion}"
+                           Margin="16,0,16,12" TextAlignment="Center"
+                           Foreground="{StaticResource SidebarForeground}"
+                           FontSize="11" Opacity="0.6" />
+
                 <!-- Language selector at bottom of sidebar -->
                 <ComboBox DockPanel.Dock="Bottom" Margin="16,0,16,16"
                           ItemsSource="{Binding AvailableLanguages}"

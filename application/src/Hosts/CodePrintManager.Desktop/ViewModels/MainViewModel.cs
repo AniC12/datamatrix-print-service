@@ -46,6 +46,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private LanguageOption? _selectedLanguage;
 
+    /// <summary>
+    /// Version of the running build, e.g. "v1.0.3". Shown in the sidebar so an
+    /// operator (or support) can confirm which version is actually running,
+    /// including after an automatic update.
+    /// </summary>
+    public string AppVersion { get; } =
+        "v" + (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "dev");
+
     // Update state
     private UpdateInfo? _pendingUpdate;
 
