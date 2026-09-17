@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $ver = $env:GITHUB_REF_NAME -replace '^v',''
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Publish (self-contained, no runtime needed on target)
+        shell: pwsh
+        run: >
+          dotnet publish
+          application/src/Hosts/CodePrintManager.Desktop/CodePrintManager.Desktop.csproj
+          -c Release -r win-x64 --self-contained
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      - name: Package & upload with Velopack
+        shell: pwsh
+        env:
+          RELEASES_REPO: https://github.com/AniC12/codeprintmanager-releases
+        run: |
+          dotnet tool install -g vpk --version 1.2.0
+          # Download previous release from the PUBLIC releases repo (for delta generation)
+          vpk download github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }}
+          # Package the self-contained app
+          vpk pack -u CodePrintManager -v ${{ steps.version.outputs.version }} -p publish -e CodePrintManager.Desktop.exe
+          # Upload to the PUBLIC releases repo (not the private source repo)
+          vpk upload github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }} --publish --releaseName "Code Print Manager v${{ steps.version.outputs.version }}" --tag v${{ steps.version.outputs.version }}
