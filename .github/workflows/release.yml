@@ -39,9 +39,46 @@ jobs:
           RELEASES_REPO: https://github.com/AniC12/codeprintmanager-releases
         run: |
           dotnet tool install -g vpk --version 1.2.0
-          # Download previous release from the PUBLIC releases repo (for delta generation)
           vpk download github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }}
-          # Package the self-contained app
           vpk pack -u CodePrintManager -v ${{ steps.version.outputs.version }} -p publish -e CodePrintManager.Desktop.exe
-          # Upload to the PUBLIC releases repo (not the private source repo)
           vpk upload github --repoUrl $env:RELEASES_REPO --token ${{ secrets.RELEASES_TOKEN }} --publish --releaseName "Code Print Manager v${{ steps.version.outputs.version }}" --tag v${{ steps.version.outputs.version }}
+
+      - name: Update releases repo README
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $date = Get-Date -Format "yyyy-MM-dd"
+          $readme = @"
+          # Code Print Manager
+
+          **Latest version: v${version}** (${date})
+
+          ## Download
+
+          **[Download Code Print Manager v${version} (Portable ZIP)](https://github.com/AniC12/codeprintmanager-releases/releases/latest/download/CodePrintManager-win-Portable.zip)**
+
+          Extract the ZIP and run ``CodePrintManager.Desktop.exe``. No installation required.
+
+          ## All releases
+
+          See [all releases](https://github.com/AniC12/codeprintmanager-releases/releases) for previous versions.
+          "@
+          $readme = $readme -replace '(?m)^          ', ''
+          $bytes = [System.Text.Encoding]::UTF8.GetBytes($readme)
+          $base64 = [Convert]::ToBase64String($bytes)
+
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github.v3+json" }
+          try {
+            $current = Invoke-RestMethod -Uri "https://api.github.com/repos/AniC12/codeprintmanager-releases/contents/README.md" -Headers $headers
+            $sha = $current.sha
+          } catch {
+            $sha = $null
+          }
+
+          $body = @{ message = "Update README for v${version}"; content = $base64 }
+          if ($sha) { $body.sha = $sha }
+          $json = $body | ConvertTo-Json
+
+          Invoke-RestMethod -Method Put -Uri "https://api.github.com/repos/AniC12/codeprintmanager-releases/contents/README.md" -Headers $headers -Body $json -ContentType "application/json"
